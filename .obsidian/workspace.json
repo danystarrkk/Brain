@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Ruta de Aprendizaje.md",
+                "file": "Machines/Hackmyvm/Sabulaji.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Ruta de Aprendizaje"
+              "title": "Sabulaji"
             }
           }
         ]
@@ -171,6 +171,11 @@
   },
   "active": "ce89ad3823d96ca7",
   "lastOpenFiles": [
+    "Ruta de Aprendizaje.md",
+    "Machines/Hackmyvm/Sabulaji.md",
+    "Hack4u/Linux/Bash Scripts.md",
+    "Hack4u/Python Ofensivo/Python Ofesivo.md",
+    "Machines/Hackmyvm/Birdeye.md",
     "Machines/Hackmyvm/TryHarder.md",
     "Files/Pasted image 20260202182449.png",
     "Files/Pasted image 20260202182231.png",
@@ -187,7 +192,6 @@
     "Hack4u/Python Ofensivo/Entrada y Salida de Datos.md",
     "Hack4u/Python Ofensivo/Colecciones y Estructuras de Datos en Python.md",
     "Hack4u/Python Ofensivo/Biblioteca Estándar y Herramientas Adicionales.md",
-    "Hack4u/Python Ofensivo/Python Ofesivo.md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Local File Inclusion (LFI).md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Gestión de Ahutenticación.md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Enumeración y Explotación de SQUID Proxies.md",
@@ -203,9 +207,6 @@
     "Hack4u/Introducción al Hacking/Herramientas/smbmap.md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Server-Side Template Injection (SSTI).md",
     "Machines/VulnHub/IMF 1.md",
-    "Hack4u/Python Ofensivo/Introducción a Python.md",
-    "Hack4u/Python Ofensivo/Conceptos Básicos de Python.md",
-    "Machines/GitHub (Herramientas Propias)/Brute Force (Griffin).md",
     "FrontEnd/Scss/Notas",
     "FrontEnd/Scss",
     "FrontEnd/Proyectos/Notas",
