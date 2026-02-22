@@ -167,3 +167,79 @@ ssh welcome@192.168.1.71
 
 Como observamos dentro del directorio personal de `welcome` vamos a lograr encontrar la flag de usuario.
 
+Comenzamos el reconocimiento ejecutando `sudo -l` para ver si nos permite ejecutar binarios como otro usuario o directamente como root:
+
+![[Pasted image 20260221222445.png]]
+
+El código del script es el siguiente:
+
+![[Pasted image 20260222095315.png]]
+
+En lo que nos fijamos del script son 3 puntos fundamentales:
+- Primer condiciona: observamos como filtra que la ruta que se le pase no contenga `sabulaji` esto haciendo referencia a la ruta personal del usuario (Si nos lo impide puede haber algo dentro).
+- Utiliza el comando `diff` para almacenar todo cambio entre el archivo `notes.txt` dentro del directorio personal del usuario `sabulaji` y el archivo que le indiquemos.
+- En el siguiente condicional verifica si la variable `difference` tiene contenido y esta solo tendrá contenido en caso de que se encuentren diferencias, si no tiene contenido pues cierra el script.
+
+Comprendiendo eso y debajo de lo mismo vemos que las diferencias se imprimen por consola algo interesante que se puede usar a nuestro favor, pero solo se ejecuta si no entra en ninguno de los condicionales anteriores, por eso la importancia de comprender, para así evitarlos.
+
+Veamos un poco dentro del directorio personal de `sabulaji` :
+
+![[Pasted image 20260222102806.png]]
+
+Observamos como dentro de la carpeta `/home/sabulaji` tenemos una carpeta `personal` la cual por la ruta del script sabemos que tiene `notes.txt` pero no logramos entrar ni listar dentro de la misma por sus permisos.
+
+Si verificamos nuestro usuario actual mediante `id` y `groups` para obtener mas información veremos lo siguiente:
+![[Pasted image 20260222103010.png]]
+
+Pertenecemos al grupo `mlocate`, al pertenecer a este grupo se nos permite acceder a la base de datos que el comando `locate` consulta y que contiene indexadas todas las rutas del sistema siempre y cuando `root` lo aya actualizado. De este concepto es del cual vamos a intentar aprovecharnos para encontrar cualquier cosa en el sistema.
+
+Primero identificamos la base de datos mediante el comando:
+
+```bash
+locate --help
+```
+
+![[Pasted image 20260222111027.png]]
+
+Vemos como nos da un parámetro para la base de datos y ademas nos indica la ruta usual que seria `/var/lib/mlocate/mlocate.db`.
+
+Con la ruta de la base de datos podemos mediante `strings` listar toda cadena legible de la misma y ver si encontramos algo:
+```bash
+strings /var/lib/mlocate/mlocate.db | grep -A 5 "/home"
+```
+
+![[Pasted image 20260222123916.png]]
+
+Vemos una lista grande aun de archivos pero entre ellos encontramos las `flags`, el a archivo `notes.txt` y el archivo `creds.txt` y aquí entra un concepto clave cuando el usuario `root` hace un `updatedb` y se actualiza esta base de datos lo hace de manera recursiva desde la raíz. En este proceso los archivos quedan descritos en secuencia y buscando de la forma correcta podemos ver que nos lista con detalle dentro de que directorios podríamos encontrar algunos archivos. En este caso vemos que dentro de `/home/sabulaji/personal/` se listan `creds.txt` y `notes.txt`.
+
+Pensando un poco podemos deducir que el script `/opt/sync.sh` puede comparar con el contenido de `notes.txt` que esta en un directorio al cual no podemos acceder, también debe poder con el contenido de `creds.txt` ademas como lista las diferencias deberíamos poder ver el contenido de `creds.txt` ahora tomemos en cuenta los bloques que analizamos y para que esto funcione tenemos que evitar el `if` que filtra por `sabulaji` por lo que tenemos que estar dentro de dicha carpeta para no pasarlo de forma absoluta sino a partir del directorio actual de la siguiente manera:
+
+```bash
+sudo -u sabulaji /opt/sync.sh personal/creds.txt
+```
+
+![[Pasted image 20260222124835.png]]
+
+Tenemos las posibles credenciales de `sabulaji`, vamos a intentar ingresar:
+
+![[Pasted image 20260222124947.png]]
+
+Vamos a volver a realizar reconocimiento con `sudo -l` :
+
+![[Pasted image 20260222125122.png]]
+
+Como observamos tenemos la posibilidad de ejecutar `rsync` como usuario `root`. Busquemos si este comando al tener privilegios de sudo podemos escalar privilegios, en este caso a mi me gusta verificarlo primero en [gtfobins](https://gtfobins.org/gtfobins/rsync/#shell) y al parecer si tenemos forma:
+
+![[Pasted image 20260222125336.png]]
+
+Lo intentamos y logramos ingresar como usuario `root`:
+
+![[Pasted image 20260222125432.png]]
+
+Ya podemos ver la Flag:
+
+![[Pasted image 20260222125459.png]]
+
+Con esto Terminamos la máquina.
+
+![[Pasted image 20260222131524.png]]

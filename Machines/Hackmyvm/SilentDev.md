@@ -26,7 +26,7 @@ Como podemos observar tenemos un `ttl=64` donde intuimos un sistema operativo Li
 En este momento ya vamos a realizar un escaneo con [[Nmap]] con el objetivo de identificar puertos abiertos primero:
 ```bash
 nmap -p- --open -sS --min-rate 5000 -n -v -Pn 192.168.1.70 -oG allPorts
-```
+https://gtfobins.org/gtfobins/rsync/#shell```
 
 ![[Pasted image 20251026184836.png]]
 
