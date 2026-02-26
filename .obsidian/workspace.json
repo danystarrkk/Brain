@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Hack4u/Introducción al Hacking/OWASP TOP 10/Habilidades Esenciales.md",
+                "file": "Hack4u/Introducción al Hacking/OWASP TOP 10/Prototype Pollution.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Habilidades Esenciales"
+              "title": "Prototype Pollution"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "JWT",
+                "query": "DOM XSS",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -171,19 +171,23 @@
   },
   "active": "e97739833eab9a27",
   "lastOpenFiles": [
-    "Files/Pasted image 20260223220957.png",
-    "Files/Pasted image 20260223220924.png",
-    "Files/Pasted image 20260223220852.png",
-    "Files/Pasted image 20260223220713.png",
-    "Files/Pasted image 20260223220356.png",
-    "Files/Pasted image 20260223220137.png",
-    "Files/Pasted image 20260223215904.png",
-    "Files/Pasted image 20260223215741.png",
-    "Files/Pasted image 20260223215222.png",
-    "Files/Pasted image 20260223215209.png",
-    "Files/Pasted image 20260223214732.png",
-    "Hack4u/Introducción al Hacking/OWASP TOP 10/Enumeración y explotación de Json Web Tokens (JWT).md",
+    "Files/Pasted image 20260226002513.png",
+    "Files/Pasted image 20260226002451.png",
+    "Files/Pasted image 20260226002420.png",
+    "Files/Pasted image 20260226002255.png",
+    "Files/Pasted image 20260226001338.png",
+    "Files/Pasted image 20260226001204.png",
+    "Files/Pasted image 20260226001011.png",
+    "Files/Pasted image 20260226000931.png",
+    "Files/Pasted image 20260226000349.png",
+    "Files/Pasted image 20260226000332.png",
+    "Files/Pasted image 20260226000111.png",
+    "Hack4u/Python Ofensivo/Biblioteca Estándar y Herramientas Adicionales.md",
+    "Hack4u/Introducción al Hacking/OWASP TOP 10/Prototype Pollution.md",
+    "Hack4u/Introducción al Hacking/OWASP TOP 10/Cross-Site Scripting XSS.md",
+    "Hack4u/Introducción al Hacking/OWASP TOP 10/Ataque de Type Juggling.md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Habilidades Esenciales.md",
+    "Hack4u/Introducción al Hacking/OWASP TOP 10/Enumeración y explotación de Json Web Tokens (JWT).md",
     "Machines/Hackmyvm/Sabulaji.md",
     "Ruta de Aprendizaje.md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Abuso de subida de archivos.md",
@@ -203,10 +207,6 @@
     "Hack4u/Introducción al Hacking/OWASP TOP 10/Server-Side Request Forgery (SSRF).md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/XML External Entity Injection (XXE).md",
     "Hack4u/Introducción al Hacking/OWASP TOP 10/CORs.md",
-    "Hack4u/Introducción al Hacking/OWASP TOP 10/Cross-Site Scripting XSS.md",
-    "Hack4u/Introducción al Hacking/OWASP TOP 10/Clickjacking.md",
-    "Hack4u/Introducción al Hacking/OWASP TOP 10/Remote file Inclusion (RFI).md",
-    "Hack4u/Introducción al Hacking/OWASP TOP 10/Prototype Pollution.md",
     "FrontEnd/Scss/Notas",
     "FrontEnd/Scss",
     "FrontEnd/Proyectos/Notas",
