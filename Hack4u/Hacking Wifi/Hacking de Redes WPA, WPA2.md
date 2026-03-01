@@ -76,7 +76,7 @@ airmon-ng stop wlan0
 
 ya con este comando hecho algo muy importante a hacer para que nosotros podamos usar la red de manera correcta es ejecutar el siguiente comando:
 
- ```bash
+```bash
  service networking restart
 ```
 

@@ -9,3 +9,21 @@ Las Inyecciones CSS (CSSI) pueden ser utilizadas por los atacantes como un vecto
 Si el código CSS inyectado es lo “suficientemente complejo”, puede hacer que el navegador web interprete el código como si fuera código JavaScript. Esto significa que el código CSS malicioso puede ser utilizado para inyectar código JavaScript en la página web, lo que se conoce como una inyección de JavaScript inducida por CSS (CSS-Induced JavaScript Injection).
 
 Una vez que el código JavaScript ha sido inyectado en la página, este puede ser utilizado por el atacante para realizar un ataque de Cross-Site Scripting (XSS). Una vez en este punto, el atacante podría ser capaz de inyectar un script malicioso que robe las credenciales del usuario o que los redirija a una página web falsa, entre otros muchos posibles vectores.
+
+## Notas practica
+
+![[Pasted image 20260227172723.png]]
+
+tenemos esta web, donde si ponemos el color nos lo representa:
+
+![[Pasted image 20260227172746.png]]
+
+si revisamos el código fuente:
+
+![[Pasted image 20260227172824.png]]
+
+nosotros controlamos el como funciona el estilo, podemos derivar esto a un [[Cross-Site Scripting XSS]] de la siguiente manera:
+
+![[Pasted image 20260227172928.png]]
+
+![[Pasted image 20260227172933.png]]

