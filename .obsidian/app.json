@@ -1,11 +1,5 @@
 {
-  "readableLineLength": false,
-  "attachmentFolderPath": "Files",
-  "pdfExportSettings": {
-    "includeName": true,
-    "pageSize": "Letter",
-    "landscape": false,
-    "margin": "1",
-    "downscalePercent": 100
-  }
+  "readableLineLength": true,
+  "livePreview": true,
+  "attachmentFolderPath": "99 - Plantillas y Recursos/Capturas"
 }
