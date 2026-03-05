@@ -2,7 +2,7 @@
 
 **IP:** 192.168.1.74
 **SO:** Linux Ubuntu
-**Vulns:** [[Ataque de Type Juggling]], [[SQLI]], [[Abuso de subida de archivos]]
+**Vulns:** [[Temporal/Ataque de Type Juggling]], [[SQLI]], [[Abuso de subida de archivos]]
 
 ------------------------------------------
 
@@ -71,7 +71,7 @@ como vemos en la imagen capturamos la petición y la enviamos al repeater para a
 
 ![[Pasted image 20250827211709.png]]
 
-podemos observar que hicimos uso de los datos encontrados antes y estos nos permitieron empleando un [[Ataque de Type Juggling]] para hacer bypass al login, esto podemos llevarlo a la web para poder verlo mejor.
+podemos observar que hicimos uso de los datos encontrados antes y estos nos permitieron empleando un [[Temporal/Ataque de Type Juggling]] para hacer bypass al login, esto podemos llevarlo a la web para poder verlo mejor.
 ![[Pasted image 20250827212015.png]]
 
 podemos observar una nueva flag la cual contiene algo en base64 por lo que vamos a intentar ver su contenido:

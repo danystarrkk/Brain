@@ -1,5 +1,6 @@
 {
   "readableLineLength": true,
   "livePreview": true,
-  "attachmentFolderPath": "99 - Plantillas y Recursos/Capturas"
+  "attachmentFolderPath": "99 - Plantillas y Recursos/Capturas",
+  "alwaysUpdateLinks": true
 }

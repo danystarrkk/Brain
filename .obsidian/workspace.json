@@ -4,24 +4,95 @@
     "type": "split",
     "children": [
       {
-        "id": "473d9dc0dc581d9e",
+        "id": "26b2d896809e1dc7",
         "type": "tabs",
         "children": [
           {
-            "id": "18bba93f0a77594b",
+            "id": "4e1a911d9e2a868d",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Temporal/HTTP Host header attacks.md",
+                "file": "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "HTTP Host header attacks"
+              "title": "GraphQL Introspección y Mutaciones en Ataques IDOR"
+            }
+          },
+          {
+            "id": "865ea4345cce4e56",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Enumeración y Explotación de SQUID Proxies"
+            }
+          },
+          {
+            "id": "87e33d2e65fee1e0",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Ataque de Truncado SQL"
+            }
+          },
+          {
+            "id": "9517c039a38714c7",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Condiciones de Carrera"
+            }
+          },
+          {
+            "id": "5c62597fc779754a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Inyecciones LaTeX"
+            }
+          },
+          {
+            "id": "ddd3565083a56129",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "03 - Ciberseguridad y Pentesting/Web/XPath y sus Vulnerabilidades.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "XPath y sus Vulnerabilidades"
             }
           }
-        ]
+        ],
+        "currentTab": 3
       }
     ],
     "direction": "vertical"
@@ -54,7 +125,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "tag:#herramientas",
+                "query": "tag:#hacking/web",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -96,7 +167,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 356.5
+    "width": 321.5
   },
   "right": {
     "id": "434eb642b6660f8f",
@@ -105,7 +176,7 @@
       {
         "id": "78b102046a200c19",
         "type": "tabs",
-        "dimension": 65.11627906976744,
+        "dimension": 46.103896103896105,
         "children": [
           {
             "id": "7ef654c61c967d7b",
@@ -194,12 +265,29 @@
             }
           }
         ],
-        "currentTab": 5
+        "currentTab": 2
+      },
+      {
+        "id": "9297d9cbd2052bc7",
+        "type": "tabs",
+        "dimension": 21.243042671614102,
+        "children": [
+          {
+            "id": "b11cf2242b8b5d0a",
+            "type": "leaf",
+            "state": {
+              "type": "online.tokuhirom.obsidian-pomodoro-plugin",
+              "state": {},
+              "icon": "clock",
+              "title": "Pomodoro timer"
+            }
+          }
+        ]
       },
       {
         "id": "991f4365db77300b",
         "type": "tabs",
-        "dimension": 34.883720930232556,
+        "dimension": 32.6530612244898,
         "children": [
           {
             "id": "d224a504b3f618bd",
@@ -226,50 +314,51 @@
       "templates:Insertar plantilla": false,
       "command-palette:Abrir paleta de comandos": false,
       "bases:Crear nueva base": false,
-      "broken-links:View broken links": false
+      "broken-links:View broken links": false,
+      "oz-clear-unused-images:Clear Unused Images": false
     }
   },
-  "active": "1eb7a0804143af58",
+  "active": "9517c039a38714c7",
   "lastOpenFiles": [
-    "Temporal/HTTP Host header attacks.md",
-    "Temporal/Enumeración y Explotación de SQUID Proxies.md",
-    "Temporal/Cross-Site Scripting XSS.md",
-    "Temporal/Ataque de Type Juggling.md",
-    "Temporal.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250906220842.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250914204401.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250907221311.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250909211351.png",
-    "99 - Plantillas y Recursos/Capturas/{E35009C2-54C0-4EE7-AD55-08752727372A}.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250906210917.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250906190241.png",
-    "99 - Plantillas y Recursos/Capturas/{061C43CE-4EA2-464B-96B5-46BB4E9968E1}.png",
-    "99 - Plantillas y Recursos/Capturas/{E37FDAF8-3F97-4307-9DD0-6C797A2DA7B0}.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20250907124158.png",
-    "Temporal",
-    "Sin título.md",
-    "03 - Ciberseguridad y Pentesting/Web/Vulnerabilidades de HTTP Request Smuggling.md",
-    "03 - Ciberseguridad y Pentesting/Web/Labs - Control de Acceso.md",
-    "03 - Ciberseguridad y Pentesting/Web/Laboratorios de Vulnerabilidades Lógicas y de Autenticación.md",
-    "03 - Ciberseguridad y Pentesting/Web/Gestión de Ahutenticación.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
+    "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
+    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
+    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
+    "03 - Ciberseguridad y Pentesting/Web/XPath y sus Vulnerabilidades.md",
+    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
     "03 - Ciberseguridad y Pentesting/Web/Abuso de Subida de Archivos.md",
-    "06 - Laboratorios y CTFs/HackmyVM/TryHarder.md",
-    "02 - Desarrollo Web y Programación/Scss/Sintaxis de Sass.md",
-    "06 - Laboratorios y CTFs/VulnHub/Symfonos 6.md",
-    "06 - Laboratorios y CTFs/VulnHub/Presidential 1.md",
-    "06 - Laboratorios y CTFs/VulnHub/MyExpense.md",
-    "06 - Laboratorios y CTFs/VulnHub/Infovore1.md",
-    "06 - Laboratorios y CTFs/VulnHub/IMF 1.md",
-    "06 - Laboratorios y CTFs/HackmyVM/SilentDev.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Sabulaji.md",
-    "06 - Laboratorios y CTFs/HackmyVM/RealSaga.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Espo.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Birdeye.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Asignación Masiva.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Pickle.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Yaml.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Oráculo de Relleno.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Type Juggling.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataques de Deserialización.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataques de Transferencia de Zona DNS (AXFR).md",
+    "03 - Ciberseguridad y Pentesting/Web/Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar.md",
+    "03 - Ciberseguridad y Pentesting/Web/Clickjacking Ataques.md",
+    "03 - Ciberseguridad y Pentesting/Web/Client-Side Template Injection (CSTI).md",
+    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Request Forgery (CSRF).md",
+    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Scripting XSS.md",
+    "03 - Ciberseguridad y Pentesting/Web/Envenenamiento de Caché Web.md",
+    "03 - Ciberseguridad y Pentesting/Web/Gestión de Ahutenticación.md",
+    "03 - Ciberseguridad y Pentesting/Web/HTTP Host header attacks.md",
+    "03 - Ciberseguridad y Pentesting/Web/Information disclosure.md",
+    "03 - Ciberseguridad y Pentesting/Web/Insecure Direct Object References IDOR.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304173633.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304173434.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172943.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172826.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172706.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172611.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172556.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172529.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172441.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172249.png",
+    "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
-    "02 - Desarrollo Web y Programación/Scss/Qué es Sass.md",
-    "02 - Desarrollo Web y Programación/Scss/Separar Sass en Archivos.md",
-    "02 - Desarrollo Web y Programación/Scss/Mixins.md",
     "02 - Desarrollo Web y Programación/Scss",
     "02 - Desarrollo Web y Programación/Java Script",
     "02 - Desarrollo Web y Programación/Html",
