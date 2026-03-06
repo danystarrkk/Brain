@@ -91,8 +91,7 @@
               "title": "XPath y sus Vulnerabilidades"
             }
           }
-        ],
-        "currentTab": 3
+        ]
       }
     ],
     "direction": "vertical"
@@ -125,7 +124,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "tag:#hacking/web",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -176,7 +175,7 @@
       {
         "id": "78b102046a200c19",
         "type": "tabs",
-        "dimension": 46.103896103896105,
+        "dimension": 66.69829222011386,
         "children": [
           {
             "id": "7ef654c61c967d7b",
@@ -260,20 +259,12 @@
             "state": {
               "type": "broken-links-view",
               "state": {},
-              "icon": "unlink",
-              "title": "Broken links"
+              "icon": "lucide-ghost",
+              "title": "broken-links-view"
             }
-          }
-        ],
-        "currentTab": 2
-      },
-      {
-        "id": "9297d9cbd2052bc7",
-        "type": "tabs",
-        "dimension": 21.243042671614102,
-        "children": [
+          },
           {
-            "id": "b11cf2242b8b5d0a",
+            "id": "446c1f6a76132fdd",
             "type": "leaf",
             "state": {
               "type": "online.tokuhirom.obsidian-pomodoro-plugin",
@@ -282,12 +273,13 @@
               "title": "Pomodoro timer"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       },
       {
         "id": "991f4365db77300b",
         "type": "tabs",
-        "dimension": 32.6530612244898,
+        "dimension": 33.301707779886144,
         "children": [
           {
             "id": "d224a504b3f618bd",
@@ -318,14 +310,26 @@
       "oz-clear-unused-images:Clear Unused Images": false
     }
   },
-  "active": "9517c039a38714c7",
+  "active": "4e1a911d9e2a868d",
   "lastOpenFiles": [
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306110245.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306110203.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306105200.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306105021.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306104819.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306103837.png",
     "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
+    "03 - Ciberseguridad y Pentesting/Web/Insecure Direct Object References IDOR.md",
     "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
-    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306102024.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306102003.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306101947.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306101718.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306101533.png",
     "03 - Ciberseguridad y Pentesting/Web/XPath y sus Vulnerabilidades.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
+    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
     "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
     "03 - Ciberseguridad y Pentesting/Web/Abuso de Subida de Archivos.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataque de Asignación Masiva.md",
@@ -344,18 +348,6 @@
     "03 - Ciberseguridad y Pentesting/Web/Gestión de Ahutenticación.md",
     "03 - Ciberseguridad y Pentesting/Web/HTTP Host header attacks.md",
     "03 - Ciberseguridad y Pentesting/Web/Information disclosure.md",
-    "03 - Ciberseguridad y Pentesting/Web/Insecure Direct Object References IDOR.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304173633.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304173434.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172943.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172826.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172706.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172611.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172556.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172529.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172441.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260304172249.png",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
