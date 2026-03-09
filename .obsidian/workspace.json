@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "26b2d896809e1dc7",
+        "id": "cd1e2790c7e28a41",
         "type": "tabs",
         "children": [
           {
-            "id": "4e1a911d9e2a868d",
+            "id": "d817383887a94240",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -19,76 +19,6 @@
               },
               "icon": "lucide-file",
               "title": "GraphQL Introspección y Mutaciones en Ataques IDOR"
-            }
-          },
-          {
-            "id": "865ea4345cce4e56",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Enumeración y Explotación de SQUID Proxies"
-            }
-          },
-          {
-            "id": "87e33d2e65fee1e0",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Ataque de Truncado SQL"
-            }
-          },
-          {
-            "id": "9517c039a38714c7",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Condiciones de Carrera"
-            }
-          },
-          {
-            "id": "5c62597fc779754a",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Inyecciones LaTeX"
-            }
-          },
-          {
-            "id": "ddd3565083a56129",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/XPath y sus Vulnerabilidades.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "XPath y sus Vulnerabilidades"
             }
           }
         ]
@@ -124,7 +54,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "tag:#hacking/web",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -145,7 +75,8 @@
               "title": "Marcadores"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       },
       {
         "id": "f603991eb3cbfb6b",
@@ -269,6 +200,16 @@
             "state": {
               "type": "online.tokuhirom.obsidian-pomodoro-plugin",
               "state": {},
+              "icon": "lucide-ghost",
+              "title": "online.tokuhirom.obsidian-pomodoro-plugin"
+            }
+          },
+          {
+            "id": "896cdb4f3d31d325",
+            "type": "leaf",
+            "state": {
+              "type": "online.tokuhirom.obsidian-pomodoro-plugin",
+              "state": {},
               "icon": "clock",
               "title": "Pomodoro timer"
             }
@@ -310,44 +251,44 @@
       "oz-clear-unused-images:Clear Unused Images": false
     }
   },
-  "active": "4e1a911d9e2a868d",
+  "active": "d817383887a94240",
   "lastOpenFiles": [
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306110245.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306110203.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306105200.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306105021.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306104819.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306103837.png",
-    "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
-    "03 - Ciberseguridad y Pentesting/Web/Insecure Direct Object References IDOR.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309113310.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309113245.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309113126.png",
+    "99 - Plantillas y Recursos/Capturas/{F60B422C-809E-4918-ABF4-2E67CB2C877A}.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309112612.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309112101.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309111714.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309111502.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309111013.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309110918.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309110827.png",
     "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306102024.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306102003.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306101947.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306101718.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260306101533.png",
+    "03 - Ciberseguridad y Pentesting/Reconocimiento/Reconocimiento y Escaneo de Redes y Web.md",
+    "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
+    "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
+    "02 - Desarrollo Web y Programación/Python/Proyectos de Programación Orientada a Objetos en Python.md",
+    "02 - Desarrollo Web y Programación/Python/Organización, Importación y Distribución de Módulos y Paquetes en Python.md",
+    "02 - Desarrollo Web y Programación/Python/Manejo de Bibliotecas en Python.md",
+    "02 - Desarrollo Web y Programación/Css/Pseudo Código.md",
+    "02 - Desarrollo Web y Programación/Java Script/Objetos.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Python Library Hijacking.md",
+    "02 - Desarrollo Web y Programación/Python/Librerías Python para Scripting y Redes.md",
+    "03 - Ciberseguridad y Pentesting/Explotación/Introducción a la Explotación de Vulnerabilidades.md",
+    "05 - Herramientas/Editores/Vim Comandos Esenciales.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
+    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
     "03 - Ciberseguridad y Pentesting/Web/XPath y sus Vulnerabilidades.md",
     "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
-    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
+    "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
+    "03 - Ciberseguridad y Pentesting/Web/Insecure Direct Object References IDOR.md",
     "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
     "03 - Ciberseguridad y Pentesting/Web/Abuso de Subida de Archivos.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataque de Asignación Masiva.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Pickle.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Yaml.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Oráculo de Relleno.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Type Juggling.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataques de Deserialización.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataques de Transferencia de Zona DNS (AXFR).md",
-    "03 - Ciberseguridad y Pentesting/Web/Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar.md",
-    "03 - Ciberseguridad y Pentesting/Web/Clickjacking Ataques.md",
-    "03 - Ciberseguridad y Pentesting/Web/Client-Side Template Injection (CSTI).md",
-    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Request Forgery (CSRF).md",
-    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Scripting XSS.md",
-    "03 - Ciberseguridad y Pentesting/Web/Envenenamiento de Caché Web.md",
-    "03 - Ciberseguridad y Pentesting/Web/Gestión de Ahutenticación.md",
-    "03 - Ciberseguridad y Pentesting/Web/HTTP Host header attacks.md",
-    "03 - Ciberseguridad y Pentesting/Web/Information disclosure.md",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
