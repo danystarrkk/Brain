@@ -54,7 +54,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "tag:#hacking/web",
+                "query": "tag:#linux/comandos",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -75,8 +75,7 @@
               "title": "Marcadores"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       },
       {
         "id": "f603991eb3cbfb6b",
@@ -97,7 +96,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 321.5
+    "width": 374.5
   },
   "right": {
     "id": "434eb642b6660f8f",
@@ -190,28 +189,8 @@
             "state": {
               "type": "broken-links-view",
               "state": {},
-              "icon": "lucide-ghost",
-              "title": "broken-links-view"
-            }
-          },
-          {
-            "id": "446c1f6a76132fdd",
-            "type": "leaf",
-            "state": {
-              "type": "online.tokuhirom.obsidian-pomodoro-plugin",
-              "state": {},
-              "icon": "lucide-ghost",
-              "title": "online.tokuhirom.obsidian-pomodoro-plugin"
-            }
-          },
-          {
-            "id": "896cdb4f3d31d325",
-            "type": "leaf",
-            "state": {
-              "type": "online.tokuhirom.obsidian-pomodoro-plugin",
-              "state": {},
-              "icon": "clock",
-              "title": "Pomodoro timer"
+              "icon": "unlink",
+              "title": "Broken links"
             }
           }
         ],
@@ -253,18 +232,28 @@
   },
   "active": "d817383887a94240",
   "lastOpenFiles": [
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309113310.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309113245.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309113126.png",
-    "99 - Plantillas y Recursos/Capturas/{F60B422C-809E-4918-ABF4-2E67CB2C877A}.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309112612.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309112101.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309111714.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309111502.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309111013.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309110918.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260309110827.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310160437.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310160419.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310160110.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310160035.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310155845.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310140133.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310140125.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310140053.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310140018.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310135920.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260310133606.png",
     "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Búsquedas a nivel de sistema.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Comandos Básicos de Sistema y Red en Linux.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Comandos, Rutas y Operadores de Linux.md",
+    "04 - Sistemas, Redes y Entornos/Redes/Conceptos Fundamentales de Redes.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Cron Jobs y Programación de Tareas.md",
+    "02 - Desarrollo Web y Programación/Docker/Gestión de Contenedores con Docker y Docker Compose.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Estructura de Directorios de Linux.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Lectura de Permisos.md",
+    "04 - Sistemas, Redes y Entornos/Redes/Tipos de Interfaces de Red.md",
+    "04 - Sistemas, Redes y Entornos/Redes/Tipos de IP y Dirección MAC.md",
     "03 - Ciberseguridad y Pentesting/Reconocimiento/Reconocimiento y Escaneo de Redes y Web.md",
     "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
     "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
@@ -279,16 +268,6 @@
     "03 - Ciberseguridad y Pentesting/Explotación/Introducción a la Explotación de Vulnerabilidades.md",
     "05 - Herramientas/Editores/Vim Comandos Esenciales.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataque de Truncado SQL.md",
-    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
-    "03 - Ciberseguridad y Pentesting/Web/XPath y sus Vulnerabilidades.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LaTeX.md",
-    "03 - Ciberseguridad y Pentesting/Web/Enumeración y Explotación de SQUID Proxies.md",
-    "03 - Ciberseguridad y Pentesting/Web/Insecure Direct Object References IDOR.md",
-    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
-    "03 - Ciberseguridad y Pentesting/Web/Abuso de Subida de Archivos.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Asignación Masiva.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Pickle.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Yaml.md",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
