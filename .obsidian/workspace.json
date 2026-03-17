@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Explotación de LLM.md",
+                "file": "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Explotación de LLM"
+              "title": "Web cache deception"
             }
           }
         ]
@@ -189,8 +189,8 @@
             "state": {
               "type": "broken-links-view",
               "state": {},
-              "icon": "unlink",
-              "title": "Broken links"
+              "icon": "lucide-ghost",
+              "title": "broken-links-view"
             }
           }
         ],
@@ -232,19 +232,23 @@
   },
   "active": "3124a35abb80d8fc",
   "lastOpenFiles": [
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316202455.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316202438.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316201759.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316201710.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316201234.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316201023.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316200909.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316200210.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316200037.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316195819.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260316195657.png",
-    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317130035.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317130012.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125940.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125653.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125609.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125521.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125447.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125119.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317124939.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317123219.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317122537.png",
+    "05 - Herramientas/Hacking/Arp Scan Herramienta de Descubrimiento.md",
+    "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Yaml.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataques de Transferencia de Zona DNS (AXFR).md",
     "03 - Ciberseguridad y Pentesting/Web/Explotación de LLM.md",
+    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
     "03 - Ciberseguridad y Pentesting/Web/Inyección NoSQL.md",
     "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
     "03 - Ciberseguridad y Pentesting/Web/Vulnerabilidades CORS y Laboratorios.md",
@@ -264,10 +268,6 @@
     "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
     "02 - Desarrollo Web y Programación/Python/Proyectos de Programación Orientada a Objetos en Python.md",
     "02 - Desarrollo Web y Programación/Python/Organización, Importación y Distribución de Módulos y Paquetes en Python.md",
-    "02 - Desarrollo Web y Programación/Python/Manejo de Bibliotecas en Python.md",
-    "02 - Desarrollo Web y Programación/Css/Pseudo Código.md",
-    "02 - Desarrollo Web y Programación/Java Script/Objetos.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
