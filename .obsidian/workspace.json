@@ -4,21 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "aa3cbf787c155720",
+        "id": "ffc0cc03a63f29f5",
         "type": "tabs",
         "children": [
           {
-            "id": "3124a35abb80d8fc",
+            "id": "8e55ad27f96b913b",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "Web cache deception"
+              "title": "Nueva pestaña"
             }
           }
         ]
@@ -230,21 +226,25 @@
       "oz-clear-unused-images:Clear Unused Images": false
     }
   },
-  "active": "3124a35abb80d8fc",
+  "active": "bbf46881b2afb8d9",
   "lastOpenFiles": [
+    "02 - Desarrollo Web y Programación/ReactJS/Esenciales2.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260322094521.png",
+    "02 - Desarrollo Web y Programación/ReactJS/Esenciales.md",
+    "02 - Desarrollo Web y Programación/ReactJS/Vite.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321225357.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321225239.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321224941.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321224815.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321223709.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321214121.png",
+    "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
+    "02 - Desarrollo Web y Programación/ReactJS",
+    "02 - Desarrollo Web y Programación/Sin título.md",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260317130035.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260317130012.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125940.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125653.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125609.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125521.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125447.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125119.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317124939.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317123219.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317122537.png",
     "05 - Herramientas/Hacking/Arp Scan Herramienta de Descubrimiento.md",
-    "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Yaml.md",
     "03 - Ciberseguridad y Pentesting/Web/Ataques de Transferencia de Zona DNS (AXFR).md",
     "03 - Ciberseguridad y Pentesting/Web/Explotación de LLM.md",
@@ -264,10 +264,6 @@
     "04 - Sistemas, Redes y Entornos/Redes/Tipos de Interfaces de Red.md",
     "04 - Sistemas, Redes y Entornos/Redes/Tipos de IP y Dirección MAC.md",
     "03 - Ciberseguridad y Pentesting/Reconocimiento/Reconocimiento y Escaneo de Redes y Web.md",
-    "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
-    "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
-    "02 - Desarrollo Web y Programación/Python/Proyectos de Programación Orientada a Objetos en Python.md",
-    "02 - Desarrollo Web y Programación/Python/Organización, Importación y Distribución de Módulos y Paquetes en Python.md",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
@@ -276,7 +272,6 @@
     "02 - Desarrollo Web y Programación/Html",
     "02 - Desarrollo Web y Programación/Css",
     "02 - Desarrollo Web y Programación/Gulp",
-    "02 - Desarrollo Web y Programación/GitHub",
-    "03 - Ciberseguridad y Pentesting/Web"
+    "02 - Desarrollo Web y Programación/GitHub"
   ]
 }
