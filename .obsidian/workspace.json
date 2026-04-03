@@ -8,13 +8,17 @@
         "type": "tabs",
         "children": [
           {
-            "id": "8e55ad27f96b913b",
+            "id": "0e2c9f730fdb29c8",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Gitdwn.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "Nueva pestaña"
+              "title": "Gitdwn"
             }
           }
         ]
@@ -50,7 +54,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "api",
+                "query": "tag:#hacking/web",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -71,7 +75,8 @@
               "title": "Marcadores"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       },
       {
         "id": "f603991eb3cbfb6b",
@@ -109,7 +114,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Gitdwn.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -119,7 +124,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Enlaces entrantes de Condiciones de Carrera"
+              "title": "Enlaces entrantes de Gitdwn"
             }
           },
           {
@@ -128,11 +133,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Gitdwn.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Enlaces salientes"
+              "title": "Enlaces salientes de Gitdwn"
             }
           },
           {
@@ -226,44 +232,44 @@
       "oz-clear-unused-images:Clear Unused Images": false
     }
   },
-  "active": "bbf46881b2afb8d9",
+  "active": "0e2c9f730fdb29c8",
   "lastOpenFiles": [
+    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Gitdwn.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211635.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211214.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211140.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211038.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210749.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210552.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210454.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210309.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210145.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210021.png",
+    "03 - Ciberseguridad y Pentesting/Web/XML External Entity Injection.md",
+    "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
+    "02 - Desarrollo Web y Programación/Python/Librerías Python para Scripting y Redes.md",
+    "02 - Desarrollo Web y Programación/Python/Manejo de Bibliotecas en Python.md",
+    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Scripting XSS.md",
+    "03 - Ciberseguridad y Pentesting/Web/Local File Inclusion.md",
+    "03 - Ciberseguridad y Pentesting/Explotación/Introducción a la Explotación de Vulnerabilidades.md",
+    "03 - Ciberseguridad y Pentesting/Web/Information disclosure.md",
+    "02 - Desarrollo Web y Programación/Docker/Gestión de Contenedores con Docker y Docker Compose.md",
+    "03 - Ciberseguridad y Pentesting/Web/Gestión de Ahutenticación.md",
+    "03 - Ciberseguridad y Pentesting/Web/Envenenamiento de Caché Web.md",
+    "03 - Ciberseguridad y Pentesting/Web/WebSocket Vulnerabilities and Burp Suite Labs.md",
+    "05 - Herramientas/Hacking/THC Hydra.md",
+    "04 - Sistemas, Redes y Entornos/Redes/Conceptos Fundamentales de Redes.md",
+    "06 - Laboratorios y CTFs/OverTheWire/Bandit Passwords.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Type Juggling.md",
+    "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
     "02 - Desarrollo Web y Programación/ReactJS/Esenciales2.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260322094521.png",
     "02 - Desarrollo Web y Programación/ReactJS/Esenciales.md",
     "02 - Desarrollo Web y Programación/ReactJS/Vite.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321225357.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321225239.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321224941.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321224815.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321223709.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260321214121.png",
     "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
     "02 - Desarrollo Web y Programación/ReactJS",
     "02 - Desarrollo Web y Programación/Sin título.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317130035.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317130012.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260317125940.png",
-    "05 - Herramientas/Hacking/Arp Scan Herramienta de Descubrimiento.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Deserialización Yaml.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataques de Transferencia de Zona DNS (AXFR).md",
-    "03 - Ciberseguridad y Pentesting/Web/Explotación de LLM.md",
-    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyección NoSQL.md",
-    "03 - Ciberseguridad y Pentesting/Web/Condiciones de Carrera.md",
-    "03 - Ciberseguridad y Pentesting/Web/Vulnerabilidades CORS y Laboratorios.md",
-    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Búsquedas a nivel de sistema.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Comandos Básicos de Sistema y Red en Linux.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Comandos, Rutas y Operadores de Linux.md",
-    "04 - Sistemas, Redes y Entornos/Redes/Conceptos Fundamentales de Redes.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Cron Jobs y Programación de Tareas.md",
-    "02 - Desarrollo Web y Programación/Docker/Gestión de Contenedores con Docker y Docker Compose.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Estructura de Directorios de Linux.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Lectura de Permisos.md",
-    "04 - Sistemas, Redes y Entornos/Redes/Tipos de Interfaces de Red.md",
-    "04 - Sistemas, Redes y Entornos/Redes/Tipos de IP y Dirección MAC.md",
-    "03 - Ciberseguridad y Pentesting/Reconocimiento/Reconocimiento y Escaneo de Redes y Web.md",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
     "06 - Laboratorios y CTFs/HackmyVM",
