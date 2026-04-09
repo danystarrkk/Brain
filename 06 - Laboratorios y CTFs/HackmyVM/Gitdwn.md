@@ -539,5 +539,48 @@ Ya nos encontramos como root y tenemos la última flag:
 
 Laboratorio Terminado.
 
-## Mitigaciones
+# Mitigaciones
 
+Al terminar con la enumeración y explotación de la máquina Gitdown, se proponen las siguientes mitigaciones para fortalecer y mantener la seguridad:
+
+## Client-Side Encryption
+
+La aplicación intenta asegurar las credenciales implementando una encriptación híbrida es decir AES y RSA directamente en el JavaScript del cliente. El problema es que al encontrarse en el frontend la lógica y las variables al igual que las claves públicas, quedan expuestas.
+
+Se propone en lugar de depender de la ofuscación del lado del cliente garantizar que el servidor cuente con un certificado `SSL/TLS` válido, de esta manera los datos viajarán cifrados de extremo a extremo mediante el protocolo lo que deja de lado el cifrado manual desde el navegador mediante scripts.
+
+## Sin límite de peticiones
+
+La página que permite iniciar sesión no cuenta con un mecanismo que limite la cantidad de peticiones fallidas, esto permite ejecutar ataques de fuerza bruta.
+
+Se propone implementar políticas de bloqueo de cuenta temporal a partir de un número determinado de intentos fallidos, además se puede establecer un tiempo de penalización progresivo en las respuestas fallidas o agregar un Captcha.
+
+## Control de Acceso Inseguro
+
+La validación de sesión en `dashboard.html` se realiza mediante JavaScript una vez que la página ya se ha cargado, esto nos permite leer información sensible y en este caso identificar al usuario `admin`.
+
+Se propone implementar correctamente la validación del token la cual sería del lado del servidor, esto con el objetivo de validar la sesión de un usuario antes de retornar el contenido de la web, para que si la sesión no es válida el mismo servidor envía un código HTTP 302 o 401.
+
+## Evasión de Filtros y XXE
+
+Dentro de `dashboard.html` cuenta con una función para subir archivos XML, al parecer se implementa un filtrado de seguridad deficiente, que mediante expresiones regulares se excluye el uso de entidades externas. El problema es que esta forma de implementación se limita a la codificación `UTF-8` lo que al cambiarlo a `UTF-16` se logra un bypass exitoso.
+
+Se propone deshabilitar la resolución de entidades externas a nivel de configuración del analizador XML en la librería o lenguaje que se esté utilizando en el backend.
+
+## Uso de Credenciales Débiles
+
+Tanto en la web como en las claves privadas SSH se identificó el uso de contraseñas predecibles y que se encuentran en diccionarios comunes.
+
+Se propone forzar a cumplir una política de contraseñas robustas a nivel de sistema y de aplicación. Se debe exigir una longitud mínima y combinaciones entre letras mayúsculas, minúsculas y números además de símbolos para mitigar los ataques de fuerza bruta.
+
+## Gestión de Permisos
+
+En la máquina encontramos al usuario git el cual tenía permisos excesivos que le permitían leer y modificar directamente archivos de la base de datos local de Gitea. Esto derivó en el escalado de privilegios dentro de la web al modificar el estado de la tabla de usuarios.
+
+Se propone aplicar el Principio de Menor Privilegio (PoLP), este dicta que los archivos críticos, como las bases de datos SQLite, deben tener sus permisos de archivos restringidos únicamente al usuario y grupo del servicio que los ejecuta para bloquear el acceso a usuarios interactivos como git.
+
+## Fuga de Información
+
+Específicamente el usuario `bilir` en su home contenía un proyecto el cual para manejar cambios usaba git, el usuario anteriormente tenía una contraseña quemada en el código y aunque no lo almacenó en un commit esta se almacenó en la memoria temporal de la herramienta el **stash**, esto y el reciclar contraseñas permitieron escalar al usuario `root`.
+
+Se propone recomendar a los desarrolladores jamás incrustar como código quemado contraseñas, tokens, llaves API, etc. En el código fuente ni siquiera de forma temporal además de implementar variables de entorno o gestores de secretos.

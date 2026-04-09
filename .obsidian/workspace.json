@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "ffc0cc03a63f29f5",
+        "id": "ca1a226a5cb17bc4",
         "type": "tabs",
         "children": [
           {
-            "id": "0e2c9f730fdb29c8",
+            "id": "3a86da3af514d9a6",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "06 - Laboratorios y CTFs/HackmyVM/Gitdwn.md",
+                "file": "07 - Universidad/Administración y Mantenimiento/Clase 1.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Gitdwn"
+              "title": "Clase 1"
             }
           }
         ]
@@ -54,7 +54,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "tag:#hacking/web",
+                "query": "tag:#programacion/css",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -75,8 +75,7 @@
               "title": "Marcadores"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       },
       {
         "id": "f603991eb3cbfb6b",
@@ -229,13 +228,16 @@
       "command-palette:Abrir paleta de comandos": false,
       "bases:Crear nueva base": false,
       "broken-links:View broken links": false,
-      "oz-clear-unused-images:Clear Unused Images": false
+      "oz-clear-unused-images:Clear Unused Images": false,
+      "obsidian-excalidraw-plugin:Nuevo Bosquejo": false
     }
   },
-  "active": "0e2c9f730fdb29c8",
+  "active": "3a86da3af514d9a6",
   "lastOpenFiles": [
-    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
     "06 - Laboratorios y CTFs/HackmyVM/Gitdwn.md",
+    "07 - Universidad/Administración y Mantenimiento/Clase 1.md",
+    "07 - Universidad/Interfaces y Multimedia/Clase 2.md",
+    "07 - Universidad/Administración y Mantenimiento",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211635.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211214.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260330211140.png",
@@ -246,6 +248,19 @@
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210309.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210145.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20260330210021.png",
+    "07 - Universidad/Fundamentos Web/Clase 1.md",
+    "02 - Desarrollo Web y Programación/Css/Tipos de Display.md",
+    "02 - Desarrollo Web y Programación/Css/Medidas CSS.md",
+    "07 - Universidad/Redes/Clase 1.md",
+    "07 - Universidad/Fundamentos Web",
+    "07 - Universidad/Interfaces y Multimedia/Clase 1.md",
+    "07 - Universidad/Redes",
+    "Excalidraw/Drawing 2026-04-07 07.30.02.excalidraw.md",
+    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
+    "Excalidraw",
+    "07 - Universidad/Interfaces y Multimedia",
+    "07 - Universidad",
+    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
     "03 - Ciberseguridad y Pentesting/Web/XML External Entity Injection.md",
     "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
     "02 - Desarrollo Web y Programación/Python/Librerías Python para Scripting y Redes.md",
@@ -261,23 +276,9 @@
     "05 - Herramientas/Hacking/THC Hydra.md",
     "04 - Sistemas, Redes y Entornos/Redes/Conceptos Fundamentales de Redes.md",
     "06 - Laboratorios y CTFs/OverTheWire/Bandit Passwords.md",
-    "03 - Ciberseguridad y Pentesting/Web/Ataque de Type Juggling.md",
-    "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
-    "02 - Desarrollo Web y Programación/ReactJS/Esenciales2.md",
-    "02 - Desarrollo Web y Programación/ReactJS/Esenciales.md",
-    "02 - Desarrollo Web y Programación/ReactJS/Vite.md",
-    "03 - Ciberseguridad y Pentesting/Web/Web cache deception.md",
     "02 - Desarrollo Web y Programación/ReactJS",
-    "02 - Desarrollo Web y Programación/Sin título.md",
     "Temporal",
     "06 - Laboratorios y CTFs/VulnHub",
-    "06 - Laboratorios y CTFs/HackmyVM",
-    "02 - Desarrollo Web y Programación/Scss",
-    "02 - Desarrollo Web y Programación/Java Script",
-    "02 - Desarrollo Web y Programación/Html",
-    "02 - Desarrollo Web y Programación/Css",
-    "02 - Desarrollo Web y Programación/Gulp",
-    "02 - Desarrollo Web y Programación/GitHub"
+    "06 - Laboratorios y CTFs/HackmyVM"
   ]
 }
