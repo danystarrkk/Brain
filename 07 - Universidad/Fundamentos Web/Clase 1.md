@@ -21,12 +21,12 @@ HTML es el lenguaje utilizado para estructurar el contenido de una página web. 
 ### Evolución de HTML
 
 Desde su creación paso por varias versiones:
-
-- HTML 2.0
-- HTML 3.2
-- HTML 4.0.1
-- XHTML
-- HTML5
+- HTML 1.0 -> 1991 primereas versiones básicas
+- HTML 2.0 -> Estándar Oficial.
+- HTML 3.2 -> Introduce tablas mas complejas.
+- HTML 4.0.1 -> Separación entre contenido.
+- XHTML -> Versión mas estricta y compatible.
+- HTML5 -> La versión mas actual.
 
 ## Qué es HTTP?
 
