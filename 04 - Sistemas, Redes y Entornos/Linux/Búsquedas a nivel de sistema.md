@@ -90,14 +90,14 @@ Es importante tener en cuenta que `find` es un comando extremadamente potente y 
 
 ### Grep
 
-| Parámetro | Descripción                                                              |
-| :-------- | :----------------------------------------------------------------------- |
-| `-r`      | Realiza una búsqueda recursiva en directorios.                           |
-| `\w`      | Coincide con caracteres alfanuméricos (letras, números y guiones bajos). |
-| `-v`      | Invierte la coincidencia, mostrando las líneas que NO coinciden con el patrón. |
+| Parámetro | Descripción                                                                                                                                             |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `-r`      | Realiza una búsqueda recursiva en directorios.                                                                                                          |
+| `\w`      | Coincide con caracteres alfanuméricos (letras, números y guiones bajos).                                                                                |
+| `-v`      | Invierte la coincidencia, mostrando las líneas que NO coinciden con el patrón.                                                                          |
 | `-vE`     | Combina `-v` (invertir coincidencia) con `-E` (usar expresiones regulares extendidas), permitiendo excluir líneas que coincidan con múltiples patrones. |
-| `-n`      | Muestra el número de línea de cada coincidencia.                         |
-| `-i`      | Ignora la distinción entre mayúsculas y minúsculas al buscar.            |
+| `-n`      | Muestra el número de línea de cada coincidencia.                                                                                                        |
+| `-i`      | Ignora la distinción entre mayúsculas y minúsculas al buscar.                                                                                           |
 
 > [!tip] `grep` y expresiones regulares
 > `grep` es una herramienta esencial para buscar patrones de texto en archivos. Por defecto, usa expresiones regulares básicas (BRE). Con la opción `-E` (o `egrep`), se pueden usar expresiones regulares extendidas (ERE), que ofrecen más funcionalidades como `+`, `?`, `|`, y `()`. 
