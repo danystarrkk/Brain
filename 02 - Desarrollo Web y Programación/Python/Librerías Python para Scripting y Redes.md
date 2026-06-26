@@ -325,6 +325,30 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 response = requests.get("https://45.4.174.194/", verify=False)
 ```
 
+### Uso de JSON
+
+```python
+import requests
+query = "{users(id:1
+) {username password}}"
+
+r = requests.post(url, json={"query": query})
+
+# 1. Convierte la respuesta a un diccionario de Python
+respuesta_dict = r.json()
+
+# 2. Accede a los datos navegando por las llaves
+# Nota: GraphQL siempre envuelve el resultado exitoso dentro de la llave "data"
+usuario = respuesta_dict["data"]["users"]
+
+# 3. Extrae los valores específicos
+nombre = usuario["username"]
+clave = usuario["password"]
+
+print(f"Usuario: {nombre}, Contraseña: {clave}")
+
+```
+
 > [!warning] `verify=False` y seguridad SSL/TLS
 > Deshabilitar la verificación SSL/TLS con `verify=False` o ignorar advertencias de certificados (`disable_warnings`) es una práctica **altamente insegura** en entornos de producción o con datos sensibles. Esto expone la comunicación a ataques de tipo Man-in-the-Middle (MITM), donde un atacante podría interceptar y modificar el tráfico sin ser detectado. Solo debe usarse en entornos de laboratorio controlados o para depuración, entendiendo los riesgos implicados.
 

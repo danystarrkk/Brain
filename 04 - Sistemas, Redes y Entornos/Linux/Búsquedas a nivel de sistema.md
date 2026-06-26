@@ -98,9 +98,14 @@ Es importante tener en cuenta que `find` es un comando extremadamente potente y 
 | `-vE`     | Combina `-v` (invertir coincidencia) con `-E` (usar expresiones regulares extendidas), permitiendo excluir líneas que coincidan con múltiples patrones. |
 | `-n`      | Muestra el número de línea de cada coincidencia.                                                                                                        |
 | `-i`      | Ignora la distinción entre mayúsculas y minúsculas al buscar.                                                                                           |
+| `-z`      | Permite hacer que todo el texto se lea como una sola linea                                                                                              |
 
 > [!tip] `grep` y expresiones regulares
 > `grep` es una herramienta esencial para buscar patrones de texto en archivos. Por defecto, usa expresiones regulares básicas (BRE). Con la opción `-E` (o `egrep`), se pueden usar expresiones regulares extendidas (ERE), que ofrecen más funcionalidades como `+`, `?`, `|`, y `()`. 
+
+#### Extras de Grep
+
+- `(?s)`: Esto nos permite activar el `dotall`, lo que quiere decir que hacer que `.` incluya los saltos de línea así permitiendo que con `.*` se capture todo.
 
 ### Tail and head
 

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "GraphQL Introspección y Mutaciones en Ataques IDOR"
+              "title": "Floosy"
             }
           }
         ]
@@ -33,7 +33,7 @@
       {
         "id": "7a87a7a6c218a19a",
         "type": "tabs",
-        "dimension": 72.0614828209765,
+        "dimension": 70.18018018018019,
         "children": [
           {
             "id": "bbf46881b2afb8d9",
@@ -54,7 +54,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "argparse",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -78,12 +78,12 @@
         ]
       },
       {
-        "id": "2321e58a29451787",
+        "id": "aa91dac98bdad5fb",
         "type": "tabs",
-        "dimension": 27.93851717902351,
+        "dimension": 29.819819819819816,
         "children": [
           {
-            "id": "3beda5ee4d3a39a9",
+            "id": "5403a03f3e08877a",
             "type": "leaf",
             "state": {
               "type": "graph",
@@ -175,13 +175,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Esquema de GraphQL Introspección y Mutaciones en Ataques IDOR"
+              "title": "Esquema de Floosy"
             }
           },
           {
@@ -190,8 +190,8 @@
             "state": {
               "type": "broken-links-view",
               "state": {},
-              "icon": "unlink",
-              "title": "Broken links"
+              "icon": "lucide-ghost",
+              "title": "broken-links-view"
             }
           }
         ],
@@ -220,8 +220,6 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "oz-clear-unused-images:Clear Unused Images": false,
-      "obsidian-excalidraw-plugin:Nuevo Bosquejo": false,
       "switcher:Abrir selector rápido": false,
       "graph:Abrir vista gráfica": false,
       "canvas:Crear nuevo lienzo": false,
@@ -229,47 +227,49 @@
       "templates:Insertar plantilla": false,
       "command-palette:Abrir paleta de comandos": false,
       "bases:Crear nueva base": false,
-      "broken-links:View broken links": false
+      "broken-links:View broken links": false,
+      "oz-clear-unused-images:Clear Unused Images": false,
+      "obsidian-excalidraw-plugin:New drawing": false
     }
   },
   "active": "c013b70f793a7dc9",
   "lastOpenFiles": [
-    "02 - Desarrollo Web y Programación/TailwindCSS/Instalación de Tailwindcss.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260603095821.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260603094740.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260603094619.png",
-    "02 - Desarrollo Web y Programación/TailwindCSS/Lo Básico.md",
-    "04 - Sistemas, Redes y Entornos/Redes/Ofuscación de Redes WebSocket (widscribe).md",
-    "02 - Desarrollo Web y Programación/TailwindCSS",
-    "06 - Laboratorios y CTFs/HackmyVM/Airbind.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530190921.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530190818.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530190723.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530190437.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530185622.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530185103.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260530184640.png",
-    "02 - Desarrollo Web y Programación/Css/Selectores en CSS.md",
-    "02 - Desarrollo Web y Programación/Css/Medidas Relativas.md",
-    "02 - Desarrollo Web y Programación/Css/Fuentes Externas.md",
-    "02 - Desarrollo Web y Programación/Css/Especificidad.md",
-    "02 - Desarrollo Web y Programación/Css/CSS Introducción.md",
-    "02 - Desarrollo Web y Programación/Css/Box Model.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Birdeye.md",
-    "06 - Laboratorios y CTFs/OverTheWire/Bandit Passwords.md",
-    "03 - Ciberseguridad y Pentesting/Reconocimiento/Reconocimiento y Escaneo de Redes y Web.md",
-    "06 - Laboratorios y CTFs/VulnHub/IMF 1.md",
     "06 - Laboratorios y CTFs/HackmyVM/Espo.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624172312.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624172137.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624172051.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624172009.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624171921.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624171708.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624171326.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624171203.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624164328.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260624164227.png",
+    "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
+    "03 - Ciberseguridad y Pentesting/Web/XML External Entity Injection.md",
+    "02 - Desarrollo Web y Programación/Python/Librerías Python para Scripting y Redes.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Birdeye.md",
     "06 - Laboratorios y CTFs/VulnHub/Symfonos 6.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Airbind.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyección NoSQL.md",
+    "03 - Ciberseguridad y Pentesting/Web/JSON Web Tokens Explotación y Bypass.md",
+    "03 - Ciberseguridad y Pentesting/Web/Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar.md",
+    "02 - Desarrollo Web y Programación/Java Script/Formato Json.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Abuso de Permisos en Linux y LSE.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Abuso de Privilegios Sudoers.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Detección y Explotación de Tareas Cron.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Elevación de Privilegios mediante Explotación de Binarios.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Explotación de Servicios Internos.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Lectura de Permisos.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Vulnerabilidades del Kernel y Escalada de Privilegios.md",
+    "04 - Sistemas, Redes y Entornos/Entorno/Instalación y Configuración de Blue Sky Polybar.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Abuso de Docker para Escalada de Privilegios y Escape de Contenedores.md",
     "03 - Ciberseguridad y Pentesting/Web/Abuso de Subida de Archivos.md",
-    "02 - Desarrollo Web y Programación/Css/Anatomía de CSS.md",
-    "02 - Desarrollo Web y Programación/Html/Html.md",
-    "03 - Ciberseguridad y Pentesting/Web/Vulnerabilidades de HTTP Request Smuggling.md",
-    "02 - Desarrollo Web y Programación/ReactJS/Vite.md",
-    "03 - Ciberseguridad y Pentesting/Web/Vulnerabilidad de Redirección Abierta.md",
-    "03 - Ciberseguridad y Pentesting/Web/Server-Side Request Forgery (SSRF).md",
-    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Request Forgery (CSRF).md",
-    "03 - Ciberseguridad y Pentesting/Web/Gestión de Ahutenticación.md",
+    "04 - Sistemas, Redes y Entornos/Linux/Cron Jobs y Programación de Tareas.md",
+    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
+    "05 - Herramientas/Hacking/Gobuster.md",
+    "02 - Desarrollo Web y Programación/TailwindCSS",
     "Excalidraw",
     "07 - Universidad/Modelos Discretos",
     "08 - BugBounty",
