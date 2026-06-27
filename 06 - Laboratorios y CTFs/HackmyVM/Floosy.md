@@ -192,6 +192,8 @@ for i in {1..23};do ssh -tt 0 "sleep 1000 &"; done
 
 ![[Pasted image 20260624163500.png]]
 
+Cabe aclarar que lo que hace el `0` es una forma de abreviar el `0.0.0.0` o `localhost`
+
 Ya con esto, procedemos a conectarnos con `ssh 0`:
 
 ![[Pasted image 20260624163538.png]]
@@ -253,5 +255,30 @@ Lab Terminado.
 
 ![[Pasted image 20260624172312.png]]
 
-
 # Mitigaciones
+
+Al terminar con la enumeración y explotación de la máquina vulnerada, se proponen las siguientes mitigaciones para fortalecer y mantener la seguridad:
+
+## Exposición de Esquema GraphQL y Datos Sensibles
+
+La API de GraphQL expuesta en el puerto 80 tenía habilitada la característica de *introspection*, lo que permitió descubrir su estructura interna y los campos disponibles. Sumado a esto, la falta de controles de acceso y autorización permitió enumerar identificadores de manera iterativa hasta extraer un usuario y una contraseña en texto plano.
+
+Se propone deshabilitar la introspección (*introspection*) en entornos de producción. Además, se debe implementar una correcta validación de acceso basada en roles o tokens (como JWT) para asegurar que la API no devuelva información sensible a usuarios no autorizados, y evitar a toda costa devolver o almacenar contraseñas en texto claro.
+
+## Almacenamiento Inseguro y Reutilización de Credenciales
+
+Durante la explotación inicial, la contraseña del usuario `malo` obtenida de la API resultó ser válida para establecer una conexión remota directa hacia el servidor a través del servicio SSH, demostrando una reutilización de credenciales entre servicios y un almacenamiento inseguro.
+
+Se propone almacenar las contraseñas utilizando funciones de derivación criptográfica seguras y robustas (como bcrypt o Argon2) junto con un *salt* único. Adicionalmente, para el acceso a la infraestructura (SSH), se recomienda deshabilitar la autenticación por contraseña (`PasswordAuthentication no`) y utilizar exclusivamente autenticación basada en el intercambio de claves asimétricas.
+
+## Intercepción de Credenciales en Pseudoterminales (TTY)
+
+El script automatizado `SSHKeySync` enviaba directamente el contenido de la clave privada de la usuaria `sophie` hacia una pseudoterminal predecible y estática (identificador 24). Esto permitió saturar las conexiones locales mediante un bucle hasta lograr secuestrar la TTY específica e interceptar el archivo sensible.
+
+Se propone no transferir material criptográfico mediante redirecciones a dispositivos TTY. Si es necesaria la automatización de procesos mediante SSH, se deben utilizar herramientas de gestión seguras como `ssh-agent`, bóvedas de secretos, o en su defecto, implementar validaciones estrictas sobre la propiedad de la terminal receptora.
+
+## Configuración Insegura de Sudo (Uso de Wildcards)
+
+La configuración del archivo `sudoers` permitía a la usuaria `sophie` ejecutar comandos con privilegios elevados (`root`) sobre cualquier archivo que coincidiera con el patrón `/home/sophie/network*`. El uso de este comodín (*wildcard*) permitió crear un archivo ejecutable arbitrario llamado `networks` para asignar permisos SUID a la bash y lograr el compromiso total del sistema.
+
+Se propone aplicar el Principio de Menor Privilegio (PoLP) definiendo rutas absolutas y exactas en la configuración de `sudoers`, eliminando por completo el uso de comodines. Si es estrictamente necesario ejecutar múltiples scripts dentro de una ruta específica, dicho directorio debe pertenecer exclusivamente a `root` y carecer de permisos de escritura para el resto de los usuarios.
