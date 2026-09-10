@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "4271c2b423212b83",
+        "id": "723dce86775be324",
         "type": "tabs",
         "children": [
           {
-            "id": "c013b70f793a7dc9",
+            "id": "92e3ea03013741c2",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Wave.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Floosy"
+              "title": "Wave"
             }
           }
         ]
@@ -42,7 +42,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Explorador de archivos"
@@ -54,8 +56,8 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "argparse",
-                "matchingCase": false,
+                "query": "",
+                "matchingCase": true,
                 "explainSearch": false,
                 "collapseAll": true,
                 "extraContext": false,
@@ -175,13 +177,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
+                "file": "06 - Laboratorios y CTFs/HackmyVM/Wave.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Esquema de Floosy"
+              "title": "Esquema"
             }
           },
           {
@@ -232,44 +234,44 @@
       "obsidian-excalidraw-plugin:Nuevo Bosquejo": false
     }
   },
-  "active": "c013b70f793a7dc9",
+  "active": "92e3ea03013741c2",
   "lastOpenFiles": [
-    "99 - Plantillas y Recursos/Pasted image 20260624172312.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624172137.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624172051.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624172009.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624171921.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624171708.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624171326.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624171203.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624164328.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624164227.png",
-    "99 - Plantillas y Recursos/Pasted image 20260624163617.png",
-    "06 - Laboratorios y CTFs/HackmyVM/Espo.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213916.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213649.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213528.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213507.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213351.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213234.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212819.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212642.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212526.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212511.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212325.png",
+    "06 - Laboratorios y CTFs/HackmyVM/Wave.md",
     "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
-    "03 - Ciberseguridad y Pentesting/Web/XML External Entity Injection.md",
+    "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
+    "06 - Laboratorios y CTFs/VulnHub/Presidential 1.md",
+    "02 - Desarrollo Web y Programación/Python/Proyectos de Programación Orientada a Objetos en Python.md",
+    "02 - Desarrollo Web y Programación/Python/Organización, Importación y Distribución de Módulos y Paquetes en Python.md",
+    "02 - Desarrollo Web y Programación/Python/Manejo de Bibliotecas en Python.md",
+    "02 - Desarrollo Web y Programación/Python/Estructuras de Datos en Python.md",
     "02 - Desarrollo Web y Programación/Python/Librerías Python para Scripting y Redes.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Birdeye.md",
-    "06 - Laboratorios y CTFs/VulnHub/Symfonos 6.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Airbind.md",
-    "03 - Ciberseguridad y Pentesting/Web/Inyección NoSQL.md",
-    "03 - Ciberseguridad y Pentesting/Web/JSON Web Tokens Explotación y Bypass.md",
-    "03 - Ciberseguridad y Pentesting/Web/Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar.md",
-    "02 - Desarrollo Web y Programación/Java Script/Formato Json.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Abuso de Permisos en Linux y LSE.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Abuso de Privilegios Sudoers.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Detección y Explotación de Tareas Cron.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Elevación de Privilegios mediante Explotación de Binarios.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Explotación de Servicios Internos.md",
+    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Python Library Hijacking.md",
+    "03 - Ciberseguridad y Pentesting/Web/Information disclosure.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataque de Oráculo de Relleno.md",
+    "03 - Ciberseguridad y Pentesting/Web/Local File Inclusion.md",
+    "02 - Desarrollo Web y Programación/Docker/Gestión de Contenedores con Docker y Docker Compose.md",
+    "05 - Herramientas/Hacking/Msfvenom - Herramienta de Generación de Payloads.md",
     "04 - Sistemas, Redes y Entornos/Linux/Lectura de Permisos.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Vulnerabilidades del Kernel y Escalada de Privilegios.md",
-    "04 - Sistemas, Redes y Entornos/Entorno/Instalación y Configuración de Blue Sky Polybar.md",
-    "03 - Ciberseguridad y Pentesting/Escalada de Privilegios/Abuso de Docker para Escalada de Privilegios y Escape de Contenedores.md",
-    "03 - Ciberseguridad y Pentesting/Web/Abuso de Subida de Archivos.md",
-    "04 - Sistemas, Redes y Entornos/Linux/Cron Jobs y Programación de Tareas.md",
-    "03 - Ciberseguridad y Pentesting/Web/GraphQL Introspección y Mutaciones en Ataques IDOR.md",
-    "05 - Herramientas/Hacking/Gobuster.md",
+    "03 - Ciberseguridad y Pentesting/Web/Ataques de Deserialización.md",
+    "03 - Ciberseguridad y Pentesting/Web/Inyecciones LDAP.md",
+    "03 - Ciberseguridad y Pentesting/Web/Cross-Site Request Forgery (CSRF).md",
+    "03 - Ciberseguridad y Pentesting/Web/Clickjacking Ataques.md",
+    "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Espo.md",
+    "03 - Ciberseguridad y Pentesting/Web/XML External Entity Injection.md",
+    "06 - Laboratorios y CTFs/HackmyVM/Birdeye.md",
     "02 - Desarrollo Web y Programación/TailwindCSS",
     "Excalidraw",
     "07 - Universidad/Modelos Discretos",
