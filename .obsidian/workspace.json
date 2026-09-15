@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "723dce86775be324",
+        "id": "7fc8c7a47c115cc0",
         "type": "tabs",
         "children": [
           {
-            "id": "92e3ea03013741c2",
+            "id": "9a894e4332ca6361",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -98,7 +98,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 345.5
+    "width": 402.421875
   },
   "right": {
     "id": "434eb642b6660f8f",
@@ -218,7 +218,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 362.5
+    "width": 430.671875
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -234,20 +234,21 @@
       "obsidian-excalidraw-plugin:Nuevo Bosquejo": false
     }
   },
-  "active": "92e3ea03013741c2",
+  "active": "9a894e4332ca6361",
   "lastOpenFiles": [
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213916.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213649.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213528.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213507.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213351.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906213234.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212819.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212642.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212526.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212511.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20260906212325.png",
     "06 - Laboratorios y CTFs/HackmyVM/Wave.md",
+    "99 - Plantillas y Recursos/wave.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906213916.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906213649.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906213528.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906213507.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906213351.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906213234.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906212819.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906212642.png",
+    "99 - Plantillas y Recursos/Pasted image 20260906212526.png",
+    "06 - Laboratorios y CTFs/HackmyVM/TryHarder.md",
+    "hola.md",
     "03 - Ciberseguridad y Pentesting/Explotación/Python Ofensivo.md",
     "02 - Desarrollo Web y Programación/Python/Python Interacción y Archivos.md",
     "06 - Laboratorios y CTFs/VulnHub/Presidential 1.md",
@@ -270,8 +271,6 @@
     "03 - Ciberseguridad y Pentesting/Web/Abuso de APIs.md",
     "06 - Laboratorios y CTFs/HackmyVM/Floosy.md",
     "06 - Laboratorios y CTFs/HackmyVM/Espo.md",
-    "03 - Ciberseguridad y Pentesting/Web/XML External Entity Injection.md",
-    "06 - Laboratorios y CTFs/HackmyVM/Birdeye.md",
     "02 - Desarrollo Web y Programación/TailwindCSS",
     "Excalidraw",
     "07 - Universidad/Modelos Discretos",

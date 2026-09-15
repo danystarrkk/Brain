@@ -1,6 +1,11 @@
 {
-  "readableLineLength": false,
+  "readableLineLength": true,
   "livePreview": true,
   "attachmentFolderPath": "99 - Plantillas y Recursos/Capturas",
-  "alwaysUpdateLinks": true
+  "alwaysUpdateLinks": true,
+  "defaultViewMode": "preview",
+  "showInlineTitle": false,
+  "strictLineBreaks": true,
+  "vimMode": true,
+  "spellcheck": true
 }

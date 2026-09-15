@@ -1,8 +1,7 @@
--------------------------------------
-
 # Enumeración
 
-Comenzamos identificando la máquina vulnerable en la red con ayuda de`arp-scan`: 
+Comenzamos identificando la máquina vulnerable en la red con ayuda de `arp-scan`:
+
 ```bash
 sudo arp-scan -I vboxnet0 --localnet --ignoredups
 ```
@@ -12,43 +11,46 @@ sudo arp-scan -I vboxnet0 --localnet --ignoredups
 Observamos que la IP de la máquina es la `192.168.56.102`.
 
 Conociendo la IP vamos a realizar un ping a la misma con el objetivo de identificar el valor de su TTL:
+
 ```bash
 ping -c 1 192.168.56.102
 ```
 
 ![[Pasted image 20260906094401.png]]
 
-Cuenta con un `TTL=64`, donde si este no ha sido alterado claramente estamo frente a un sistema de base Unix.
+Cuenta con un `TTL=64`, donde si este no ha sido alterado claramente estamos frente a un sistema de base Unix.
 
 Con esta información previa comenzamos con la enumeración de puertos mediante `nmap`:
+
 ```bash
 sudo nmap -p- --open -sS --min-rate 5000 -n -v -Pn 192.168.56.102 -oG allPorts
 ```
 
 ![[Pasted image 20260906094728.png]]
 
-Como resultado tenemos que el puerto 22 y el puerto 80 estan abiertos corriendo respectivamente los servicios de SSH y HTTP.
+Como resultado tenemos que el puerto 22 y el puerto 80 están abiertos corriendo respectivamente los servicios de SSH y HTTP.
 
-Ahora sobre estos puertos abiertos vamos a realizar un escaneo mas exsautivo para descubrir sus versiones he información extra:
+Ahora sobre estos puertos abiertos vamos a realizar un escaneo más exhaustivo para descubrir sus versiones e información extra:
+
 ```bash
 nmap -p22,80 -sVC 192.168.56.102 -oN target
 ```
 
 ![[Pasted image 20260906095036.png]]
 
-En cuanto al puerto 22 no tenemos mucho que hacer, pero, en cambio observamos que en el puerto 80 el servicio de HTTP esta realizado mediante un nginx 1.22.1, además de que gracias a algunos scripts básicos de reconocimiento que lanza nmap podemos observar que a detectado la ruta de `robots.txt`.
+En cuanto al puerto 22 no tenemos mucho que hacer, pero, en cambio observamos que en el puerto 80 el servicio de HTTP está realizando mediante un nginx 1.22.1, además de que gracias a algunos scripts básicos de reconocimiento que lanza nmap podemos observar que ha detectado la ruta de `robots.txt`.
 
-Con la detección de `robots.txt` procedemos a revizarlo:
+Con la detección de `robots.txt` procedemos a revisarlo:
 
 ![[Pasted image 20260906095535.png]]
 
-Podemos ver que nos describe a `/backukp`. Recordemos que la ruta de `robots.txt` se utiliza para indicar a los rastreadores de motores de búsqueda lo que no se quiere indexar en la web, no es un estandar ni mucho menos una forma de ocultar rutas debido a que como vemos un atacante podria en realidad a través del mismo enumerar rutas que el desarrollador no quiere que sean del todo publicas.
+Podemos ver que nos describe a `/backup`. Recordemos que la ruta de `robots.txt` se utiliza para indicar a los rastreadores de motores de búsqueda lo que no se quiere indexar en la web, no es un estándar ni mucho menos una forma de ocultar rutas debido a que como vemos un atacante podría en realidad a través del mismo enumerar rutas que el desarrollador no quiere que sean del todo públicas.
 
-Ahora procedemos a revizar `/backup`:
+Ahora procedemos a revisar `/backup`:
 
 ![[Pasted image 20260906095838.png]]
 
-Se nos lista algunos backups de vários archivos los cuales, se intentara verificar su contenido pero para esto los descargamos de forma recursiva con ayuda de `wget`:
+Se nos listan algunos backups de varios archivos cuyo contenido se intentará verificar, pero para esto los descargamos de forma recursiva con ayuda de `wget`:
 
 ```bash
 wget -r http://192.168.56.102/backup/
@@ -56,11 +58,11 @@ wget -r http://192.168.56.102/backup/
 
 ![[Pasted image 20260906100011.png]]
 
-Al terminar como obsrvamos contamos con una carpeta donde dentro encontraremos todos los archivos:
+Al terminar como observamos contamos con una carpeta donde dentro encontraremos todos los archivos:
 
 ![[Pasted image 20260906100048.png]]
 
-En este punto voy a pasar cada uno de lo sarchivos por el comando file, esto hos ayuda a identificar el tipo de archivo en báse a su contenido:
+En este punto voy a pasar cada uno de los archivos por el comando file, esto nos ayuda a identificar el tipo de archivo con base en su contenido:
 
 ```bash
 ls | while read file; do file $file; done
@@ -68,57 +70,60 @@ ls | while read file; do file $file; done
 
 ![[Pasted image 20260906100214.png]]
 
-Cómo podemos observar, contamos con varios archivos simplemente de texto done solo 2 parecen relevantes y son `phptest.bck` y `weevely.bck`, en este punto es lógico si se estan realizando backups de estos archivos posiblemente hablamos de que existen y estan expuestos.
+Como podemos observar, contamos con varios archivos simplemente de texto donde solo 2 parecen relevantes y son `phptest.bck` y `weevely.bck`, en este punto es lógico si se están realizando backups de estos archivos posiblemente hablamos de que existen y están expuestos.
 
-Si revizamos a `phptest.bck` en su contenido encontramos lo siguiente:
+Si revisamos a `phptest.bck` en su contenido encontramos lo siguiente:
 
 ![[Pasted image 20260906100436.png]]
 
-Como observamos simplemente es un print y si verificamos su existencia como `phptest.php`en la web pues vemos lo siguiente:
+Como observamos simplemente es un print y si verificamos su existencia como `phptest.php` en la web pues vemos lo siguiente:
 ![[Pasted image 20260906100515.png]]
 
 Listo esto no tiene mayor misterio.
 
-Siguiendo esta lódigica con el archivo `weevely.bck`, su contenido es el siguiente:
+Siguiendo esta lógica con el archivo `weevely.bck`, su contenido es el siguiente:
 
 ![[Pasted image 20260906100621.png]]
 
-En este caso como observamos no es legible, pero aquí entra un concepto importante y es que este archivo mediante el comando `file` figuro como un archivo `phar` que es un formato para empaquetar en un solo archivo varios script PHP, por lo tanto vamos mediante el comando `phar` a desempaquetarlo:
+En este caso como observamos no es legible, pero aquí entra un concepto importante y es que este archivo mediante el comando `file` figuró como un archivo `phar` que es un formato para empaquetar en un solo archivo varios script PHP, por lo tanto vamos mediante el comando `phar` a desempaquetarlo:
+
 ```bash
 mv weevely.bck weevely.phar
 phar extract -f weevely.phar
 ```
+
 ![[Pasted image 20260906100951.png]]
 
 # Explotación
 
-Como se observamos ahora contamos con un nuevo archivos llamado `x` el cual tiene como contenido lo siguiente:
+Como observamos ahora contamos con un nuevo archivo llamado `x` el cual tiene como contenido lo siguiente:
 
 ![[Pasted image 20260906101210.png]]
 
 Comprender este código es algo complejo de primeras pero vamos a explicarlo lo mejor posible:
 
-1. Contamos con un eval global y dentro varias variables aqui tenemos que entender que gracias a donde esta el eval y por como funciona es que en realidad combierte a cada uno de las declaraciones en variables globales y usable en el código.
-2. Contamos con una funcion que recibe 2 parametros uno es un texto y el otro no es mas que la variable declarada `k` el porque es que dentro de la misma vamos a utilizarla para realizar una combinación XOR y así cifrar y descifrar el cóntenido, al final esta funcion retorna la cadena cifrada o descifrada, recordemos que la combinacióno o cifrado XOR se cifra de forma sencilla y aplicando la misma operatoria podemos realizar el descifrado.
-3. Ahora tenemos una condicional esta verfica si dentro de la petición que se realiza al recurso, en este caso a `weevely` contine contenido entre dos cadenas que son las variables `kh` y `kf`, donde si detecta contenido simplemente ingresa.
-4. Dentro del condicional contamos con `@ob_start()` y `@ob_end_clean()`, lo que sucede es que eso crea en realidad un nuevo buffer donde todo lo que se encuentre dentro así en este caso especifico ocultando la salidas de los comandos eval en este caso.
-5. Tenemos dentro dun `@ob_get_contets()` esta funcion por defecto nos permitiria recuperar la salida del buffer y en este caso guardarla en una variable
-6. Tenemos una operatoria dentro con `@eval` simplemente se esta relizando el proceso inverso al contenido que resive y aquí entra lo interezante devido a que se puede utilizar para la ejecucion remota de comandos y tenemos lo que es un **Backdoor**. Continuando pues al contenido se recive se decodifica el base64, luego se pasa a la funcion de XOR por ultimo se descomprime y se evalua.
-7. Ahora esa ejecucion el resultado de esa ejecucion vive en el resultado del nuevo buffer se lo guarda en la variable `o` para posteriormente volver a enviarse con el mismo formato en la respuesta de la web donde se imprime y se realizando el mismo proceso del lado del atacante pues tenemos ya el resultado del comando.
+1. Contamos con un eval global y dentro varias variables aquí tenemos que entender que gracias a donde está el eval y por cómo funciona es que en realidad convierte a cada una de las declaraciones en variables globales y usables en el código.
+2. Contamos con una función que recibe 2 parámetros uno es un texto y el otro no es más que la variable declarada `k` el porqué es que dentro de la misma vamos a utilizarla para realizar una combinación XOR y así cifrar y descifrar el contenido, al final esta función retorna la cadena cifrada o descifrada, recordemos que la combinación o cifrado XOR se cifra de forma sencilla y aplicando la misma operatoria podemos realizar el descifrado.
+3. Ahora tenemos una condicional ésta verifica si dentro de la petición que se realiza al recurso, en este caso a `weevely` contiene dos cadenas que son las variables `kh` y `kf`, donde si detecta contenido simplemente ingresa.
+4. Dentro del condicional contamos con `@ob_start()` y `@ob_end_clean()`, lo que sucede es que eso crea en realidad un nuevo buffer donde todo lo que se encuentre dentro así en este caso específico ocultando la salidas de los comandos eval en este caso.
+5. Tenemos dentro de un `@ob_get_contets()` esta función por defecto nos permitiría recuperar la salida del buffer y en este caso guardarla en una variable
+6. Tenemos una operatoria dentro con `@eval` simplemente se esta realizando el proceso inverso al contenido que recibe y aquí entra lo interesante debido a que se puede utilizar para la ejecución remota de comandos y tenemos lo que es un **Backdoor**. Continuando pues al contenido se recibe se decodifica el base64, luego se pasa a la función de XOR por ultimo se descomprime y se evalúa.
+7. Ahora esa ejecución vive en el nuevo buffer y se guarda en la variable `o` para posteriormente volver a enviarse con el mismo formato en la respuesta de la web. Al realizar el mismo proceso del lado del atacante ya obtenemos el resultado del comando.
 
-Comprendiendo que tenemos un backdor ya en la web que podemos utilizar tenemos que encontrar y ver si el archivo se esta ejecutando. Conocemos que su nombre es `weevely` pero su extencion no así que con ayuda de `goobuster` vamos a realizar fuzzing para determiar la extencion de la siguiente manera:
+Comprendiendo que tenemos un backdoor ya en la web que podemos utilizar tenemos que encontrar y ver si el archivo se esta ejecutando. Conocemos que su nombre es `weevely` pero su extensión no así que con ayuda de `goobuster` vamos a realizar fuzzing para determinar la extensión de la siguiente manera:
 
 ```bash
-ffuf -u "http://192.168.56.102/weevelyFUZZ" -w /usr/share/seclists/Discovery/Web-Content/web-extensions.txt
+ffuf -u "http://192.168.56.102/weevelyFUZZ" -w /usr/share/seclists/Discovery/Web-Content/web-extensións.txt
 ```
 
 ![[Pasted image 20260906111824.png]]
 
 Como podemos observar con el resultado es que el archivo es `weevely.php7`.
 
-Ahora conociendo todo el proceso me di a la tarea de crear un pequeño script en python que nos ayude a hacerlo de forma automatica y tener una ejecución de comandos directa, el script lo pueden encontrar en [Aquí](hola).
+Ahora conociendo todo el proceso me di a la tarea de crear un pequeño script en python que nos ayude a hacerlo de forma automática y tener una ejecución de comandos directa, el script lo pueden encontrar en [aquí](<https://github.com/danystarrkk/Hacking-Tools/tree/main/Tools/RCE%20(Wave)>).
 
-Con el script es cuestion de hacer lo siguiente:
+Con el script es cuestión de hacer lo siguiente:
+
 ```bash
 python3 backConect.py whoami
 ```
@@ -131,11 +136,12 @@ Con esto simplemente vamos a enviarnos una reverse shell:
 
 ![[Pasted image 20260906165923.png]]
 
- Ya nos encontramos dentro de la máquina.
+Ya nos encontramos dentro de la máquina.
 
 # Escalando Privilegios 1
 
 Algo que siempre hago es enumerar usuario en la máquina mediante el archivo `/etc/passwd` de la siguiente manera:
+
 ```bash
 cat /etc/passwd | grep 'sh$'
 ```
@@ -144,37 +150,41 @@ cat /etc/passwd | grep 'sh$'
 
 Como podemos observar tenemos 3 usuarios que son `carla`, `angie`, y `root`.
 
-En este caso se realiza el reconocimiento por permisos SUID y pero ejeucion de comandos configuradas por sudo pero no se encontro.
+En este caso, se realiza el reconocimiento por permisos SUID y ejecución de comandos configurados por sudo, pero no se encontró.
 
-Se procedio a revizar puertos abiertos de forma interna de la siguiente manera:
+Se procedió a revisar puertos abiertos de forma interna de la siguiente manera:
+
 ```bash
 ss -nltp
 ```
 
 ![[Pasted image 20260906204559.png]]
 
-En el resultado vemos como el puerto `3923` se encuentra abierto, podemos intentar ver que proceseso se encuentra corriendo y sobre que usaurio lo esta haciendo de la siguiente manera:
+En el resultado vemos como el puerto `3923` se encuentra abierto, podemos intentar ver qué proceso se encuentra corriendo y sobre qué usuario lo está haciendo de la siguiente manera:
+
 ```bash
 ps aux | grep 127.0.0.1
 ```
-![[Pasted image 20260906205507.png]]
-En los resultados vemos dos que nos interesan, donde, se evidencia que se esta ejecutando como el usuario angie un servicio de python con el nombre de `copyparty-sfx.py`. Buscando de que se trata encuentro que es un servidor de archivos completo, rapido y ligero, el cual cuenta con servicio web y esto posiblemente es lo que corre por el puerto `3923`.
 
-Para poder analizarlo mucho mejor vamos a realizar port forwarding mediante la herramienta de `chisel`, recordar que necesitamos el binario tanto en la máquina atacante como en la máquina victima:
+![[Pasted image 20260906205507.png]]
+En los resultados vemos dos que nos interesan, donde, se evidencia que se esta ejecutando como el usuario angie un servicio de python con el nombre de `copyparty-sfx.py`. Buscando de qué se trata encuentro que es un servidor de archivos completo, rápido y ligero, el cual cuenta con servicio web y esto posiblemente es lo que corre por el puerto `3923`.
+
+Para poder analizarlo mucho mejor vamos a realizar port forwarding mediante la herramienta de `chisel`, recordar que necesitamos el binario tanto en la máquina atacante como en la máquina víctima:
 
 ![[Pasted image 20260906211110.png]]
 
-Con esto  tenemos listo el tunel, así que vamos a verificarlo entrando desde el navegador a ver que encontramos:
+Con esto tenemos listo el tunel, así que vamos a verificarlo entrando desde el navegador a ver que encontramos:
 
 ![[Pasted image 20260906211204.png]]
 
-Pefecto ya vemos el portal y es aquí donde tenemos que pensarlo bien, si recordamos el archivo que ejecuta para levantar esto esta en el **Home** por lo tanto como vemos el script en realidad queremos suponer que todo lo que subamos llega a home, además de que claro ya tenemos la flag de usuario.
+Perfecto ya vemos el portal y es aquí donde tenemos que pensarlo bien, si recordamos el archivo que ejecuta para levantar esto está en el **Home** por lo tanto como vemos el script en realidad queremos suponer que todo lo que subamos llega a home, además de que claro ya tenemos la flag de usuario.
 
-Con lo  anterior en mente lo que vamos a hacer es subir una `Authorizedkey` esto con el objetivo de poder simplemente conectarnos medite ssh, y para esto la vamos a crear de la siguiente manera:
+Con lo anterior en mente lo que vamos a hacer es subir una `Authorizedkey` esto con el objetivo de poder simplemente conectarnos mediante ssh, y para esto la vamos a crear de la siguiente manera:
 
 ```bash
 ssh-keygen
 ```
+
 ![[Pasted image 20260906211621.png]]
 En este caso no es necesario especificar mucho podemos dejarlo tal y como lo genera y no es necesario establecer una contraseña, con la clave creada lo que vamos a hacer es copiar el contenido de la clave publica dentro de un archivo llamado `authorized_keys` y le asignamos los permisos 600.
 
@@ -184,6 +194,7 @@ echo "contenido de la clave publica" > authorized_keys
 chmod 600 authorized_keys
 cat autorized_keys
 ```
+
 ![[Pasted image 20260906211931.png]]
 Ya con esto vamos a crear una carpeta `.ssh` en el directorio actual y moveremos el archivo dentro:
 
@@ -194,7 +205,7 @@ mv authorized_keys .ssh
 
 ![[Pasted image 20260906212122.png]]
 
-Listo ya con esto tenemos todo listo, algo que tenemos que tener en cuenta es que para que esto sea válido es que el directorio que contenga la clave de autorizacion tenga solo permisos de manipulacion para el usuario en pocas permisos 700 así que vamos a darle esso permiso a la carpeta `.ssh`:
+Listo ya con esto tenemos todo listo, algo que tenemos que tener en cuenta es que para que esto sea válido es que el directorio que contenga la clave de autorización tenga solo permisos de manipulación para el usuario en pocas permisos 700 así que vamos a darle eso permiso a la carpeta `.ssh`:
 
 ```bash
 chmod 700 .ssh
@@ -202,7 +213,7 @@ chmod 700 .ssh
 
 ![[Pasted image 20260906212325.png]]
 
-En este punto creo que el objetivo es claro subir esto mediante el servicio que contamos, el servidor al almacenarlo directamente en el **home** crearemos directamente la carpeta .ssh y su clave autorizada lo que nos permitira una conexión legitima por ssh:
+En este punto creo que el objetivo es claro subir esto mediante el servicio que contamos, el servidor al almacenarlo directamente en el **home** crearemos directamente la carpeta .ssh y su clave autorizada lo que nos permitirá una conexión legítima por ssh:
 
 ![[Pasted image 20260906212511.png]]
 ![[Pasted image 20260906212526.png]]
@@ -219,7 +230,8 @@ Ya estamos dentro como el usuario angie.
 
 # Escalada de Privilegios 2
 
-En este punto realizamos el mismo reconocimiento y en este caso ahora vemos algo al revizar las capacidades de `sudo`:
+En este punto realizamos el mismo reconocimiento y en este caso ahora vemos algo al revisar las capacidades de `sudo`:
+
 ```bash
 sudo -l
 ```
@@ -227,17 +239,17 @@ sudo -l
 ![[Pasted image 20260906212819.png]]
 Listo, podemos ejecutar el comando `/usr/bin/less -F /opt/secret.txt` sin necesidad de contraseña.
 
-Para esto al ser el binario less podemos buscar en GTFOBINS por vulnerabilidades coneocidas:
+Para esto al ser el binario less podemos buscar en GTFOBINS por vulnerabilidades conocidas:
 
 ![[Pasted image 20260906213234.png]]
 
-Encontramos y esta vulnerabilidad se basa en el echo de que archivos extremeadamente largos entra en algo parecido a vim donde dentro del mismo podemos llamara una terminal.
+Encontramos y esta vulnerabilidad se basa en el hecho de que archivos extremadamente largos entran en algo parecido a vim donde dentro del mismo podemos llamar una terminal.
 
 Ahora si lo intentamos ejecutando nuestro archivo veremos que no funciona:
 
 ![[Pasted image 20260906213351.png]]
 
-esto se debe a que las dimeciones de la terminal son tan grandes que avarca todo el archivo sin problema por lo tanto vamos a forzar a que la TTY solo pueda imprimir maximo 2 lineas:
+Esto se debe a que las dimensiones de la terminal son tan grandes que abarca todo el archivo sin problema por lo tanto vamos a forzar a que la TTY solo pueda imprimir máximo 2 lineas:
 
 ```bash
 stty rows 2 columns 100
@@ -246,24 +258,53 @@ stty rows 2 columns 100
 ![[Pasted image 20260906213507.png]]
 
 Con esto podemos volver a intentarlo y veremos lo siguiente:
+
 ```bash
 sudo /usr/bin/less -F /opt/secret.txt
 ```
 
 ![[Pasted image 20260906213528.png]]
 
-entramos donde necesitavamos por lo tanto podemos ejecutar la siguiente linea para invocar una bash:
+Entramos donde necesitábamos por lo tanto podemos ejecutar la siguiente linea para invocar una bash:
+
 ```bash
 !/bin/bash
 ```
 
 ![[Pasted image 20260906213649.png]]
 
-Listo como observamos tenemos una terminamos como el usuario `root` y podemos obtener ya la ultima flag.
+Listo como observamos tenemos una terminal como el usuario `root` y podemos obtener ya la última flag.
 
 ![[Pasted image 20260906213916.png]]
 
 Máquina Terminada.
 
-# Mitigaciónes
+# Mitigaciones
+
+Tras finalizar los procesos de enumeración y explotación de la máquina, se detallan las vulnerabilidades identificadas y las prácticas de seguridad recomendadas (desde una perspectiva de _Blue Team_) para remediar estos fallos:
+
+##  Exposición de información sensible y copias de seguridad
+
+El compromiso inicial fue posible debido a la exposición del directorio `/backup`. Intentar ocultar estas rutas listándolas en el archivo `robots.txt` es una mala práctica conocida como "seguridad por oscuridad", ya que en lugar de proteger el recurso, facilita su descubrimiento por parte de atacantes.
+
+Mitigación: Almacenar las copias de seguridad en directorios externos a la raíz pública del servidor web (fuera de `/var/www/html`). Adicionalmente, se deben configurar reglas en el servidor web (Nginx) para denegar explícitamente el acceso a directorios de respaldo o archivos con extensiones sensibles (como `.bck`, `.bak`, `.sql`).
+  
+##  Ausencia de control de integridad y detección de _webshells_
+
+El sistema realizaba copias de seguridad automatizadas sobre el directorio web de forma indiscriminada, llegando al extremo de respaldar un _backdoor_ (Weevely) previamente alojado. Esto evidencia una falta crítica de monitoreo sobre los archivos que residen en el servidor.
+
+Mitigación: Implementar soluciones de Monitoreo de Integridad de Archivos (FIM) para generar alertas ante la creación o modificación inesperada de scripts (PHP, en este caso). También se recomienda configurar análisis periódicos con herramientas de detección de malware y desplegar un Firewall de Aplicaciones Web (WAF) que bloquee las firmas y el tráfico generado por _backdoors_ conocidos.
+  
+
+##  Configuración insegura de servicios y escritura en directorios críticos
+
+Se detectó un servicio interno de transferencia de archivos (Copyparty) ejecutándose con los privilegios del usuario `angie` y configurado para almacenar las subidas directamente en su directorio `HOME`. Esto originó una vulnerabilidad crítica que permitió escribir la carpeta `.ssh` y el archivo `authorized_keys`, facilitando la conexión remota legítima.
+
+Mitigación: Aplicar el principio de menor privilegio. El servicio debe ejecutarse en un entorno aislado (_sandbox_ o _chroot_) y los archivos subidos deben almacenarse en un directorio temporal o dedicado (ej. `/var/tmp/copyparty_uploads`) sin permisos de ejecución. Además, si la cuenta del usuario se utiliza únicamente para administrar este servicio, se debe deshabilitar su acceso interactivo por SSH (mediante `/sbin/nologin` o directivas en `sshd_config`).
+
+## Configuración permisiva de Sudo
+
+El vector final para comprometer por completo el sistema radicó en una mala gestión de permisos, otorgando privilegios de `sudo` sin contraseña sobre el binario `less`. Al ser un paginador interactivo, `less` permite escapar a una _shell_ del sistema, convirtiéndolo en un vector clásico de escalada de privilegios.
+
+Mitigación: Auditar estrictamente el archivo `/etc/sudoers` para evitar conceder acceso a binarios interactivos que permitan la ejecución secundaria de comandos. Si es indispensable que el usuario utilice `less` mediante `sudo`, se debe aplicar la etiqueta `NOEXEC` en la configuración de _sudoers_ o forzar el uso de la variable de entorno `LESSSECURE=1` para deshabilitar las funciones de escape interactivas.
 
