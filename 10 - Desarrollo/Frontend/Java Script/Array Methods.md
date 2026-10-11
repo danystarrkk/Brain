@@ -1,161 +1,152 @@
 ---
+aliases: ["Métodos de arreglo", "Array methods"]
 tags:
-  - programacion/js
-Creado: 2025-01-25
-Relacionado:
-  - "[[JAVASCRIPT]]"
+  - dev/frontend/js
+tipo: concepto
+estado: terminado
+creado: 2025-01-25
+actualizado: 2026-10-11
+relacionado:
+  - "[[Arreglos]]"
+  - "[[Iteradores]]"
+  - "[[Funciones]]"
+fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/Array"
 ---
-----------
+
 # Array Methods
 
-```jsx
+Los **métodos de arreglo** son funciones que ya vienen con cada arreglo y resuelven las operaciones más comunes: buscar, filtrar, transformar y combinar. Todos reciben una función callback — ver [[Funciones]] — y se usan con arrow functions para mantener el código corto.
+
+Datos de ejemplo para toda la nota:
+
+```js
 const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'];
 
 const carrito = [
   { nombre: 'Monitor 27 Pulgadas', precio: 500 },
   { nombre: 'Televisión', precio: 100 },
   { nombre: 'Tablet', precio: 200 },
-  { nombre: 'Audifonos', precio: 300 },
+  { nombre: 'Audífonos', precio: 300 },
   { nombre: 'Teclado', precio: 400 },
   { nombre: 'Celular', precio: 700 },
-]
-
-// Comprobar si un Valor existe dentro de un arreglo
-
-// meses.forEach(mes => console.log(mes === "Enero" ? console.log("Enero si existe") : "Enero no existe")); // forma sin arraymethod
-
-// el arraymethod .includes solo nos funciona con arreglos
-
-const resultado = meses.includes("Enero"); // forma con array method
-console.log(resultado);
-
-// el arraymethod .some nos sirve en el uso de objetos
-const existe = carrito.some(producto => producto.nombre === "Celular");
-console.log(existe);
-
-// tambien es funiconal en un arreglo
-const existe2 = meses.some(mes => mes === "Mayo");
-console.log(existe2);
-
-const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'];
-
-const carrito = [
-  { nombre: 'Monitor 27 Pulgadas', precio: 500 },
-  { nombre: 'Televisión', precio: 100 },
-  { nombre: 'Tablet', precio: 200 },
-  { nombre: 'Audifonos', precio: 300 },
-  { nombre: 'Teclado', precio: 400 },
-  { nombre: 'Celular', precio: 700 },
-]
-
-// Encontrar la posición de un array con ayuda de un bucle foreach
-let indice = meses.forEach((mes, i) => {
-  if (mes === "Mayo") {
-    console.log(i);
-  }
-})
-
-// Encontrar la posición de un array mediante un findindex
-const indice2 = meses.findIndex(mes => mes === 'Abri'); // en el caso de no encontrarlo va a retornar un -1
-console.log(indice2 > 0 ? `El indice de Abril es ${indice2}` : "Mes no encontrado"); // forma de comprobar si no existe.
-
-const indice3 = carrito.findIndex(carrito => carrito.nombre == "Celular");
-console.log(indice3 > 0 ? `El indice de Celular es ${indice3}` : "Valor no encontrado");
-
-// Mediante un foreach
-let total = 0;
-
-carrito.forEach(producto => total += producto.precio);
-console.log(total);
-
-// Con un reduce
-let resultado = carrito.reduce((vprevio, vactual) => vprevio + vactual, 0);// tenemos valoreprevio, valoractual, 0 es el valor con el que comience valorprevio
-console.log(total);
-
-// filter
-
-let resultado;
-
-resultado = carrito.filter(producto => producto.precio > 400); // nos crea un nuevo arreglo que cumpla con la condición que se requiere
-console.log(resultado);
-
-resultado = carrito.filter(producto => producto.precio < 600);
-console.log(resultado);
-
-// Puede ser util en un carrito de compras
-resultado = carrito.filter(producto => producto.nombre != "Audifonos");
-console.log(resultado);
-
-// con foreach
-let resultado = "";
-
-carrito.forEach((producto, indice) => {
-  if (producto.nombre == "Tablet") {
-    resultado = carrito[indice];
-  }
-})
-console.log(resultado);
-// sintaxis del foreach reducida
-
-carrito.forEach((producto, indice) => producto.nombre == "Celular" ? resultado = carrito[indice] : "");
-console.log(resultado);
-
-// con .find
-
-const resultado2 = carrito.find(producto => producto.nombre === "Tablet");// nos permite buscar por un valor y asignarlo a una variable
-console.log(resultado2);
-
-// con foreach
-let resultado = "";
-
-carrito.forEach((producto, indice) => {
-  if (producto.nombre == "Tablet") {
-    resultado = carrito[indice];
-  }
-})
-console.log(resultado);
-// sintaxis del foreach reducida
-
-carrito.forEach((producto, indice) => producto.nombre == "Celular" ? resultado = carrito[indice] : "");
-console.log(resultado);
-
-// con .find
-
-const resultado2 = carrito.find(producto => producto.nombre === "Tablet");// nos permite buscar por un valor o el primer valor que cumpla la condición
-// y asignarlo a una variable, pero solo a un valor no mas de UNO
-console.log(resultado2);
-
-// uso de .every
-// el objetivo es determinar si todos los elementos cumplen la condición
-const resultado = carrito.every(producto => producto.precio < 1000);
-console.log(resultado);
-
-// concat nos permite unir arreglos
-const resultado = meses.concat(meses2, meses3, 'OtroMes');
-console.log(resultado);
-
-// spread operator
-const resultado2 = [...meses, ...meses2, ...meses3, "OtroMes"];
-// si pasmos un string como ..."OtroMes" se agregan cada letra como un elemento
-console.log(resultado2);
-
-// concat nos permite unir arreglos
-const resultado = meses.concat(meses2, meses3, 'OtroMes');
-console.log(resultado);
-
-// spread operator
-const resultado2 = [...meses, ...meses2, ...meses3, "OtroMes"];
-// si pasmos un string como ..."OtroMes" se agregan cada letra como un elemento
-console.log(resultado2);
-
-// Mas con spread Operator
-const meses2 = [...meses, 'Julio'];
-console.log(meses2); // esto no modifica al arreglo origina y es la programación funcional
-
-// En objetos
-
-const producto = { nombre: 'Disco Duro', precio: 300 };
-// Si usamos los 3 puntos en un objeto nos dara un error ya que no es operable
-const carrito2 = [...carrito, producto];
-console.log(carrito2);
+];
 ```
+
+## ¿Existe un valor? `includes`, `some` y `every`
+
+```js
+// includes: comparación por valor, ideal para arreglos simples de primitivos
+console.log(meses.includes('Enero')); // true
+
+// some: "¿ALGÚN elemento cumple la condición?" — perfecto con objetos
+const existe = carrito.some((producto) => producto.nombre === 'Celular'); // true
+
+// some también sirve con primitivos
+console.log(meses.some((mes) => mes === 'Mayo')); // true
+
+// every: "¿TODOS los elementos cumplen la condición?"
+const todosBaratos = carrito.every((producto) => producto.precio < 1000); // true
+```
+
+| Método | Pregunta que resuelve | Retorna |
+| ------ | --------------------- | ------- |
+| `includes(valor)` | ¿Este valor está en el arreglo? | `boolean` |
+| `some(cb)` | ¿Algún elemento cumple? | `boolean` |
+| `every(cb)` | ¿Todos cumplen? | `boolean` |
+
+## Encontrar la posición: `findIndex`
+
+```js
+// Con forEach hay que guardar el índice a mano
+meses.forEach((mes, i) => {
+  if (mes === 'Mayo') console.log(i);
+});
+
+// Con findIndex es directo; retorna -1 si no encuentra
+const indice = meses.findIndex((mes) => mes === 'Abril');
+console.log(indice !== -1 ? `El índice de Abril es ${indice}` : 'Mes no encontrado');
+
+const indiceCelular = carrito.findIndex((p) => p.nombre === 'Celular');
+console.log(indiceCelular !== -1 ? `El índice de Celular es ${indiceCelular}` : 'Valor no encontrado');
+```
+
+> [!warning] El -1 rompe las comparaciones ingenuas
+> Si el elemento está en la **posición 0**, una comprobación `indice > 0` daría `false` y reportaría "no encontrado" aunque sí exista. Compara siempre contra `-1`: `indice !== -1`.
+
+## Sumar con acumulador: `forEach` vs `reduce`
+
+```js
+// Imperativo: declarar un acumulador y mutarlo
+let total = 0;
+carrito.forEach((producto) => (total += producto.precio));
+console.log(total); // 2200
+
+// Declarativo: reduce acumula SIN variable externa
+// (acumulador, valor actual) => nuevo acumulador; el 0 es el valor inicial
+const totalReduce = carrito.reduce((acumulador, producto) => acumulador + producto.precio, 0);
+console.log(totalReduce); // 2200
+```
+
+El tercer argumento de `reduce` (el `0`) es el **valor inicial** del acumulador: olvidarlo con arreglos de objetos produce `NaN` o un `"[object Object]300"` rarísimo.
+
+## Filtrar: `filter`
+
+`filter` crea un **arreglo nuevo** con los elementos que cumplen la condición; el original queda intacto (inmutabilidad — ver [[Arreglos]]).
+
+```js
+console.log(carrito.filter((p) => p.precio > 400));  // Monitor y Celular
+console.log(carrito.filter((p) => p.precio < 600));  // todo menos Celular
+
+// Muy útil para "quitar" algo de un carrito de compras
+const sinAudifonos = carrito.filter((p) => p.nombre !== 'Audífonos');
+```
+
+## Buscar el elemento: `find`
+
+```js
+// find retorna el PRIMER elemento que cumple la condición (o undefined)
+const resultado = carrito.find((producto) => producto.nombre === 'Tablet');
+console.log(resultado); // { nombre: 'Tablet', precio: 200 }
+
+// Lo mismo con forEach obliga a esto (innecesariamente verboso):
+let encontrado = null;
+carrito.forEach((producto, indice) => {
+  if (producto.nombre === 'Tablet') encontrado = carrito[indice];
+});
+```
+
+| Método | Retorna | Caso de uso |
+| ------ | ------- | ----------- |
+| `find(cb)` | el elemento o `undefined` | obtener UN objeto por su propiedad |
+| `findIndex(cb)` | índice o `-1` | necesito la posición para modificar/eliminar |
+| `filter(cb)` | arreglo (posiblemente vacío) | necesito TODOS los que cumplan |
+
+## Combinar arreglos: `concat` y spread
+
+```js
+const meses2 = ['Agosto', 'Septiembre'];
+const meses3 = ['Octubre', 'Noviembre', 'Diciembre'];
+
+// concat une arreglos (y acepta valores sueltos)
+const resultado = meses.concat(meses2, meses3, 'OtroMes');
+
+// Spread: la forma moderna y más legible
+const resultado2 = [...meses, ...meses2, ...meses3, 'OtroMes'];
+
+// Copiar sin mutar el original: programación funcional
+const copia = [...meses, 'Julio'];
+
+// Combinar arreglos de objetos también funciona
+const producto = { nombre: 'Disco Duro', precio: 300 };
+const carrito2 = [...carrito, producto];
+```
+
+> [!warning] `concat` vs spread con strings
+> `[...meses, 'OtroMes']` agrega `'OtroMes'` como **un** elemento, pero `...'OtroMes'` sin comillas (o spreadyando un string directamente) separa el texto **en cada letra**. Spreadyando un objeto plano da error: los objetos no son iterables.
+
+## Relacionadas
+
+- [[Arreglos]] — crear, acceder y mutar arreglos
+- [[Iteradores]] — `for`, `for...of`, `forEach` y los demás bucles
+- [[Funciones]] — callbacks y arrow functions, la base de estos métodos
+- [[Objetos]] — trabajar con los objetos dentro del arreglo

@@ -1,212 +1,228 @@
 ---
+aliases: ["Event listeners", "Eventos del DOM"]
 tags:
-  - programacion/js
-Creado: 2025-01-25
-Relacionado:
-  - "[[JAVASCRIPT]]"
+  - dev/frontend/js
+tipo: concepto
+estado: terminado
+creado: 2025-01-25
+actualizado: 2026-10-11
+relacionado:
+  - "[[Document Object Model (DOM)]]"
+  - "[[Acceder a Html]]"
+  - "[[Funciones]]"
+fuente: "https://developer.mozilla.org/es/docs/Web/API/Event_target/addEventListener"
 ---
-----------
-# Eventos en HTML
 
-```jsx
+# Eventos
+
+Un **evento** es cualquier notificación que el navegador lanza cuando algo pasa: un click, una tecla, un envío de formulario, el scroll... **Escuchar eventos** con `addEventListener` es lo que hace a una página *interactiva*: el código corre **reaccionando** al usuario, no en línea recta.
+
+```js
 console.log(1);
 
-document.addEventListener('DOMContentLoaded', () => { // este es un evente el cual se ejecuta una vez el html es descargado y cargado
-  console.log(2);
+document.addEventListener('DOMContentLoaded', () => {
+  console.log(2); // se ejecuta cuando el HTML terminó de cargarse
 });
 
 console.log(3);
+// Orden en consola: 1, 3, 2 — el código normal no espera a los eventos
+```
 
+> [!info] `DOMContentLoaded`
+> Es el evento que indica que el HTML ya está construido (el [[Document Object Model (DOM)|DOM]] existe). Si tu script carga en el `<head>`, escuchar este evento es la garantía de que `querySelector` no retornará `null`.
+
+## Eventos de mouse
+
+```js
 const nav = document.querySelector('.navegacion');
 
-// Eventos de Mouse
+nav.addEventListener('click', () => console.log('click en nav'));
 
-nav.addEventListener('click', () => { // realiza la accion al detectar el click
-  console.log("click en nav");
-})
-
-nav.addEventListener('mouseenter', () => { // nos permite detectar cuando el mouse se encuentra sobre el elemento
+nav.addEventListener('mouseenter', () => {
   console.log('entrando en la navegación');
   nav.style.backgroundColor = 'transparent';
-})
+});
 
-nav.addEventListener('mouseout', () => { // Nos permite detectar cuando el mouse sale del espacio o elemento que definimos
-  console.log('Saliendo de la navegacion');
+nav.addEventListener('mouseout', () => {
+  console.log('saliendo de la navegación');
   nav.style.backgroundColor = 'white';
-})
+});
 
-nav.addEventListener('mousedown', () => { // es similar a click pero detecta cuando la oprecion del click y click detecta el pulsar y soltar
-  console.log("Has precionando");
-})
+nav.addEventListener('mousedown', () => console.log('Has presionado'));  // botón abajo
+nav.addEventListener('mouseup', () => console.log('Has soltado el click')); // botón arriba
+nav.addEventListener('dblclick', () => console.log('Doble click'));
+```
 
-nav.addEventListener('mouseup', () => { // es lo contrario a mousedown detecta el soltar del click
-  console.log("Has solatdo el click");
-})
+| Evento | Cuándo dispara |
+| ------ | -------------- |
+| `click` | presionar **y** soltar sobre el elemento |
+| `dblclick` | doble click |
+| `mousedown` / `mouseup` | solo la parte de presionar / soltar |
+| `mouseenter` / `mouseleave` | el cursor entra o sale del elemento (sin burbujear) |
+| `mouseover` / `mouseout` | igual, pero **sí** burbujea y se dispara al cruzar hijos |
 
-nav.addEventListener('dblclick', () => { // Nos permite detectar cuando realizamos un doble click
-  console.log("Has realizado un doble click");
-})
+## Eventos de teclado y formulario
 
+```js
 const busqueda = document.querySelector('.busqueda');
 
-busqueda.addEventListener('keydown', () => { // Detecta el pulsar de una tecla, el PULSAR no el pulsar y soltar
-  console.log("Escribiendo...");
-})
+busqueda.addEventListener('keydown', () => console.log('Tecla presionada')); // al pulsar
+busqueda.addEventListener('keyup', () => console.log('Tecla soltada'));       // al soltar
+busqueda.addEventListener('blur', () => console.log('Salió del campo'));      // muy usado en validaciones
 
-busqueda.addEventListener('keyup', () => { // Detecta el soltar de una tecla
-  console.log("Soltar la tecla");
-})
+busqueda.addEventListener('copy', () => console.log('Copiar'));
+busqueda.addEventListener('paste', () => console.log('Pegar'));
+busqueda.addEventListener('cut', () => console.log('Cortar'));
+```
 
-busqueda.addEventListener('blur', () => { // Nos permite detectar cuando el usuario sale de un campo, (muy usado en validaciones)
-  console.log('validación');
-})
+### El evento `input`: el más útil
 
-busqueda.addEventListener('copy', () => { // Detecta cuando copiamos algun texto
-  console.log('Copiar');
-})
+El evento `input` se dispara **cada vez que el valor cambia** (teclear o borrar), así que cubre `keydown` y `keyup` a la vez:
 
-busqueda.addEventListener('paste', () => { // Detecta al pegar algo
-  console.log('Copiar');
-})
+```js
+busqueda.addEventListener('input', (evt) => {
+  console.log(evt.type);        // "input": el tipo de evento
+  console.log(evt.target);       // el ELEMENTO que disparó el evento
+  console.log(evt.target.value); // lo que el usuario lleva escrito
 
-busqueda.addEventListener('cut', () => { // Detecta al momento de coortar texto
-  console.log('Copiar');
-})
+  if (evt.target.value === '') {
+    console.log('El campo quedó vacío');
+  }
+});
+```
 
-// El principal y mas usado es "input", esto ya que realiza todo lo anterior con excepción del blur
+`evt.target` es la clave para saber **qué elemento originó** el evento — ver "Delegación" más abajo.
 
-busqueda.addEventListener('input', (evt) => { // podemos pasarle a al función el evento (evt)
-  console.log(evt);
-})
+### Envío de formularios
 
-busqueda.addEventListener('input', (evt) => { // Nos permite ver sobre que elemento se esta trabajando
-  console.log(evt.type);
-})
-
-busqueda.addEventListener('input', (evt) => { // Esto es ideal cuando realizamos busquedas con el objetivo de leer lo que el usuario escribe
-  console.log(evt.target.value);
-})
-
-busqueda.addEventListener('input', (evt) => { // Detectamos cuando borramos por completo un campo
-  if (evt.target.value === "") {
-    console.log("fallo la validadción");
-    
+```js
 const formulario = document.querySelector('#formulario');
 
 formulario.addEventListener('submit', validarFormulario);
 
 function validarFormulario(evt) {
-  evt.preventDefault(); // esto nos ayuda a prevenir la accion de un elemento por default
-  console.log(evt.target.method); // .method nos ayuda a ver que metodo usa para enviar datos .action para ver la acción del submit
-  // en este punto podemos comenzar a consumir una api
-}
+  evt.preventDefault(); // detiene el envío tradicional (recarga de página)
+  console.log(evt.target.method); // GET o POST
+  console.log(evt.target.action); // a dónde se enviaría
 
-window.addEventListener('scroll', () => { // esta es una forma de detectar el scroll vertical
-  const scrollPX = window.scrollY; // Esto nos permite registrar el scroll en vertical
-  // console.log(scrollPX);
+  // en este punto puedes validar los campos o consumir una API
+}
+```
+
+> [!warning] `preventDefault()` es casi obligatorio en `submit`
+> Sin él, el navegador recarga la página y pierdes todo el trabajo de validación. Solo omítelo si de verdad quieres el envío nativo del formulario.
+
+## Scroll
+
+```js
+window.addEventListener('scroll', () => {
+  const scrollPX = window.scrollY; // píxeles scrolleados en vertical
+
   const premium = document.querySelector('.premium');
   const ubicacion = premium.getBoundingClientRect();
 
-  // console.log(ubicacion);
-
   if (ubicacion.top < 784) {
-    console.log("El elemento Ya esta visible");
+    console.log('El elemento ya está visible');
   } else {
-    console.log("Aún no, da mas scroll");
+    console.log('Aún no, da más scroll');
   }
-})
+});
+```
 
-// Event Bubbling
-// Es cuando precionamos en un evento pero este mismo evento se propaga por multiples partes dando otros resultados
+`getBoundingClientRect().top` es la distancia entre el borde superior del elemento y el borde superior de la ventana: cuando se vuelve negativa, el elemento entró en pantalla.
 
-const cardDiv = document.querySelector(".card");
-const infoDiv = document.querySelector(".info");
-const titulo = document.querySelector(".titulo");
+> [!tip] Rendimiento en `scroll`
+> El evento `scroll` dispara a alta frecuencia. En proyectos grandes, limita su ejecución (*throttle*) o usa `IntersectionObserver`, que avisa cuando un elemento entra en pantalla sin recalcular en cada frame.
 
-cardDiv.addEventListener('click', (evt) => {
-  evt.stopPropagation(); // Esta es una forma de deterner el Event Bubbling
-  console.log("click en card");
-})
+## Event Bubbling (propagación)
 
+Cuando haces click en un hijo, el evento **sube** por el árbol: primero ejecuta el listener del hijo, luego del padre, luego del abuelo... eso es el *bubbling*:
+
+```js
+const cardDiv = document.querySelector('.card');
+const infoDiv = document.querySelector('.info');
+const titulo = document.querySelector('.titulo');
+
+cardDiv.addEventListener('click', () => console.log('click en card'));
 infoDiv.addEventListener('click', (evt) => {
-  evt.stopPropagation(); // Esta es una forma de deterner el Event Bubbling
-  console.log("click en info");
-})
-
+  evt.stopPropagation(); // detiene la propagación hacia arriba
+  console.log('click en info');
+});
 titulo.addEventListener('click', (evt) => {
-  evt.stopPropagation(); // Esta es una forma de deterner el Event Bubbling
-  console.log("click en titulo");
-})
+  evt.stopPropagation();
+  console.log('click en titulo');
+});
+```
 
-// Delegation
+> [!warning] `stopPropagation` con cuidado
+> Detener la propagación en muchos niveles puede "ahogar" listeners legítimos del padre. Prefiere diseñar el flujo y usar `stopPropagation` solo donde hace falta.
 
-const cardDiv = document.querySelector(".card");
+## Delegación de eventos
+
+En vez de poner un listener en cada hijo, se pone **uno solo en el padre** y se identifica el origen con `evt.target`. Es más eficiente y, sobre todo, **funciona con elementos que se crean dinámicamente**:
+
+```js
+const cardDiv = document.querySelector('.card');
+
 cardDiv.addEventListener('click', (evt) => {
-  console.log(evt.target); // Esta es una forma de identificar a donde le damos click
-  console.log(evt.target.classList); // Nos permite identificar las clases de cada elemnto
+  console.log(evt.target);
+  console.log(evt.target.classList);
 
-  // Podmeos usarlo  de la siguiente manera para poder identificar elementos
+  if (evt.target.classList.contains('titulo')) console.log('click en título');
+  if (evt.target.classList.contains('precio')) console.log('click en precio');
+  if (evt.target.classList.contains('categoria')) console.log('click en categoría');
+});
+```
 
-  if (evt.target.classList.contains('titulo')) {
-    console.log('click a titulo');
-  }
-  if (evt.target.classList.contains('precio')) {
-    console.log('click a precio');
-  }
+## Asignando handlers a elementos creados
 
-  if (evt.target.classList.contains('categoria')) {
-    console.log('click a categoria');
-  }
-
-})
-
-// Evitar la propagación con contenido creado...
-const parrafo1 = document.createElement('P');
+```js
+const parrafo1 = document.createElement('p');
 parrafo1.textContent = 'Concierto';
-parrafo1.classList.add('categoria');
-parrafo1.classList.add('concierto');
+parrafo1.classList.add('categoria', 'concierto');
 
-// Segundo parrafo
-const parrafo2 = document.createElement('P');
+const parrafo2 = document.createElement('p');
 parrafo2.textContent = 'Concierto de Rock';
 parrafo2.classList.add('titulo');
 
-// 3er parrafo...
 const parrafo3 = document.createElement('p');
 parrafo3.textContent = '$800 por persona';
 parrafo3.classList.add('precio');
-parrafo3.onclick = nuevaFuncion; // cuando agregamos nuevas funciones no se debe poner los parentesis sino esta se ejecutara siempre,
-// si deseamos pasar un valor a una función vamos a crear una funcion anonima que se encargue de eso
-parrafo3.onclick = function () {
-  nuevaFuncion(1);
+
+// Asignar la función SIN paréntesis: si escribes nuevaFuncion(), se ejecuta
+// en el momento de asignar y el listener nunca se registra.
+parrafo3.onclick = nuevaFuncion;
+
+// Para pasar argumentos, se envuelve en una función anónima/arrow
+parrafo3.onclick = () => nuevaFuncion(1);
+
+function nuevaFuncion(id) {
+  console.log(`nueva función con el id ${id}`);
 }
 
-// crear el div...
+// Componer el card y agregarlo al DOM
 const info = document.createElement('div');
 info.classList.add('info');
-info.appendChild(parrafo1)
-info.appendChild(parrafo2)
-info.appendChild(parrafo3);
+info.append(parrafo1, parrafo2, parrafo3);
 
-// Vamos a crear la imagen
 const imagen = document.createElement('img');
 imagen.src = 'img/hacer2.jpg';
 
-// Crear el Card..
 const contenedorCard = document.createElement('div');
 contenedorCard.classList.add('contenedorCard');
+contenedorCard.append(imagen, info);
 
-// Vamos a asignar la imagen al card...
-contenedorCard.appendChild(imagen);
-
-// y el info
-contenedorCard.appendChild(info);
-
-// Insertarlo en el HTML...
-const contenedor = document.querySelector('.hacer .contenedor-cards');
-contenedor.appendChild(contenedorCard); // al inicio info
-
-function nuevaFuncion(id) {
-  console.log(`nueva funcion con el id de ${id}`);
-}
+document.querySelector('.hacer .contenedor-cards').appendChild(contenedorCard);
 ```
+
+> [!tip] `onclick` vs `addEventListener`
+> `elemento.onclick = fn` solo admite **un** handler por evento (la última asignación pisa a la anterior). `addEventListener` admite varios y permite opciones (`once`, `capture`). Prefiere `addEventListener`; el `onclick` se ve sobre todo en HTML inline.
+
+Ver [[Acceder a Html]] para `createElement`/`append` y el resto de manipulación del DOM.
+
+## Relacionadas
+
+- [[Document Object Model (DOM)]] — el árbol por el que viajan los eventos
+- [[Acceder a Html]] — crear los elementos a los que se les agregan listeners
+- [[Funciones]] — callbacks: la función que recibe `addEventListener`
+- [[Qué es una API]] — qué ocurre cuando el evento dispara un `fetch`

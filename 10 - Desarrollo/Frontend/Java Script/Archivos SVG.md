@@ -1,18 +1,28 @@
 ---
+aliases: ["SVG con JavaScript", "Animar SVG"]
 tags:
-  - programacion/js
-Creado: 2025-01-25
-Relacionado:
-  - "[[JAVASCRIPT]]"
+  - dev/frontend/js
+tipo: concepto
+estado: terminado
+creado: 2025-01-25
+actualizado: 2026-10-11
+relacionado:
+  - "[[Document Object Model (DOM)]]"
+  - "[[Eventos]]"
+fuente: "https://developer.mozilla.org/es/docs/Web/SVG/Tutorial"
 ---
-----------
-# Archivos SVG
 
-Este tipo de archivo los cuales son imágenes en vectores escalares a diferencia de otro tipo de archivos de imágenes nos permite modificar el mismo, es decir que a este tipo de archivos podríamos hasta llegar a animarlos, por lo que vamos a ver algunos métodos importantes de JavaScript que nos permitan realizar esto, pero primero vamos a ver paso a paso el cómo se hace y recrea este tipo de código:
+# Archivos SVG con JavaScript
 
-Lo que solemos hacer primero es capturar mediante el DOM los elementos que se van a modificar como si fueran un archivo HTML cualquiera de la siguiente manera:
+**SVG** (*Scalable Vector Graphics*) describe imágenes con **fórmulas** (líneas, círculos, paths) en vez de píxeles. Esa es su gran ventaja: al no tener resolución fija, **se pueden escalar y animar programáticamente** sin perder calidad. Como el SVG vive embebido en el HTML, es parte del [[Document Object Model (DOM)|DOM]] y se manipula con los mismos métodos de selección.
 
-```jsx
+El ejemplo de esta nota es un avatar cuyas partes (orejas, cabeza, ojos, hocico) **siguen al cursor** del mouse o al dedo en pantallas táctiles.
+
+## 1. Capturar las partes del SVG
+
+Lo primero es seleccionar los elementos por clase, como cualquier HTML:
+
+```js
 const eyes = document.querySelector('.eyes');
 const head = document.querySelector('.head');
 const ears = document.querySelector('.ears');
@@ -20,90 +30,104 @@ const nose = document.querySelector('.nose');
 const snout = document.querySelector('.snout');
 ```
 
-Una vez hecho esto, lo siguiente sería inicializar las valores tanto de la posición del cursor como el del tamaño de la ventana de la siguiente manera:
+## 2. Estado inicial: cursor y tamaño de ventana
 
-```jsx
-// Cursor
-let cursorPosition = { x: 0, y: 0 }; // definimos los valores inciales del cursor
-// Ventana, los datos se capturan al iniciar el script
-let windowWidth = window.innerWidth; // almacena del tamaño de la ventana del navegador (ancho)
-let windowHeight = window.innerHeight; // almacena el  tamaño de la ventana del navegador (alto)
+```js
+// Posición del cursor (se actualiza en cada movimiento)
+let cursorPosition = { x: 0, y: 0 };
+
+// Tamaño de la ventana, capturado al iniciar el script
+let windowWidth = window.innerWidth;
+let windowHeight = window.innerHeight;
+
+// Al redimensionar hay que volver a medir, o los cálculos quedan desfasados
+const defWindow = () => {
+  windowWidth = window.innerWidth;
+  windowHeight = window.innerHeight;
+};
 ```
 
-De esta forma ya tenemos los valores inicialízales de los datos que requerimos.
+## 3. Funciones que actualizan la posición del cursor
 
-Ahora debemos crear una función encargada de manejar el movimiento del ratón de la siguiente manera:
+```js
+// Movimiento del mouse: e es el evento que dispara mousemove
+const mouseMov = (e) => {
+  // clientX/clientY: coordenadas del cursor relativas a la ventana
+  cursorPosition = { x: e.clientX, y: e.clientY };
+};
 
-```jsx
-
-// Esta es la función que ejecutaremos al mover el ranto,
-// donde la variable postion almacenara la posición del raton
-function mouseMov(position) {
-  cursorPosition = { x: e.clientX, y: e.clientY } // mediane los metodos clientX/Y obtenemos,
-  // la posición actual del raton.
-}
-
+// Variante táctil: el primer dedo sobre la pantalla
+const touchMode = (e) => {
+  cursorPosition = {
+    x: e.targetTouches[0].offsetX,
+    y: e.targetTouches[0].offsetY,
+  };
+};
 ```
 
-En el caso de que sé deva implementar la captura táctil, lo vamos a hacer de la siguiente manera:
+> [!warning] El parámetro del handler es el evento
+> El error clásico es declarar `function mouseMov(position)` pero usar `e` por dentro: `e` no existe en ese scope y salta un `ReferenceError`. El parámetro y el nombre usado dentro deben coincidir.
 
-```jsx
-// Esta es la función que ejecutaremos al hacer click en el tactil de un dispositivo
-function touchmode(e) {
-  cursorPosition = { x: e.targetTouches[0].offsetX, y: e.targetTouches[0].offsetY };
-  // mediante la función targetTouches toma la posición del primer toque y actualiza la posición
-  // con las coordenas del toque.
-}
-```
+## 4. Mover un elemento según el cursor
 
-Lo anterior sería lo básico, pero ahora veremos diferentes usos que se les dará a estas configuraciones anteriores:
+La idea: medir dónde está el elemento, comparar su centro con la posición del cursor y aplicar un `transform` de desplazamiento:
 
-**Mover Elementos según la posición del cursor o el toque(touch):**
-
-Para esto debemos realizar los siguientes:
-
-```jsx
-//Esta sera un afunción que ejecutaremos para que un elemento de la web se mueva dependiendo de la
-// posicion del cursor.
+```js
 const seguirCursor = (element, valX, valY) => {
-// elment es el elemento que vamos a mover, valX y valY son los valores de escala que nos permite 
-// determinar que tan lejos se moverá el elmeto respecto del cursor
-const elementOffset = element.getBoundingClientRect(); // El metodo getBoundignClientRect() nos 
-// permite obtener las dimenciones del elmento como: la distancia desde el borde de la ventana
-// izquierda hasta el borde del elmeto izquierdo (x), tambien desde el borde de arrba hasta el
-// borde de arriba del elemto (y), tambien el ancho del elemento (width) y el alto del elemento
-// (height)
-  const centerX = elementOffset.x + (elementOffset.width / 2);// calculamos su ancho sumando la 
-  // distancia en x mas la mitad del ancho del elemento para obtener el centro del elemento.
-  const centerY = elementOffset.y + (elementOffset.height / 2);// de la misma forma sumamos la 
-  // distancia en y mas la mitad del alto del elemento para obtener la del mismo.
-  const distanceleft = Math.round(((cursorPosition.x - centerX) * 100) / window.innerWidth);
-  const distanctop = Math.round(((cursorPosition.y - centerY) * 100) / window.innerHeight);
+  // Dimensiones y posición del elemento respecto de la ventana:
+  // x, y (borde superior izquierdo), width y height
+  const elementOffset = element.getBoundingClientRect();
 
-  element.style.transform = `translate(${distanceleft / valX}px,${distanctop / valY}px)`;
-  // por ultimo estamos aplicando un style al elmento para que cambie continuamente la posición.
-}
+  // Centro exacto del elemento
+  const centerX = elementOffset.x + elementOffset.width / 2;
+  const centerY = elementOffset.y + elementOffset.height / 2;
 
+  // Distancia cursor-centro, normalizada al tamaño de la ventana (en %)
+  const distanceLeft = Math.round(((cursorPosition.x - centerX) * 100) / window.innerWidth);
+  const distanceTop = Math.round(((cursorPosition.y - centerY) * 100) / window.innerHeight);
+
+  // valX/valY amortiguan el movimiento: cuanto más grande, menos se mueve
+  element.style.transform = `translate(${distanceLeft / valX}px, ${distanceTop / valY}px)`;
+};
 ```
 
-Ya con esto crearemos una función en la cual vamos a verificar cada una de las partes del elemento con el propósito de comprobar y ejecutar la función de seguir Cursor cuando movemos el cursor por la web de la siguiente manera:
+Cada parte del rostro se mueve con su propio factor de amortiguación: las orejas apenas se mueven (`0` = casi fijas), los ojos casi siguen al cursor (`1.8`), y nariz y hocico quedan en el medio:
 
-```jsx
+```js
 const seguir = () => {
   if (ears) seguirCursor(ears, 0, 0);
   if (head) seguirCursor(head, 6, 6);
   if (eyes) seguirCursor(eyes, 1.8, 1.8);
   if (nose) seguirCursor(nose, 3, 3);
   if (snout) seguirCursor(snout, 3, 3);
-}
+};
+
+seguir(); // una primera posición inicial
 ```
 
-Por último vamos a asociar cada función creada con un elemento para así poder ejecutarlas continuamente:
+Los `if (ears)` protegen contra elementos ausentes: `querySelector` retorna `null` si la clase no existe, y llamar un método sobre `null` lanzaría un error.
 
-```jsx
-window.addEventListener('resize', defWindow); // cada que la pantalla cambie reasigna las dimencines
-// de la web.
-window.addEventListener('mousemove', mouseMov); // cada que el cursor se mueva este ejecuta la función
-// que creamos.
-window.addEventListener('touchmove', touchmode); // Lo mismo pero para el touch de la pantalla.
+## 5. Vincular los eventos
+
+Por último se conectan las funciones a los eventos del [[Eventos|DOM]]:
+
+```js
+window.addEventListener('resize', defWindow);  // al cambiar el tamaño de la ventana
+window.addEventListener('mousemove', mouseMov); // al mover el mouse
+window.addEventListener('touchmove', touchMode); // al mover el dedo (móvil)
 ```
+
+> [!tip] Rendimiento en `mousemove`
+> Los handlers de `mousemove`/`scroll` se disparan decenas de veces por segundo. Si el cálculo es pesado, limita la frecuencia con `requestAnimationFrame` o con *throttling*, o la página se sentirá lenta en dispositivos modestos.
+
+## Ideas para extender el ejemplo
+
+- Cambiar la opacidad o el color de alguna parte según la distancia al cursor.
+- Sumar `deviceorientation` para que el rostro siga la inclinación del celular.
+- Animar con CSS las propiedades que no dependen del cursor (parpadeo, respiración), y dejar el `transform` de posición para JavaScript.
+
+## Relacionadas
+
+- [[Document Object Model (DOM)]] — el árbol que representa el SVG
+- [[Eventos]] — `mousemove`, `touchmove` y compañía
+- [[Acceder a Html]] — selección de elementos y modificación de estilos

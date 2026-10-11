@@ -1,176 +1,214 @@
 ---
+aliases: ["Bucles", "Loops", "Ciclos en JavaScript"]
 tags:
-  - programacion/js
-Creado: 2025-01-25
-Relacionado:
-  - "[[JAVASCRIPT]]"
+  - dev/frontend/js
+tipo: concepto
+estado: terminado
+creado: 2025-01-25
+actualizado: 2026-10-11
+relacionado:
+  - "[[Arreglos]]"
+  - "[[Funciones]]"
+  - "[[Array Methods]]"
+  - "[[Objetos]]"
+fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Statements/for"
 ---
-----------
+
 # Iteradores
 
-```jsx
-// for loop
-// Esta compuesto por 3 partes, <iniciar la variable> <Condicion a cumplirse> <incremento o decremento>
+Un **iterador** (o bucle) repite un bloque de código varias veces. JavaScript ofrece varios estilos: el `for` clásico para control total, `while` cuando la condición manda, y `for...of`/`forEach` para recorrer [[Arreglos|arreglos]] con menos ruido.
 
-// bucle de 0 a 10
+## El `for` clásico
+
+Tiene tres partes separadas por punto y coma: **inicio**, **condición de continuación** e **incremento**:
+
+```js
+// imprime del 0 al 10
 for (let i = 0; i <= 10; i++) {
   console.log(i);
 }
+```
 
-// Pregunta de trabajo: Numeros pares y numeros impares
+- `let i = 0` — se ejecuta una vez al comenzar.
+- `i <= 10` — mientras sea cierto, el bucle sigue.
+- `i++` — se ejecuta tras cada vuelta.
 
+> [!tip] `let` dentro del `for`
+> Declarar el contador con `let` lo encierra en el scope del bucle: no se filtra al resto del código y cada vuelta tiene "su propio" `i` (clave si capturas el valor en closures).
+
+### Pares e impares
+
+```js
 for (let i = 0; i <= 10; i++) {
-  if (i == 0) {
-    console.log(`El ${i} no es Par ni Impar`);
-  } else if (i % 2 == 0) {
-    console.log(`El ${i} es un numero Par`);
+  if (i === 0) {
+    console.log(`El ${i} no es par ni impar`);
+  } else if (i % 2 === 0) {
+    console.log(`El ${i} es un número par`);
   } else {
-    console.log(`El ${i} es un numero Impar`);
+    console.log(`El ${i} es un número impar`);
   }
 }
+```
 
-// recorriendo un arreglo
+El operador `%` (módulo) da el **residuo** de la división: si `i % 2 === 0`, el número es divisible entre 2.
 
+### Recorrer un arreglo por índice
+
+```js
 const carrito = [
   { nombre: 'Monitor', precio: 300 },
-  { nombre: 'Audifonos', precio: 50 },
-  { nombre: 'Teclado', precio: 100 },
-  { nombre: 'Mouse', precio: 20 },
-  { nombre: 'Silla Gamer', precio: 140 },
-  { nombre: 'Mouse Pad', precio: 10 }
-]
+  { nombre: 'Audífonos', precio: 50 },
+  { nombre: 'Teclado', precio: 100, descuento: true },
+];
 
 for (let i = 0; i < carrito.length; i++) {
   console.log(`El ${carrito[i].nombre} tiene un precio de ${carrito[i].precio}`);
 }
+```
 
-// Haciendo uso de Break
+## `break` y `continue`
 
+```js
+// break: termina el bucle COMPLETAMENTE
 for (let i = 0; i < 10; i++) {
-  console.log(`Es el numero: ${i}`)
-  if (i === 5) {
-    break;
-  }
+  console.log(`Es el número: ${i}`);
+  if (i === 5) break; // imprime del 0 al 5 y se detiene
 }
 
-// Haciendo uso del continue
-
+// continue: salta a la siguiente vuelta sin ejecutar el resto
 for (let i = 0; i < 10; i++) {
-  if (i === 5) {
-    console.log('cinco');
-    continue;
-  }
-  console.log(`Es el numero: ${i}`)
+  if (i === 5) continue; // no imprime el 5
+  console.log(`Es el número: ${i}`);
 }
+```
 
-// ejemplo con carrito
+Ejemplo práctico con el carrito: los productos con descuento toman un camino distinto.
 
-const carrito = [
-  { nombre: 'Monitor', precio: 300 },
-  { nombre: 'Audifonos', precio: 50 },
-  { nombre: 'Teclado', precio: 100, descuento: true },
-  { nombre: 'Mouse', precio: 20 },
-  { nombre: 'Silla Gamer', precio: 140 },
-  { nombre: 'Mouse Pad', precio: 10 }
-]
-
+```js
 for (let i = 0; i < carrito.length; i++) {
   if (carrito[i].descuento) {
-    console.log(`El ${carrito[i].nombre} esta en descuento`);
+    console.log(`El ${carrito[i].nombre} está en descuento`);
     continue;
   }
-
   console.log(carrito[i].nombre);
-
 }
+```
 
-// reto fizz bus numeros del 1 al 100
-// Todos los multiplos de 3 tiene que imprimir la palabra fizz
-// Todos los multiplos de 5 tienen que imprimir la palabra bus
-// Todos los multiplos de 5 y 3 tiene que imprimir la palbra fizz bus
+### Reto: FizzBuzz
 
+Clásico de entrevistas: múltiplos de 3 imprimen *Fizz*, de 5 *Buzz*, y de ambos *FizzBuzz*:
+
+```js
 for (let i = 1; i <= 100; i++) {
-  if (i % 3 == 0 && i % 5 == 0) {
-    console.log(`${i}: Fizz Bus`);
-    continue;
-  } else if (i % 3 == 0) {
-    console.log(`${i}: FIZZ`);
-    continue;
-  } else if (i % 5 == 0) {
-    console.log(`${i}: Bus`);
-    continue;
+  if (i % 3 === 0 && i % 5 === 0) {
+    console.log(`${i}: FizzBuzz`);
+  } else if (i % 3 === 0) {
+    console.log(`${i}: Fizz`);
+  } else if (i % 5 === 0) {
+    console.log(`${i}: Buzz`);
+  } else {
+    console.log(i);
   }
 }
-// bucle while, este es un iterador el cual se ejecuta mientras se cumpla una condicion
-
-let i = 0; // iniciamos la variable
-
-while (i < 10) {
-  console.log(i)
-  i++ // aumentamos la variable para que el bucle no sea infinito
-}
-
-// bucle do while, a diferencia de el while que primero comprueba la condicion el do while primero ejecuta y luego comprueba la condicion
-
-let i = 10; // iniciando valor
-
-do {
-  console.log(i);
-  i++;
-} while (i < 10) // condicion
-
-// bucle for each, este nos permite recorrer areglos
-
-const pendientes = ['Tareas', 'Ejercicio', 'Programacion', 'Trabajo'];
-
-pendientes.forEach((pendiente, indice) => console.log(`${pendiente} con indice ${indice}`)); // El for each es un arrow function, esta es su estructura 
-//podemos obtener el indice de cada valor dentro del array padando un segundo valor a la función
-
-// for of nos permite recorrer el arreglo de forma mucho mas sencilla
-const pendientes = ['Tareas', 'Ejercicio', 'Programacion', 'Trabajo'];
-
-const carrito = [
-  { nombre: 'Monitor', precio: 300 },
-  { nombre: 'Audifonos', precio: 50 },
-  { nombre: 'Teclado', precio: 100 },
-  { nombre: 'Mouse', precio: 20 },
-  { nombre: 'Silla Gamer', precio: 140 },
-  { nombre: 'Mouse Pad', precio: 10 }
-]
-
-// definimos una variable para que luego a esta se reasignen valores
-
-for (let pendiente of pendientes) {
-  console.log(pendiente);
-}
-
-for (let producto of carrito) {
-  console.log(producto);
-}
-
-// El for in itera sobre indices en el caso de arreglos
-const pendientes = ['Tareas', 'Ejercicio', 'Programacion', 'Trabajo'];
-
-for (let pendiente in pendientes) {
-  console.log(pendiente);
-}
-
-// for in itera sobre la definición sobre los metodos (modelo, motor, year)
-const automovil = { modelo: "Toyota", motor: "Chevrolet", year: 5 }
-
-for (let propiedad in automovil) {
-  console.log(propiedad);
-}
-
-// Si queremos iterar sobre los valores del objeto podemos hacer
-
-for (let propiedad in automovil) {
-  console.log(automovil[propiedad]);
-}
-
-// Si queremos iterar sobre sobre el valor y la clave del objeto usamos for of de la siguiente forma:
-for (let [clave, valor] of Object.entries(automovil)) {
-  console.log(`${clave}:${valor}`);
-}
-
 ```
+
+> [!warning] El orden de las condiciones importa
+> Si chequearas `i % 3 === 0` antes del caso doble, los múltiplos de 15 caerían en "Fizz" y el "FizzBuzz" nunca se imprimiría. El caso más específico va **primero**.
+
+## `while` y `do...while`
+
+- **`while`**: evalúa la condición **antes** de cada vuelta; si es falsa desde el inicio, no ejecuta nada.
+- **`do...while`**: ejecuta al menos **una vez** y evalúa la condición al final.
+
+```js
+let i = 0;
+while (i < 10) {
+  console.log(i);
+  i++; // sin esto, bucle infinito
+}
+
+let j = 10;
+do {
+  console.log(j);
+  j++;
+} while (j < 10); // la condición es falsa, pero la vuelta ya se ejecutó: imprime 10
+```
+
+Úsalos cuando **no sabes de antemano** cuántas vueltas faltan (por ejemplo, leer hasta que un `prompt` devuelva "salir").
+
+## Recorriendo arreglos: `forEach`
+
+`forEach` recibe una [[Funciones|función]] que se ejecuta por cada elemento. Con un segundo parámetro obtienes el índice:
+
+```js
+const pendientes = ['Tareas', 'Ejercicio', 'Programación', 'Trabajo'];
+
+pendientes.forEach((pendiente, indice) => {
+  console.log(`${pendiente} con índice ${indice}`);
+});
+```
+
+## `for...of`: la forma moderna de recorrer
+
+`for...of` itera sobre los **valores** de un iterable (arreglos, strings, Sets, Maps) sin indices ni callbacks:
+
+```js
+for (const pendiente of pendientes) {
+  console.log(pendiente);
+}
+
+for (const producto of carrito) {
+  console.log(producto.nombre, producto.precio);
+}
+```
+
+## `for...in`: índices y claves
+
+`for...in` itera sobre las **propiedades enumerables**: en arreglos da los índices (como strings), en objetos da las **claves**:
+
+```js
+// Con arreglo: imprime 0, 1, 2, 3 (los índices, no los valores)
+for (const indice in pendientes) {
+  console.log(indice);
+}
+
+// Con objeto: imprime las claves
+const automovil = { modelo: 'Toyota', motor: 'Chevrolet', año: 2020 };
+
+for (const propiedad in automovil) {
+  console.log(propiedad);          // "modelo", "motor", "año"
+  console.log(automovil[propiedad]); // los valores
+}
+```
+
+> [!warning] `for...in` no para arreglos
+> En arreglos recorre índices (y puede recoger propiedades agregadas al arreglo). Para **valores** de un arreglo usa siempre `for...of` o `forEach`.
+
+### Objeto con `for...of`: `Object.entries`
+
+Para recorrer un objeto con `for...of`, conviértelo a pares clave/valor:
+
+```js
+for (const [clave, valor] of Object.entries(automovil)) {
+  console.log(`${clave}: ${valor}`); // desestructuración del par
+}
+```
+
+## ¿Cuál usar? Resumen
+
+| Situación | Recomendado |
+| --------- | ----------- |
+| Recorrer arreglo solo con valores | `for...of` |
+| Recorrer arreglo con índice | `forEach((x, i) => ...)` o `for clásico` |
+| Necesitas `break`/`continue` | `for clásico` o `for...of` |
+| Recorrer objeto | `for...in` o `Object.entries` + `for...of` |
+| Contar mientras haya condición | `while` / `do...while` |
+| Transformar/filtrar arreglos | `map`, `filter` — ver [[Array Methods]] |
+
+## Relacionadas
+
+- [[Arreglos]] — la estructura que más se itera
+- [[Array Methods]] — alternativas declarativas: `map`, `filter`, `reduce`
+- [[Funciones]] — callbacks de `forEach` y arrow functions
+- [[Objetos]] — `for...in` y `Object.entries`
+- [[Estructuras de Control]] — `if` dentro de los bucles
