@@ -1,104 +1,192 @@
 ---
+aliases: ["Flexbox", "Modelo Flex"]
 tags:
-  - programacion/css
-Creado: 2025-01-24
-Relacionado:
-  - "[[CSS]]"
+  - dev/frontend/css
+tipo: concepto
+estado: terminado
+creado: 2025-01-24
+actualizado: 2026-10-11
+relacionado:
+  - "[[Cuando usar GRID o Flexbox]]"
+  - "[[CSS Grid]]"
+  - "[[Tipos de Display]]"
+  - "[[CSS Introducción]]"
+fuente: "https://developer.mozilla.org/es/docs/Web/CSS/CSS_flexible_box_layout"
 ---
-----------
-# [[Flexbox]]
-Esto fue diseñado como un modelo unidimensional para la creación de layouts, Flexbox consta de dos ejes por lo que solo podemos distribuirlos en fila o columna. El valor por defecto es row al definir display: flex;. Los otros valores son _row-reverse, column y column-reverse_.
-## Row o Row-reverse
-Si escogemos este tipo de flex o no definimos nada y se aplica directamente row vamos a ver que los elementos hijos se colocaran de manera izquierda a derecha uno junto al otro:
+
+# Flexbox
+
+Flexbox (**Flexible Box Layout**) es un modelo de layout **unidimensional**: organiza los elementos en un solo eje (fila *o* columna). A cambio de renunciar al control de las dos dimensiones a la vez, ofrece un control finísimo de la alineación y el reparto del espacio disponible.
+
+> [!info] Un eje, dos roles
+> Un contenedor flex tiene un **eje principal** (main axis, por defecto la fila) y un **eje cruzado** (cross axis, perpendicular). Las propiedades `justify-*` trabajan sobre el eje principal y las `align-*` sobre el cruzado. Entender esto evita el 90% de la confusión con Flexbox.
+
+## Activar el modelo
+
+```css
+.contenedor {
+  display: flex;
+}
+```
+
+Eso convierte al elemento en contenedor flex y a **sus hijos directos** en items flex. No hace falta envolver nada en clases extra: cualquier hijo directo pasa a ser flex item.
+
+## `flex-direction`: fila o columna
+
+El valor por defecto es `row`. Los valores posibles son `row`, `row-reverse`, `column` y `column-reverse`; definen cuál es el eje principal y hacia dónde crece.
+
+### `row` (por defecto)
+
+Los hijos se colocan de izquierda a derecha, uno junto al otro:
 
 ![[Pasted image 20250124163705.png]]
-## Column o Column-reverse
-En el caso de definir este flex los elementos se colocarán de arriba hacia abajo:
+
+### `column`
+
+Los hijos se colocan de arriba hacia abajo:
 
 ![[Pasted image 20250124163736.png]]
 
-Bueno Flexbox esta diseñado para alinear elementos en nuestros diseños por lo que no añade efectos de animación ni textos.
+> [!warning] `*-reverse` con cuidado
+> `row-reverse` invierte el orden visual pero **no** el orden del DOM: para un lector de pantalla (y para el tabulado con teclado) el primer elemento sigue siendo el primero. Usalo solo con fines puramente visuales.
 
-## Flex basis
-Esta opción nos permite definir el tamaño de nuestros bloques en el espacio designado.
+## Alinear: `justify-content` e `align-items`
+
+```css
+.contenedor {
+  display: flex;
+  justify-content: center;   /* eje principal: start | center | end | space-between | space-around | space-evenly */
+  align-items: center;       /* eje cruzado: start | center | end | stretch (defecto) */
+  min-height: 100vh;         /* truco clásico para centrar en pantalla completa */
+}
+```
+
+Centrar horizontal *y* verticalmente un hijo es una línea con Flexbox:
+
+```css
+.contenedor {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+```
+
+## `gap`: separación sin trucos
+
+Desde que `gap` es soportada en flexbox, **no se usan márgenes negativos ni `justify-content: space-between` con un fantasma vacío** para separar items:
+
+```css
+.contenedor {
+  display: flex;
+  gap: 1rem;        /* separación uniforme entre items */
+  column-gap: 2rem; /* o por eje */
+  row-gap: 1rem;
+}
+```
+
+La ventaja sobre los márgenes es que **no agrega espacio en los extremos**, solo entre elementos.
+
+## `flex-wrap`: dejar que las filas fluyan
+
+Por defecto los items intentan caber todos en una sola línea y se comprimen. `flex-wrap: wrap` permite crear una línea nueva cuando no hay espacio, sin que se deforme el diseño:
+
+```css
+.contenedor {
+  display: flex;
+  flex-wrap: wrap; /* por defecto: nowrap */
+  gap: 1rem;
+}
+```
+
+Con `wrap` conviene definir un ancho base (por ejemplo `flex-basis: 33.3%`) para que sepas cuántos items caben por fila.
+
+## Tamaño de los items: `flex-basis`, `flex-grow` y `flex-shrink`
+
+Estas tres propiedades controlan cómo reparte el contenedor el espacio disponible.
+
+### `flex-basis`
+
+Define el **tamaño inicial** del item en el eje principal, antes de que crezca o se contraiga:
 
 ```css
 .d-flex-10 .box {
-  flex-basis: 33.3%;
+  flex-basis: 33.3%;   /* tamaño base: un tercio del contenedor */
 }
 ```
 
-Podemos usarlo también para definir un valor base, osea desde el cual comenzara a crecer en el caso de combinarlo por ejemplo con flex grow.
-## Flex Wrap
-Permite que el contenido si no tiene el espacio suficiente de forma horizontal cree una línea mas para los demás elementos y que no se deforme el estilo.
+Admite cualquier unidad (`px`, `%`, `rem`...). Es el punto de partida desde el cual actúan `flex-grow` y `flex-shrink`.
 
-```css
-.d-flex-10 {
-  display: flex;
-  flex-wrap: wrap;
-}
-```
-## Flex Grow
-Esto nos permite controla el factor de crecimiento, esto nos permite repartir de la forma en la que se le especifique por ejemplo si el factor de crecimiento es de 1 y tenemos 3 cajas dentro una de una de 100px para cada caja va a repartir de un pixel en un pixel a cada uno.
+### `flex-grow`: factor de crecimiento
 
-El valor por defecto de flex grow es de 0, es por esto que el contenido toma por defecto el ancho de lo que tiene dentro sobreentendiendo texto, imágenes ,etc.
+Controla qué proporción del **espacio libre** recibe cada item. Por defecto es `0` (nadie crece: el item toma el ancho de su contenido). Si todos tienen `flex-grow: 1`, el espacio sobrante se reparte **por igual**:
 
 ```css
 .d-flex-11 .box {
-  flex-grow: 1;
+  flex-grow: 1; /* las 3 cajas reparten el espacio sobrante a partes iguales */
 }
 ```
 
-esto si esta aplicado a un solo elemento o a todos los elementos dentro de siempre se va a repartir de forma equitativa, su uso es mas cuando lo definimos a otros elementos.
+Su valor real es cuando los factores **no** son iguales: el sobrante se reparte proporcionalmente al factor, no "de un pixel en un pixel":
 
 ```css
-.d-flex-11 .box:nth-child(1) {
-  flex-grow: 3;
-}
-
-
-.d-flex-11 .box:nth-child(2) {
-  flex-grow: 2;
-}
-
-
-.d-flex-11 .box:nth-child(3) {
-  flex-grow: 1;
-}
+.d-flex-11 .box:nth-child(1) { flex-grow: 3; } /* 3/6 del sobrante */
+.d-flex-11 .box:nth-child(2) { flex-grow: 2; } /* 2/6 */
+.d-flex-11 .box:nth-child(3) { flex-grow: 1; } /* 1/6 */
 ```
 
-esto visual mente se vería:
+Visualmente:
 
 ![[Pasted image 20250729213842.png]]
 
-*Nota:* Siempre toma como referencia el tamaño de contenedor.
+> [!tip] El reparto es proporcional, no absoluto
+> Con `flex-grow: 3` la caja 1 no mide "3 px más": recibe **3 partes de las 6 totales** del espacio libre. Siempre se calcula sobre el espacio sobrante del contenedor, no sobre un valor fijo.
 
-## Flex Shrink
-Esto nos permite controlar el factor de contracción, osea cuando el elemento se hace mas pequeño.
+### `flex-shrink`: factor de contracción
+
+El opuesto: controla a qué velocidad se encoge cada item cuando **no cabe** todo. Por defecto es `1`; `0` significa "nunca me encogo":
 
 ```css
 .d-flex-12 .box:nth-child(3) {
-  flex-shrink: 2;
+  flex-shrink: 2; /* la 3ra caja se contrae el doble de rápido que las demás */
 }
 ```
 
-con esto lo que hacemos es lo opuesto a flex grow que seria para el 3 bloque va a decrecer de dos en dos por lo tanto se hace mas pequeño de forma mas acelerada que los otros 2.
+## Atajo `flex`
 
-
-## Flex Shortand
-No es mas que la unión de Flex grow basis y shrink y sintaxis es:
+Las tres propiedades se escriben juntas con la sintaxis `flex: grow shrink basis`:
 
 ```css
 .d-flex-13 .box {
-
-  /* version larga */
+  /* versión larga */
   flex-basis: 33.3%;
   flex-grow: 1;
   flex-shrink: 0;
 
-  /* version corta */
-  flex: 1 0 33.3%; /* flex: grow shrink basis*/
-
+  /* versión corta — idéntica */
+  flex: 1 0 33.3%;
 }
 ```
 
+Atajos comunes:
+
+| Atajo        | Equivalente expandido            | Uso típico                          |
+| ------------ | -------------------------------- | ----------------------------------- |
+| `flex: 1`    | `1 1 0%`                         | columnas iguales que reparten todo  |
+| `flex: auto` | `1 1 auto`                       | crecen pero respetan su contenido   |
+| `flex: none` | `0 0 auto`                       | tamaño fijo, no crece ni se encoge  |
+
+> [!warning] Orden y valores del atajo
+> Es `grow shrink basis` (aunque en la práctica `flex: 1` también funciona con solo un número). Ojo: `flex: 1` pone `flex-basis: 0%`, **no** respeta el contenido inicial; si querés que el contenido mande, usá `flex: auto`.
+
+## Errores comunes
+
+- **Medir los márgenes de los hijos**: con Flexbox el espacio se hace con `gap`, no con márgenes.
+- **Olvidar `min-height`/`min-width`**: un item flex por defecto no se encoge por debajo de su contenido (`min-height: auto`). En layouts de altura completa casi siempre hay que poner `min-height: 0` en los hijos para permitir scroll interno.
+- **Confundir unidimensional con bidimensional**: si necesitás controlar filas *y* columnas a la vez, eso es [[CSS Grid]]. Regla práctica en [[Cuando usar GRID o Flexbox]].
+
+## Relacionadas
+
+- [[Cuando usar GRID o Flexbox]] — cuándo elige uno u otro
+- [[CSS Grid]] — el modelo bidimensional complementario
+- [[Tipos de Display]] — cómo `display: flex` entra en la familia de displays
+- [[CSS Introducción]] — fundamentos del lenguaje
