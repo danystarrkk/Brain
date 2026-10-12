@@ -1,14 +1,111 @@
 ---
 aliases:
   - web cache
+  - Web Cache Deception
+  - WCD
+  - Engaño de Caché Web
 tags:
-  - hacking
-  - hacking/web
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/cache
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Envenenamiento de Caché Web]]"
+  - "[[Cross-Site Request Forgery (CSRF)]]"
+  - "[[Insecure Direct Object References IDOR]]"
+  - "[[Information disclosure]]"
+  - "[[HTTP Host header attacks]]"
+fuente: "https://portswigger.net/web-security/web-cache-deception"
 ---
-# PortSwigger
 
-## Exploiting path mapping for web cache deception
+# Web Cache Deception
+
+**Web Cache Deception (WCD)** es una vulnerabilidad en la que un **proxy de caché** (CDN, reverse proxy) almacena una **respuesta personalizada** — típicamente la página "Mi cuenta" de una víctima — bajo una **clave** que después puede consultar **cualquier usuario**. La víctima solo tiene que visitar una URL aparentemente inocua (sufijada con una extensión de archivo); la caché guarda su contenido privado y el atacante lo recupera sin autenticarse. La clave del ataque es un desajuste entre **cómo la caché construye su cache key** (la ruta pedida, literal) y **cómo el origen decide qué devolver** (ignora el sufijo extra y sirve la página de sesión).
+
+> [!warning] No confundir con Web Cache Poisoning
+> | | **Web Cache Deception** | **Web Cache Poisoning** (ver [[Envenenamiento de Caché Web]]) |
+> |---|---|---|
+> | Qué se envenena | La **respuesta legítima de una víctima** se cachea bajo una URL que yo consulto | Una **respuesta maliciosa** (con mi payload) se cachea bajo la URL de otros |
+> | Requiere | Un usuario autenticado que visite mi URL (o que yo lo fuerce) | Un input no-clave que altere la respuesta |
+> | Bug central | Desajuste cache-key ↔ ruta/normalización | Entrada no incluida en la cache key |
+> | Resultado | Leo datos de la víctima (CSRF tokens, API keys, sesiones) | Ejecuto JS/acción en contexto de otros |
+> | Sin víctimas | No: hay que poblar la caché con una respuesta autenticada | Sí: puedo envenenar yo mismo |
+
+## Mecánica: cómo una caché decide almacenar
+
+Una caché web opera con tres piezas:
+
+1. **Cache key**: normalmente `host + ruta pedida` (a veces + ciertos parámetros/headers). Todo lo demás — sufijos basura, headers, cookies — queda **fuera** de la clave si no está configurado explícitamente.
+2. **Cacheability**: qué respuestas puede guardar (`Cache-Control`, `Vary`, status, método). Un cache-control laxo (`max-age` sin `private`/`no-store`) hace cacheable incluso contenido personalizado.
+3. **Serving**: la próxima petición con la **misma clave** recibe la respuesta guardada **sin tocar el origen** y **sin mirar cookies**.
+
+El bug WCD nace cuando **la caché y el origen "leen" la URL de forma distinta**:
+
+- La caché usa **toda la ruta literal** como clave: `/my-account/aaa.css` es una clave nueva y única.
+- El origen **ignora el sufijo** (routing por prefijo, normalización, manejo de extensiones) y devuelve `/my-account` — **personalizado con la cookie de sesión**.
+- Resultado: la respuesta privada de la víctima queda publicada bajo una clave pública y predecible.
+
+## Vectores de desajuste (path mismatch)
+
+| Clase | Ejemplo sobre `https://app.com/my-account` | Mecanismo |
+|---|---|---|
+| **Extensión de archivo** | `/my-account/aaa.css`, `/my-account.js` | La caché key incluye el sufijo; el origen sirve la ruta base |
+| **Delimitador de path** | `/my-account;.css`, `/my-account;a=1.css` | El origen trata `;...` como parámetro de path y lo ignora; la caché lo ve como clave nueva |
+| **`?` y query** | `/my-account?.css`, `/my-account?x=.css` | La query no forma parte de la clave configurable, pero altera la normalización |
+| **Normalización del origin** | `/resources/../my-account.css`, `/my-account/..;/aaa.css` | El origen normaliza o redirige a una ruta cacheable; hay que usar encoding (`%2f`) para que la caché vea otra clave |
+| **Normalización de la caché** | `/my-account%2f..%2fmy-account.css` | Al revés: la caché normaliza antes de componer la clave y el origen no |
+| **Reglas exact-match** | `/resources/../my-account` dentro de una regla exacta `/resources/...` | La política de cacheado solo aplica a rutas según la caché; hay que caer dentro de la regla sin que el origen redirija y rompa la cadena |
+
+## Catálogo de payloads (sufijos sobre la ruta privada)
+
+```
+GET /my-account.css
+GET /my-account/aaa.css
+GET /my-account;.css
+GET /my-account/.css
+GET /my-account%23.css          (# urlencoded)
+GET /my-account%3b.css          (; urlencoded)
+GET /my-account%2f..%2fmy-account.css
+GET /my-account/..;/aaa.css
+GET /my-account?.css
+GET /my-account/?aaa.css
+GET /aaa.css/../my-account
+```
+
+> [!tip] Workflow rápido con Intruder
+> 1. Captura `GET /my-account` y confirma que **no** tiene cabeceras de caché.
+> 2. Intruder sobre la ruta con un payloadlist de sufijos (`;.css`, `/x.css`, `%2f..%2fmy-account.css`, etc. — ver catálogo).
+> 3. Filtros: `Cache-Control` presente + `X-Cache: miss` + status 200 + longitud idéntica a la respuesta legítima.
+> 4. Confirmación manual: repite la petición y mira `Age`/`X-Cache: hit` **con otra cookie o sin cookie** — si sigue viniendo el contenido privado, la clave no incluye tu sesión.
+> 5. Explotación: manda la URL al exploit server → la víctima autenticada la carga (poblando la caché) → vos la recargas desde tu navegador sin su cookie y leés su contenido.
+> 6. Si la respuesta contiene tokens `csrf`, formulario de cambio de email o API keys, el impacto es account takeover (último lab).
+
+## Metodología de testing
+
+1. **Identifica rutas privadas** relevantes: `/my-account`, `/admin`, `/dashboard`, perfiles, endpoints JSON con datos de usuario.
+2. **Busca evidencia de caché**: headers `Age`, `X-Cache`, `CF-Cache-Status`, `Via`, `X-Saved-By`; repite peticiones y observa tiempos de respuesta.
+3. **Descubre qué es cacheable**: prueba rutas estáticas (`/resources/...js`) — si esas sí se cachean, la política existente te da la pista del directorio/sufijo que la caché acepta.
+4. **Aplica el catálogo de sufijos** y filtra por diferencias (Intruder).
+5. **Valida el desajuste**: contenido personalizado servido bajo clave + posibilidad de servirlo sin tu cookie = vulnerable.
+6. **Explota con víctima**: exploit server con `<script>new Image().src='https://APP/my-account/aaa.css'</script>`; esperá al pop; recargá la URL cacheada desde tu navegador.
+
+## Laboratorios y notas originales de clase
+
+Mapa lab → clase de desajuste, seguido de los walkthroughs originales:
+
+| Lab | Clase de desajuste |
+|---|---|
+| Exploiting path mapping for web cache deception | Extensión de archivo sobre la ruta privada |
+| Exploiting path delimiters for web cache deception | Delimitadores `;` y `?` |
+| Exploiting origin server normalization for web cache deception | Normalización del origin + encoding |
+| Exploiting cache server normalization for web cache deception | Normalización de la caché + parámetros |
+| Exploiting exact-match cache rules for web cache deception | Reglas exactas de cacheado → CSRF del admin |
+
+## Laboratorios PortSwigger (notas originales de clase)
+
+### Exploiting path mapping for web cache deception
 
 En este laboratorio vamos a ver como la web cache puede filtrar mediante el mal gestionado de la misma y tomando la ruta como un key de la cache información de otros usuario:
 
@@ -45,7 +142,7 @@ Como vemos lo obtenemos sin problemas y con esto podemos terminar el laboratorio
 ![[Pasted image 20260317104427.png]]
 
 
-## Exploiting path delimiters for web cache deception
+### Exploiting path delimiters for web cache deception
 
 La idea es la misma con la diferencia de que la web cache se hace presente y toma a la ruta como una nueva clave cache al hacer uso de caracteres especiales.
 
@@ -77,7 +174,7 @@ Lo almacenamos y lo enviamos a la victima a ver si funciona:
 
 Perfecto con esto terminamos el laboratorio:
 
-## Exploiting origin server normalization for web cache deception
+### Exploiting origin server normalization for web cache deception
 
 Este laboratorio es prácticamente similar y una posible combinación de los dos anteriores por lo que vamos a ver como se resuelve:
 
@@ -138,7 +235,7 @@ como observamos esto ya es valido, y podemos terminar el laboratorio:
 
 ![[Pasted image 20260317114814.png]]
 
-## Exploiting cache server normalization for web cache deception
+### Exploiting cache server normalization for web cache deception
 
 En este laboratorio tenemos que obtener la key de `carlos` y completar el laboratorio.
 
@@ -182,7 +279,7 @@ vemos si logramos cargar o no la cache:
 
 lab terminado.
 
-## Exploiting exact-match cache rules for web cache deception
+### Exploiting exact-match cache rules for web cache deception
 
 Bueno ahora es tratar de cambiar el correo de administrador.
 
@@ -242,3 +339,126 @@ enviamos y esto debería terminar con el laboratorio:
 
 ![[Pasted image 20260317130035.png]]
 
+## Detección (defensor)
+
+| Señal | Riesgo |
+|---|---|
+| `Cache-Control` cacheable en rutas que usan cookie de sesión | Personalizado cacheable |
+| Respuesta 200 idéntica sin cookie tras pedir una ruta con sufijo extra | Desajuste ruta/clave |
+| `X-Cache: hit` + `Age > 0` en páginas "Mi cuenta" | Fuga directa |
+| Logs con rutas `/my-account/;x.css`, `/admin/.js` | Exploración activa de WCD |
+| Redirect301/308 internos seguidos de cacheado | Trampa de normalización |
+| `Set-Cacheable`/`Cache-Control` heredado globalmente | Todo el sitio cacheable por defecto |
+
+## Impacto y riesgo
+
+- Lectura de páginas privadas de cualquier usuario que pase por la URL: account takeover si la respuesta contiene tokens `csrf` (el último lab usa el `csrf` cacheado para cambiar el correo del admin) o datos de sesión.
+- Fuga de API keys, perfiles, PII en HTML cacheado.
+- Escalada: si la ruta cacheada es un JSON de API, robo masivo de datos sin necesidad de víctima por recurso.
+
+## Defensa (con configuración y código)
+
+### 1. Cacheado por allowlist: solo rutas explícitamente públicas
+
+```nginx
+# ❌ Todo cacheable — cualquier respuesta 200 (incluida la personalizada) se cachea
+# proxy_cache_valid 200 1m;
+
+# ✅ Nginx: cachea solo estáticos; todo lo demás, sin caché
+location ~* ^/(resources|static|assets)/ {
+    proxy_cache_valid 200 10m;
+    proxy_ignore_headers Set-Cookie;
+}
+location / {
+    proxy_cache off;
+    add_header Cache-Control "no-store, private";
+}
+```
+
+### 2. Clave de caché estricta y normalizada
+
+```nginx
+# ❌ proxy_cache_key "$request_uri";          # literal del cliente, con basura incluida
+# ✅ clave = host + ruta NORMALIZADA ($uri ya viene normalizada por Nginx)
+proxy_cache_key "$scheme$request_method$host$uri";
+# No cachear respuestas con sesión:
+proxy_no_cache "$cookie_session $upstream_http_set_cookie";
+```
+
+```vcl
+# Varnish: allowlist en vcl_recv + no cachear con Set-Cookie
+sub vcl_recv {
+    if (req.url !~ "^/static/") { return (pass); }
+}
+sub vcl_backend_response {
+    if (beresp.http.Set-Cookie) { set beresp.uncacheable = true; }
+}
+```
+
+### 3. El origen no debe ignorar basura en la ruta
+
+- Routing con rutas **exactas**: `/my-account/xxx` debe devolver 404, no la página base (evita el "path mapping" del primer lab).
+- Rechazar (no redirigir) paths con `;`, `%2f`, `..` — o normalizarlos **antes** de cualquier política de caché.
+- Marcar toda respuesta personalizada `Cache-Control: no-store, private` en la app:
+
+```python
+# Flask
+@app.after_request
+def no_store(resp):
+    if session.get("user_id"):
+        resp.headers["Cache-Control"] = "no-store, private"
+    return resp
+```
+
+### 4. Detección en WAF/CDN
+
+No cachear y alertar sobre requests que combinen rutas privadas conocidas (`my-account`, `admin`, `account`, `dashboard`) con sufijos de extensión estática (`;.css`, `.js`, `.png`) o delimitadores.
+
+## Errores comunes
+
+**Atacante:**
+1. Probar solo extensiones y no delimitadores (`;`, `%23`) — varios labs exigen `;` o encoding.
+2. Dar por hecho que `X-Cache: hit` implica éxito: verifica **con otra cookie** que el contenido servido es el de la víctima, no el tuyo.
+3. Enviar el exploit sin que la víctima esté autenticada: la caché se puebla con una respuesta anónima y no hay fuga.
+4. Ignorar la normalización: si al recargar te redirigen a la ruta limpia, la clave cambia y perdés el hit.
+
+**Defensor:**
+1. Cacheado global ("cachea todo lo 200") incluyendo páginas de sesión.
+2. Usar `$request_uri` (literal del cliente) como cache key en vez de `$uri` normalizado.
+3. Devolver 200 con contenido privado en rutas que tragan sufijos.
+4. No monitorear rutas privadas con sufijos sospechosos en logs.
+
+## Cheatsheet
+
+```http
+# ¿Hay caché? repite y mira las cabeceras
+GET /my-account HTTP/1.1               -> sin Age/X-Cache = no cacheada
+GET /resources/main.js HTTP/1.1        -> Age > 0 = existe política de caché
+
+# Sondeo de desajuste (Intruder sobre la ruta)
+GET /my-account;.css HTTP/1.1          # delimitador
+GET /my-account/aaa.css HTTP/1.1       # extensión
+GET /my-account%2f..%2fmy-account.css  # normalización
+# Filtro: Cache-Control presente && X-Cache: miss && len == respuesta legítima
+
+# Confirmación (sin cookie)
+GET /my-account/aaa.css HTTP/1.1       -> X-Cache: hit = fuga
+
+# Explotación (exploit server)
+<script>new Image().src="https://APP/my-account/aaa.css";</script>
+```
+
+## Laboratorios y referencias
+
+- PortSwigger Academy — Web Cache Deception: https://portswigger.net/web-security/web-cache-deception
+- PortSwigger Academy — Web Cache Poisoning: https://portswigger.net/web-security/web-cache-poisoning
+- Artículo original (Kafeine, 2017): https://blog.sucuri.net/2017/10/web-cache-deception-attack.html
+- Nginx — A Guide to Caching: https://nginx.org/en/docs/http/ngx_http_proxy_module.html
+
+## Relacionadas
+
+- [[Envenenamiento de Caché Web]] — el primo peligroso: envenenar respuestas en vez de robarlas
+- [[Cross-Site Request Forgery (CSRF)]] — el último lab encadena WCD → robo de token CSRF → cambio de email del admin
+- [[Insecure Direct Object References IDOR]] — el patrón de "acceder al objeto de otro" aplicado a rutas cacheadas
+- [[Information disclosure]] — el WCD es, en esencia, una fuga de información por caché
+- [[HTTP Host header attacks]] — otra forma de confundir a la capa de caché con la identidad del host
