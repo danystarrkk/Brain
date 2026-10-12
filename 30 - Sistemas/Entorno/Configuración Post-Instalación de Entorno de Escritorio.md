@@ -2,58 +2,120 @@
 aliases:
   - Configuración de Entorno de Escritorio
   - Post-instalación Bspwm
+  - Checklist post-install
 tags:
+  - sys/entorno
   - linux/customizacion
-estado: 🟢 Terminado
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Configuración de BSPWM y SXHKD]]"
+  - "[[Configuración de Picom]]"
+  - "[[Configuración de Polybar]]"
+  - "[[Configuración de Zsh y Plugins]]"
+  - "[[Configuración Zsh Batcat Lsd y Burp Suite]]"
+  - "[[Vim Comandos Esenciales]]"
+fuente: "https://wiki.archlinux.org/title/XDG_Base_Directory"
 ---
+
 # Configuración Post-Instalación de Entorno de Escritorio
 
-Continuando con la configuración iniciada en, a continuación se enumeran los pasos a seguir para agilizar el proceso de personalización del entorno de escritorio:
+Checklist reproducible de lo que se configura **después** de tener bspwm corriendo (arranque y WM en [[Configuración de BSPWM y SXHKD]]): aplicaciones, tipografía, shell, terminal, portapapeles y fondo. Cada paso incluye los comandos exactos y el porqué — el objetivo es poder reconstruir la máquina completa siguiendo esta nota de arriba a abajo.
 
-## 1. Configurar Firefox en `sxhkdrc`
+> [!info] Filosofía del checklist
+> Un entorno de mosaico es un **ensamblaje**: el WM solo coloca ventanas; todo lo demás (terminal, shell, fuentes, fondo) se instala y configura por separado y se conecta vía `bspwmrc` y `sxhkdrc`. El orden aquí importa: las fuentes antes que polybar/kitty (los glifos dependen de ellas), el shell antes que la config de kitty (`shell zsh`).
 
-Este paso implica definir atajos de teclado para lanzar Firefox u otras aplicaciones web utilizando `sxhkd`, el demonio de atajos de teclado simple de X.
+Orden de ejecución recomendado:
+
+| # | Paso | Depende de |
+|---|---|---|
+| 1 | Atajo de Firefox en `sxhkdrc` | sxhkd corriendo |
+| 2 | Hack Nerd Fonts | — |
+| 3 | Zsh + plugins | — |
+| 4 | Portapapeles dual (VMware) | VMware Tools |
+| 5–6 | Kitty + config | Paso 2 (glifos), paso 3 (`shell zsh`) |
+| 7 | Fondo con `feh` | — |
+
+## 1. Lanzador web en `sxhkdrc`
+
+Definir atajos para lanzar Firefox u otras apps web desde sxhkd, el demonio de atajos de [[Configuración de BSPWM y SXHKD|sxhkd]]:
+
+```bash
+# browser
+super + {_,shift + }w
+	{firefox,firefox --private-window}
+```
 
 > [!info] `sxhkd` (Simple X Hotkey Daemon)
-> `sxhkd` es una herramienta ligera que permite definir atajos de teclado y comandos asociados. Es fundamental en entornos de gestores de ventanas tipo *tiling* como `bspwm` para lanzar aplicaciones, cambiar de escritorio, o controlar el sistema sin usar el ratón. La configuración se realiza en el archivo `~/.config/sxhkd/sxhkdrc`.
+> Herramienta ligera que traduce chords de teclado en comandos (`sh -c`), sin estar atada a ningún WM. Fundamental en entornos *tiling* para lanzar aplicaciones, cambiar de escritorio o controlar el sistema sin ratón. Config: `~/.config/sxhkd/sxhkdrc`; recarga en caliente con `pkill -USR1 -x sxhkd`. La sintaxis completa (`{a,b}` expansiones, chords) está en [[Configuración de BSPWM y SXHKD]].
 
 ## 2. Instalar las Hack Nerd Fonts
 
-Las Nerd Fonts son una colección de fuentes parcheadas que incluyen una gran cantidad de glifos adicionales de conjuntos populares como Font Awesome, Devicons, Octicons, y más. Son esenciales para una visualización correcta de iconos en terminales, barras de estado (como Polybar) y editores de texto.
+Las **Nerd Fonts** son fuentes parcheadas que inyectan +10 000 glifos de iconos: Font Awesome, Devicons, Octicons, Material Icons, y los glifos "pomodoro" que usa [[Configuración de Polybar|polybar]] (` 󰌽 󰂉`), la prompt de p10k y los iconos de `lsd`. Sin ellas, todos esos iconos se dibujan como cajas □.
 
-> [!tip] Instalación de Nerd Fonts
-> Para instalar las Hack Nerd Fonts, generalmente se descargan los archivos `.ttf` o `.otf` y se copian a `~/.local/share/fonts/` o `/usr/share/fonts/`. Después, es necesario reconstruir la caché de fuentes con `fc-cache -fv`.
+Instalación manual (la forma clásica):
+
+```bash
+mkdir -p ~/.local/share/fonts
+cd ~/.local/share/fonts
+# descargar Hack.zip desde https://www.nerdfonts.com/font-downloads y descomprimir:
+unzip Hack.zip
+fc-cache -fv            # reconstruye la caché de fontconfig
+fc-list | grep -i hack  # verifica: debe listar "Hack Nerd Font"
+```
+
+| Paso | Por qué |
+|---|---|
+| `~/.local/share/fonts/` | Directorio XDG de fuentes **de usuario** — no necesita root y sobrevive a cambios de sistema |
+| `fc-cache -fv` | fontconfig mantiene una **caché** de fuentes; sin reconstruirla, las apps no ven las nuevas (`-v` muestra qué directorios escanea) |
+| `fc-list` | Lista las fuentes realmente registradas — la primera línea de defensa cuando "no se ve el icono" |
+
+> [!tip] Alternativa por paquete
+> Debian/Ubuntu empacan `fonts-hack-ttf` (`sudo apt install fonts-hack-ttf`), pero **sin** los glifos Nerd (es la fuente base). Para el entorno de estas notas se necesita la variante *Hack Nerd Font* de la web oficial. Otras fuentes del setup personal: Iosevka Nerd Font, Source Code Pro, Montserrat (ver `font-*` de [[Configuración de Polybar]]).
 
 ## 3. Instalar Zsh
 
-Zsh (Z Shell) es un potente shell de línea de comandos que ofrece numerosas mejoras sobre Bash, incluyendo autocompletado avanzado, corrección ortográfica, temas y un robusto sistema de plugins (como Oh My Zsh).
+Zsh es el shell interactivo del entorno: autocompletado avanzado, corrección ortográfica, historial compartido y ecosistema de plugins.
 
-> [!info] Ventajas de Zsh
-> Zsh es conocido por su extensibilidad y características avanzadas que mejoran la productividad. Permite una personalización profunda a través de frameworks como Oh My Zsh, que facilita la gestión de plugins y temas, ofreciendo una experiencia de terminal más rica y eficiente.
+```bash
+sudo apt install zsh zsh-autosuggestions zsh-syntax-highlighting zsh-sudo
+chsh -s $(which zsh)     # zsh como shell por defecto del usuario
+```
 
-## 4. Activar el portapapeles dual
+> [!info] Ventajas sobre bash
+> Globbing recursivo (`**`), sustitución de expansión, completado con menús seleccionables (zle), `setopt` de comportamiento fino y mejoras de rendimiento en líneas largas. La configuración completa — Powerlevel10k, plugins, historial, completado `zstyle`, enlace simbólico para root — vive en [[Configuración de Zsh y Plugins]].
 
-Para asegurar la funcionalidad de copiar y pegar entre el sistema anfitrión y una máquina virtual (especialmente en entornos VMware), es necesario activar el soporte del portapapeles dual.
+## 4. Activar el portapapeles dual (VMware)
 
-### 4.1. Añadir el siguiente comando en `.config/bspwm/bspwmrc`:
+Para copiar y pegar entre host y máquina virtual hay que arrancar el agente de integración de VMware Tools en cada sesión.
+
+### 4.1. Añadir en `.config/bspwm/bspwmrc`:
 
 ```bash
 vmware-user-suid-wrapper &
 ```
 
 > [!warning] `vmware-user-suid-wrapper`
-> Este comando es parte de las VMware Tools y es crucial para habilitar la integración de características entre el sistema operativo invitado y el anfitrión, incluyendo el portapapeles compartido, el arrastrar y soltar, y el ajuste automático de la resolución de pantalla. El `&` al final permite que el comando se ejecute en segundo plano, sin bloquear el inicio del gestor de ventanas.
+> Binario de VMware Tools (suid) que lanza `vmware-user` — el agente que implementa el **vmmouse/vmware** X11 drivers: portapapeles compartido, arrastrar-y-soltar, ajuste automático de resolución y teclado liberado con Ctrl+Alt. El `&` es obligatorio: es un proceso persistente y bloquearía el resto de `bspwmrc` (ver [[Configuración de BSPWM y SXHKD]]).
+>
+> Diagnóstico: si el portapapeles no cruza, verificar `ps aux | grep vmware-user` y que el paquete `open-vm-tools-desktop` esté instalado (Debian: `sudo apt install open-vm-tools-desktop` — en algunas instalaciones basta con este paquete y no el wrapper antiguo).
 
 ## 5. Instalar Kitty (versión actualizada)
 
-Kitty es un emulador de terminal rápido y rico en características, acelerado por GPU. Es una excelente alternativa a otros emuladores de terminal por su rendimiento y capacidad de personalización.
+```bash
+sudo apt install kitty
+```
 
-> [!info] Características de Kitty
-> Kitty se destaca por su renderizado acelerado por GPU, lo que resulta en una experiencia de terminal muy fluida, especialmente con fuentes y animaciones. Soporta *ligatures*, pestañas, ventanas divididas y una configuración muy flexible a través de su archivo `kitty.conf`.
+**Kitty** es un emulador de terminal acelerado por GPU (OpenGL): renderiza texto e iconos en la tarjeta, soporta ligaduras, pestañas, splits, buffers de portapapeles múltiples y transparencia — todo configurable desde texto plano.
+
+> [!info] Características
+> Su renderizado por GPU elimina el lag de scroll en terminales pesadas (logs, htop), y su protocolo de terminado (kitty keyboard protocol) permite atajos como los `map ctrl+f1 copy_to_buffer` de la config personal. Config: `~/.config/kitty/kitty.conf` + archivos `include`ados.
 
 ## 6. Configuración de Kitty
 
-La configuración de Kitty se realiza principalmente a través de dos archivos: `color.ini` para la paleta de colores y `kitty.conf` para el resto de los ajustes.
+Dos archivos: `color.ini` (paleta) y `kitty.conf` (ajustes), en `~/.config/kitty/`.
 
 ### 6.1. Archivo `color.ini`:
 
@@ -107,8 +169,8 @@ selection_foreground #7aa2f7
 selection_background #28344a
 ```
 
-> [!tip] Paleta de Colores
-> Este bloque define una paleta de colores específica, a menudo inspirada en temas populares como "Tokyo Night" o "Dracula". `foreground` y `background` establecen los colores predeterminados del texto y el fondo. Los `color0` a `color15` definen los colores para los 16 colores ANSI estándar, utilizados por muchas aplicaciones de terminal. `cursor_shape` y `cursor_underline_thickness` personalizan la apariencia del cursor.
+> [!tip] Paleta Tokyo Night
+> Los hex (`#1a1b26`, `#7aa2f7`, `#73daca`…) son la paleta **Tokyo Night**: `color0–15` mapean los 16 colores ANSI que las apps de terminal usan con `tput setaf N`/`LS_COLORS`. `cursor_shape Underline` + grosor 1 dan el cursor subrayado fino; `window_padding_width 20` añade aire alrededor del texto. Estos colores alimentan también el completado con `LS_COLORS` (ver [[Configuración Zsh Batcat Lsd y Burp Suite]]).
 
 ### 6.2. Archivo `kitty.conf`:
 
@@ -162,24 +224,74 @@ background_opacity 0.95
 shell zsh
 ```
 
-> [!info] Detalles de Configuración de Kitty
-> *   `enable_audio_bell no`: Desactiva el sonido de la campana del terminal.
-> *   `include color.ini`: Importa la configuración de colores desde el archivo `color.ini`.
-> *   `font_family HackNerdFont`, `font_size 13`: Especifica la fuente y su tamaño. Es crucial usar una Nerd Font para la correcta visualización de glifos.
-> *   `disable_ligatures never`: Habilita las ligaduras de fuentes, que combinan caracteres como `->` en un solo glifo.
-> *   `url_color`, `url_style`: Personaliza la apariencia de los enlaces detectados.
-> *   `map`: Define atajos de teclado personalizados. Aquí se configuran atajos para navegar entre ventanas (`neighboring_window`) y para gestionar múltiples portapapeles internos de Kitty (`copy_to_buffer`, `paste_from_buffer`).
-> *   `cursor_shape beam`, `cursor_beam_thickness`: Configura el cursor como una barra vertical delgada.
-> *   `detect_urls yes`: Habilita la detección automática de URLs.
-> *   `tab_bar_style powerline`: Aplica un estilo "powerline" a la barra de pestañas, que es visualmente atractivo.
-> *   `inactive_tab_background`, `active_tab_background`, `inactive_tab_foreground`: Colores para las pestañas activas e inactivas.
-> *   `new_window_with_cwd`, `new_tab_with_cwd`: Atajos para abrir nuevas ventanas o pestañas en el directorio de trabajo actual.
-> *   `background_opacity 0.95`: Establece la transparencia del fondo del terminal.
-> *   `shell zsh`: Configura Zsh como el shell predeterminado para las nuevas instancias de Kitty.
+> [!info] Detalles de la config
+> - `enable_audio_bell no`: silencia la campana (X11 bell).
+> - `include color.ini`: importa la paleta — kitty includea cualquier otro archivo de config, lo que permite mantener temas separados.
+> - `font_family HackNerdFont`, `font_size 13`: la Nerd Font del paso 2 es obligatoria para los glifos de polybar/p10k dentro de la terminal.
+> - `disable_ligatures never`: `->`, `=>` y consortes se dibujan como ligaduras.
+> - `url_color` / `url_style curly`: URLs detectadas (`detect_urls yes`) en azul y con llaves rizadas.
+> - `map ctrl+flecha neighboring_window ...`: navegación entre splits como en tmux; `map ctrl+shift+z toggle_layout stack` alterna split ↔ stack.
+> - `copy_to_buffer a/b` en F1–F4: **dos portapapeles internos** independientes del del sistema.
+> - `repaint_delay 10` / `input_delay 3` / `sync_to_monitor yes`: tuning de render (ms entre repintados; latencia de input; sincronía con el refresco).
+> - `tab_bar_style powerline` + colores de pestaña (`#98c379` activa): barra estilo powerline.
+> - `new_window_with_cwd` (Ctrl+Shift+Enter): abre splits/pestañas **en el directorio actual** — evita el `cd` repetido.
+> - `background_opacity 0.95`: transparencia sutil — real gracias a [[Configuración de Picom|picom]].
+> - `shell zsh`: las ventanas de kitty arrancan zsh directamente (no pasan por el shell de login por defecto).
 
-## 7. Configurar el fondo de pantalla con `feh`
+## 7. Fondo de pantalla con `feh`
 
-`feh` es un visor de imágenes ligero y rápido que también se utiliza comúnmente para establecer fondos de pantalla en gestores de ventanas minimalistas.
+`feh` es un visor de imágenes ligero que sirve además de fijador de fondos para WMs sin escritorio propio.
 
-> [!tip] Uso de `feh` para fondos de pantalla
-> Para establecer un fondo de pantalla, se usa un comando como `feh --bg-fill /ruta/a/tu/imagen.jpg`. Para que el fondo de pantalla se cargue automáticamente al inicio del sistema, este comando se suele añadir al archivo de configuración del gestor de ventanas (ej. `~/.config/bspwm/bspwmrc`) o a un script de inicio. La opción `--bg-fill` escala la imagen para llenar la pantalla sin distorsión.
+```bash
+feh --bg-fill ~/wallpaper.jpg
+```
+
+| Opción | Efecto |
+|---|---|
+| `--bg-fill` | Escala para llenar sin distorsión, **recortando** los sobrantes (la más usada) |
+| `--bg-max` | Escala para caber, sin recortar (puede dejar bandas) |
+| `--bg-tile` | Mosaico |
+| `--no-fehbg` | No escribe `~/.fehbg` (el script de restauración que feh guarda) |
+
+Para que cargue con la sesión, va en `~/.config/bspwm/bspwmrc`:
+
+```bash
+feh --bg-fill ~/wallpaper.jpg &
+```
+
+> [!tip] `~/.fehbg`
+> Cada vez que fijas un fondo, feh guarda el comando exacto en `~/.fehbg` (un script shell). Alternativa a re-ejecutar feh: añadir `~/.fehbg &` al `bspwmrc` — restaura el último fondo sin re-escalar la imagen cada arranque.
+
+## Lista de comandos (resumen ejecutable)
+
+```bash
+# 2. fuentes
+mkdir -p ~/.local/share/fonts && cd ~/.local/share/fonts && unzip Hack.zip && fc-cache -fv
+# 3. shell
+sudo apt install zsh zsh-autosuggestions zsh-syntax-highlighting zsh-sudo && chsh -s $(which zsh)
+# 4. portapapeles VM (además en bspwmrc)
+sudo apt install open-vm-tools-desktop
+# 5. terminal
+sudo apt install kitty
+# 7. fondo (además en bspwmrc)
+feh --bg-fill ~/wallpaper.jpg
+```
+
+## Errores comunes
+
+1. **Cajas □ donde debería haber iconos**: fuentes Nerd no instaladas o `fc-cache` no corrido; verificar con `fc-list | grep -i nerd`.
+2. **kitty dice "Unable to set font"**: el `font_family` no coincide con el nombre registrado (`fc-list | grep Hack` → "Hack Nerd Font" puede requerir el nombre completo).
+3. **`chsh` no cambia el shell**: en Debian el binario debe estar en `/etc/shells` (`grep zsh /etc/shells`).
+4. **Portapapeles VMware muere tras un rato**: `vmware-user-suid-wrapper` sin `&` en `bspwmrc` o duplicado — debe lanzarse una sola vez por sesión.
+5. **Transparencia negra en kitty**: falta el compositor ([[Configuración de Picom]]) — sin él kitty dibuja opaco (o grañoso con pseudo-transparencia).
+6. **Fondo vuelve al negro tras `bspc wm -r`**: falta `feh` en `bspwmrc`; el WM no restaura fondos solo.
+
+## Relacionadas
+
+- [[Configuración de BSPWM y SXHKD]] — WM, sxhkd y `bspwmrc` (donde se conectan pasos 1, 4 y 7)
+- [[Configuración de Zsh y Plugins]] — el paso 3 en profundidad
+- [[Configuración Zsh Batcat Lsd y Burp Suite]] — `batcat`/`lsd`/`fzf` y fixes Java/Burp
+- [[Configuración de Polybar]] — consumidor directo de las Nerd Fonts
+- [[Instalación de Polybar y Picom]] — el resto de la pila gráfica
+- [[Vim Comandos Esenciales]] — el editor con el que se editan todos estos configs
+- [[Comandos Básicos de Sistema y Red en Linux]] — comandos base usados en el checklist

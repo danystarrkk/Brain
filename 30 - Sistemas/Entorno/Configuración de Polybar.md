@@ -2,22 +2,104 @@
 aliases:
   - Polybar Config
   - Configuración Polybar
+  - Barra de estado Linux
 tags:
+  - sys/entorno
   - linux/customizacion
   - scripting/bash
-  - hacking/laboratorios
-estado: 🟢 Terminado
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Instalación de Polybar y Picom]]"
+  - "[[Instalación y Configuración de Blue Sky Polybar]]"
+  - "[[Configuración de BSPWM y SXHKD]]"
+  - "[[Configuración de Picom]]"
+  - "[[Configuración Zsh Batcat Lsd y Burp Suite]]"
+  - "[[Bash Scripting - Fundamentos Básicos]]"
+fuente: "https://github.com/polybar/polybar"
 ---
+
 # Configuración de Polybar
 
-Continuando desde, a continuación se presenta el contenido de los archivos de configuración de Polybar, listos para copiar y pegar. Estos archivos permiten personalizar la barra de estado del sistema para entornos de ciberseguridad ofensiva, incluyendo la visualización de información de red y objetivos de hacking.
+**Polybar** es una barra de estado modular para Linux, pensada para WMs de mosaico como [[Configuración de BSPWM y SXHKD|bspwm]] o i3. Su modelo: defines una o más **barras** (ventanas horizontales), cada barra muestra bloques de **módulos** (`modules-left/center/right`), y cada módulo es una instancia de un **tipo** (`internal/network`, `custom/script`, …) que emite texto con **tags de formato** que polybar renderiza con Cairo sobre XCB.
 
-> [!info] ¿Qué es Polybar?
-> Polybar es una barra de estado rápida y altamente personalizable para Linux, diseñada para mostrar información del sistema y del entorno de trabajo. Es comúnmente utilizada con gestores de ventanas tipo *tiling* como BSPWM o i3, permitiendo a los usuarios crear barras de estado estéticas y funcionales con módulos personalizados.
+> [!info] Arquitectura de render
+> polybar es un cliente X11 normal: crea una ventana *override-redirect* (no gestionada por el WM como ventana común), la dibuja con Cairo/XCB y se registra como *strut* para que el WM reserve el espacio. Los módulos corren **dentro del mismo proceso** (los internos) o se ejecutan externamente con `exec` (los `custom/script`); la comunicación entre módulos y la barra usa el sistema IPC interno (`enable-ipc`), no sockets del SO.
+>
+> La transparencia depende de [[Configuración de Picom|picom]]: sin compositor, el `background` transparente se resuelve con *pseudo-transparencia* (muestreo del fondo, `pseudo-transparency = true`) o no se resuelve.
 
-## `current.ini`
+> [!tip] Polybar vs Waybar
+> **waybar** es el equivalente nativo del ecosistema Wayland (sway/hyprland): config en JSONC, módulos por procesos externos, estilo CSS. Si la pila es X11+bspwm (esta nota), polybar es la opción natural; waybar solo tiene sentido migrando a Wayland, donde además polybar no funciona (es cliente X11, solo sirve bajo XWayland y a medias).
 
-Este archivo contiene la configuración principal de Polybar, definiendo la apariencia general de las barras, las fuentes, los colores y los módulos que se mostrarán.
+## Anatomía de un `config.ini`
+
+El archivo tiene cinco kinds de secciones:
+
+| Sección | Rol |
+|---|---|
+| `[global/wm]` | Ajustes de estrut para el WM (`margin-top/bottom`) |
+| `[bar/NAME]` | Una barra: geometría, fuentes, colores, módulos |
+| `[module/NAME]` | Un módulo instanciado: `type` + opciones del tipo |
+| `[settings]` | Tuning global: throttle, compositing, screenchange-reload |
+| `include-file = ruta` | Incluye otro ini (aquí: `colors.ini`) — resuelve variables compartidas |
+
+Sintaxis de valores:
+
+| Forma | Ejemplo | Significado |
+|---|---|---|
+| Referencia a sección | `${color.bg}` | Valor de la clave `bg` dentro de `[color]` del archivo incluido |
+| Tags de formato | `%{T7}`, `%{A3:cmd &:}` | Instrucciones de render en el texto del módulo (fuente, acciones de clic, etc.) |
+| Placeholders | `%time%`, `%date%`, `<label>` | Datos del módulo: `<>` para bloques internos, `%%` para fechas/horas |
+| Porcentaje + offset | `50%:-10` | "el 50 % menos 10 px" — usable en width/offset |
+
+### Claves de `[bar/...]` que importan
+
+| Clave | Valores | Significado |
+|---|---|---|
+| `monitor` / `monitor-fallback` / `monitor-strict` | nombre salida | En qué monitor vive la barra; vacío = primero disponible (`polybar -m \| cut -d: -f1`) |
+| `bottom` | bool | `true` = barra abajo; aquí el base usa `bottom = true` y las derivadas lo reinvierten |
+| `width` / `height` | px o % | `17%` de ancho en la base; el alto en px define la ventana |
+| `offset-x` / `offset-y` | px o % | Posición; con múltiples flotantes (config personal) se usa para **esparcir barras por el borde superior** |
+| `radius-top/bottom` | px | Esquinas redondeadas (10 en la config; requiere picom o dibujo propio) |
+| `line-size` / `line-color` | px / color | Línea de acento inferior/superior (`${color.ac}`) |
+| `padding` / `module-margin-{left,right}` | px | Respiro de barra y entre módulos |
+| `font-N` | `fuente;offset` | Fuentes indexadas 0…N; el offset vertical corrige el baseline de iconos |
+| `modules-left/center/right` | lista | Módulos por bloque |
+| `override-redirect` | bool | `true` = la barra no la gestiona el WM (necesario para barras flotantes tipo la de workspaces) |
+| `wm-restack` | `bspwm`/`i3` | Re-apila la barra para que el fullscreen no la tape (bspwm la respeta sin `override-redirect`) |
+| `enable-ipc` | bool | Habilita `polybar-msg` (recarga, acciones de módulos en caliente) |
+| `tray-position` | left/center/right/none | Bandeja XEmbed (3.6: soportada; en forks antiguos era donde nació) |
+| `cursor-click` / `cursor-scroll` | default/pointer/ns-resize | Cursor sobre handlers de clic/scroll (requiere build con xcb-util-cursor) |
+
+### Sistema de módulos: internal vs custom
+
+| Familia | Tipos (los relevantes) | Cómo obtienen datos |
+|---|---|---|
+| **`internal/*`** | `date`, `network`, `battery`, `alsa`, `pulseaudio`, `cpu`, `memory`, `filesystem`, `mpd`, `backlight`, `xworkspaces`, `xwindow`, `temperature` | Polling interno cada `interval` s o por eventos (ipc, mpd) |
+| **`custom/text`** | — | Texto estático con handlers de clic — ideal para botones-ícono |
+| **`custom/script`** | — | Ejecuta `exec` cada `interval` s; la stdout es el contenido — el puente con tus scripts |
+| **`custom/ipc`** | — | Espera mensajes por `polybar-msg action #módulo.mensaje` — actualización instantánea sin polling |
+
+### Tags de formato y acciones
+
+| Tag | Ejemplo | Efecto |
+|---|---|---|
+| `%{Tn}` / `%{T-}` | `%{T7}󰌽` | Usa la fuente indexada 7 / vuelve a la del módulo |
+| `%{A3:cmd &:}` | `%{A3:pavucontrol &:}` | Clic derecho ejecuta `pavucontrol`; `&` cierra el bloque de acción. `A1`/`A2` = izq/centro |
+| `<label>` `<ramp-volume>` `<animation-charging>` | en `format-*` | Bloques del módulo; se expanden en el `format` |
+| `%date%` `%time%` `%title%` | `label = %date% \| %time%` | Placeholders del módulo |
+| `%{F#color}` `%{B#color}` `%{R}` | — | Foreground/background temporal e invertir |
+
+Las **ramps** (`ramp-volume-0…4`) mapean nivel → icono; las **animations** (`animation-charging-0…9` + `framerate`) ciclan iconos — ambos patrones se usan en la config personal.
+
+## La configuración personal: `current.ini`
+
+Es el archivo principal (en `~/.config/polybar/current.ini`), con `include-file = ~/.config/polybar/colors.ini` para la paleta. Define **siete barras** heredadas de un `[bar/main]` común: `primary` (menú de sistema), `ethernet_bar`, `target_hack`, `vpn_bar` (indicadores de laboratorio), `secondary` (fecha), `log` (etiqueta fija), `top` (red/batería/alsa), más la barra central de workspaces que vive en `workspace.ini`.
+
+> [!tip] El patrón `inherit`
+> `[bar/primary]` + `inherit = bar/main` copia todas las claves base y solo pisa lo necesario (geometría, módulos). Cualquier cambio en `main` (fuentes, radius, colores) se propaga a todas las barras.
 
 ```ini
 ;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
@@ -697,9 +779,18 @@ exec = /home/stark/.config/bspwm/scripts/target_hack.sh
 ;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ```
 
-## `launch.sh`
+### Decisiones de diseño de la config personal
 
-Este script es responsable de iniciar las instancias de Polybar. Primero, termina cualquier instancia de Polybar que ya esté en ejecución para evitar duplicados, espera a que los procesos se cierren y luego lanza las barras configuradas.
+| Decisión | Por qué |
+|---|---|
+| 7 flotantes con `offset-x` en % | Layout de "consolas" separadas arriba: fecha (3.8 %), red Ethernet (14.5 %), VPN (71 %), target de hacking (81.5 %), menú de sistema (96.9 %) — sin un único contenedor, cada indicador es su propia ventana X |
+| `wm-restack = bspwm` en todas | polybar se re-apila según bspwm para no dibujarse encima de fullscreen |
+| `custom/script` cada 2 s para los indicadores | Ethernet/VPN/target se leen de scripts externos (pastebins abajo) — la lógica vive fuera de polybar |
+| `internal/alsa` + ramp con `%{A3:…}` | Icono de volumen donde **cada nivel de la rampa** abre pavucontrol con clic derecho |
+| `internal/network` con `accumulate-stats` | Estadísticas de tráfico acumuladas (upload/download desde el arranque) |
+| `BAT1` / `ACAD` / `wlp2s0` | Nombres reales de batería/adapter/interfaz de la máquina — ver con `ls /sys/class/power_supply/` e `ip link` |
+
+## `launch.sh`: lanzador de las instancias
 
 ```bash
 #!/usr/bin/env sh
@@ -729,9 +820,18 @@ polybar vpn_bar -c ~/.config/polybar/current.ini &
 polybar primary -c ~/.config/polybar/workspace.ini &
 ```
 
-## `workspace.ini`
+Mecánica del script:
 
-Este archivo de configuración está diseñado específicamente para la barra de espacios de trabajo (workspaces), permitiendo una visualización clara de los escritorios virtuales y su estado.
+1. `killall -q polybar` — mata todas las instancias (`-q` = quiet, no protesta si no hay).
+2. El `while pgrep …` **espera a que los zombies terminen de morir**: sin este loop, relanzar inmediatamente produce "bars ghosted" (dos barras superpuestas o barras viejas no repintadas). Patrón canónico de polybar.
+3. Cada `polybar NOMBRE -c archivo.ini &` lanza una barra con la config nombrada; el `&` es imprescindible (si no, la primera barra bloquea el resto).
+4. El `-c` explícito permite **mezclar archivos**: aquí `current.ini` para los indicadores y `workspace.ini` para la barra central — polybar por defecto leería `~/.config/polybar/config.ini`.
+
+Se invoca desde `bspwmrc` (ver [[Instalación y Configuración de Blue Sky Polybar]] para la variante blue-sky).
+
+## `workspace.ini`: la barra de escritorios
+
+Mismo patrón `inherit` pero enfocado en workspaces (`internal/xworkspaces`) y título de ventana (`internal/xwindow`), con `override-redirect = true` para flotar libremente. Config completa:
 
 ```ini
 ;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
@@ -1187,37 +1287,41 @@ content-foreground = ${color.fg}
 ;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ```
 
-## Scripts Externos
+Puntos clave de este archivo:
 
-Los siguientes scripts personalizados son utilizados por Polybar para mostrar información dinámica. Deben guardarse en la ruta especificada (`/home/stark/.config/bspwm/scripts/`).
+- `internal/xworkspaces` con `pin-workspaces = true`: muestra **solo los escritorios del monitor actual** (imprescindible con varios monitores); `enable-click`/`enable-scroll` cambian de escritorio con clic/rueda vía el XEmbed de EWMH.
+- `icon-0…4` mapean escritorio 1 a `-` y 2–5 a glifo vacío — con `label-*` por estado (active `#81a1c1` Nord, occupied `#bf616a`, empty `#e5e9f0`).
+- `internal/xwindow` (`title`): el título de la ventana enfocada, truncado a 20 caracteres, `label-empty = Desktop`.
+- Colores hardcodeados `#81a1c1`/`#bf616a` conviven con `${color.*}` de `colors.ini` — la paleta North/Nord.
+
+## Scripts externos (indicadores de laboratorio)
+
+Los módulos `ethernet_status`, `vpn_status` y `target_status` son `custom/script` que ejecutan scripts en `/home/stark/.config/bspwm/scripts/`:
 
 > [!tip] Personalización de Rutas
-> Asegúrese de que la ruta `/home/stark/.config/bspwm/scripts/` en los archivos `.ini` y en las funciones Zsh coincida con la ubicación real de sus scripts. Si su nombre de usuario no es `stark`, deberá ajustarlo.
+> Ajuste `/home/stark/.config/bspwm/scripts/` a su `home` real si la máquina tiene otro usuario.
 
 ### `ethernet_status.sh`
 
-Este script probablemente verifica el estado de la conexión Ethernet y muestra un icono o texto indicando si está activa o no.
+Verifica el estado de la conexión Ethernet y muestra un icono/texto según esté activa o no.
 
-[El código para Ethernet_status](https://pastebin.com/HcKxU3tD)
+[Código de ethernet_status.sh](https://pastebin.com/HcKxU3tD)
 
 ### `vpn_status.sh`
 
-Este script monitorea el estado de la conexión VPN, mostrando si está activa y, posiblemente, la dirección IP asignada o el nombre del servidor.
+Monitorea el estado de la VPN, mostrando si está activa y posiblemente la IP asignada o el servidor.
 
-[El código para vpn_status.sh](https://pastebin.com/sUk5hB4Q)
+[Código de vpn_status.sh](https://pastebin.com/sUk5hB4Q)
 
 ### `target_hack.sh`
 
-Este script es crucial para entornos de laboratorio de hacking, ya que lee un archivo (`/home/stark/.config/bspwm/scripts/target`) para mostrar la dirección IP y el nombre de la máquina objetivo actual. Esto permite tener siempre visible el objetivo activo.
+Pieza central del flujo de laboratorio: lee el archivo `/home/stark/.config/bspwm/scripts/target` y muestra la IP y el nombre de la máquina **objetivo actual** en la barra, siempre visible.
 
-[El código para target_to_hack.sh](https://pastebin.com/Z0s6zy7W)
+[Código de target_hack.sh](https://pastebin.com/Z0s6zy7W)
 
-## Funciones Zsh para Gestión de Objetivos
+### Funciones Zsh `settarget` / `cleartarget`
 
-Finalmente, se deben añadir las siguientes funciones a su archivo `~/.zshrc`. Estas funciones facilitan la configuración y limpieza del objetivo de hacking actual, interactuando directamente con el archivo que `target_hack.sh` lee.
-
-> [!info] Integración con el Flujo de Trabajo
-> Las funciones `settarget` y `cleartarget` son herramientas esenciales para un flujo de trabajo eficiente en laboratorios de hacking. Permiten al usuario definir rápidamente el objetivo actual (IP y nombre) y borrarlo cuando ya no es necesario, manteniendo la barra de Polybar actualizada.
+Añadidas a `~/.zshrc` (ver [[Configuración de Zsh y Plugins]] para el contexto del shell), escriben/borran el archivo que `target_hack.sh` lee:
 
 ```bash
 function settarget(){
@@ -1231,4 +1335,56 @@ function cleartarget(){
 }
 ```
 
-Una vez configurado esto, se procederá con la instalación de `fzf`.
+Flujo completo: `settarget 10.10.10.50靶机` → cada 2 s `target_hack.sh` relea `target` → la barra muestra el objetivo. `cleartarget` lo vacía y el módulo queda limpio.
+
+## Lanzar, depurar y recargar
+
+| Acción | Comando |
+|---|---|
+| Listar monitores | `polybar -m` o `xrandr -q \| grep " connected"` |
+| Probar una barra en foreground con logs | `polybar main -c ~/.config/polybar/current.ini -l info` |
+| Niveles de log | `-l warning` (defecto), `info`, `trace` — `info` muestra parse-errors de módulos |
+| Recargar sin reiniciar (con `enable-ipc`) | `polybar-msg cmd restart` o por módulo: `polybar-msg action "#date.hook.0"` |
+| Detectar typo de config | El log reporta `Undefined section: ...` / `key 'x' not found in section` con la línea |
+
+Flujo de depuración sugerido: 1) correr en foreground y leer errores de parseo; 2) verificar fuentes con `fc-list \| grep -i <fuente>` (un glifo Nerd Font ausente se dibuja como caja/reemplazo); 3) verificar nombres de interfaz/batería (`ip link`, `/sys/class/power_supply/`); 4) `bspc wm -r` para relanzar todo vía `bspwmrc`.
+
+## Errores comunes
+
+1. **Barras fantasma tras re-lanzar**: falta el loop `while pgrep …` de `launch.sh`.
+2. **Iconos como cajas □**: la fuente no tiene los glifos Nerd (falta instalar Nerd Fonts, ver [[Configuración Post-Instalación de Entorno de Escritorio]]) o se usa el índice de fuente equivocado (`%{T7}` ≠ `font-7` si la barra redefine `font-0`).
+3. **`Unrecognized network interface`**: `interface = wlp2s0` no coincide con la máquina; obtener con `ip -o link`.
+4. **Módulo vacío en `custom/script`**: el script no es ejecutable o su stdout es stderr; probar el script suelto en la terminal.
+5. **Transparente que no se ve transparente**: sin [[Configuración de Picom|picom]] no hay transparencia real; `pseudo-transparency` solo simula.
+6. **Barra tapada por fullscreen**: falta `wm-restack = bspwm` (o `override-redirect` en i3).
+
+## Cheatsheet
+
+| Comando / clave | Acción |
+|---|---|
+| `polybar -m` | Listar monitores |
+| `polybar NOMBRE -c archivo.ini -l info` | Lanzar barra con debug |
+| `polybar-msg cmd restart` | Recargar todas las barras (ipc) |
+| `killall -q polybar` | Matar todas las instancias |
+| `include-file =` | Incluir otro ini |
+| `inherit = bar/main` | Heredar sección de barra |
+| `modules-left/center/right` | Bloques de módulos |
+| `exec` / `exec-if` | `custom/script`: comando y guard |
+| `%{A3:cmd &:}` | Acción de clic dentro de un label |
+| `%{Tn}` / `%{T-}` | Cambiar fuente indexada |
+| `pin-workspaces` | Workspaces solo del monitor actual |
+
+## Recursos
+
+- Wiki oficial (módulos internos, tags, fuentes): <https://github.com/polybar/polybar/wiki>
+- Módulos de red: <https://github.com/polybar/polybar/wiki/Module:-network>
+- Ejemplos: <https://github.com/polybar/polybar/wiki> → *Showcase*.
+
+## Relacionadas
+
+- [[Instalación de Polybar y Picom]] — instalación/compilación del binario
+- [[Instalación y Configuración de Blue Sky Polybar]] — el tema original del que parte esta customización
+- [[Configuración de BSPWM y SXHKD]] — el WM que respeta las barras (`wm-restack`)
+- [[Configuración de Picom]] — transparencia real de las barras
+- [[Configuración Zsh Batcat Lsd y Burp Suite]] — `lsd`/`batcat` usados dentro de los scripts
+- [[Bash Scripting - Fundamentos Básicos]] — base para escribir `*_status.sh`
