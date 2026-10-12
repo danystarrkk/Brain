@@ -1,12 +1,23 @@
 ---
-aliases:
-  - API Abuse
-  - Explotación de APIs
+aliases: ["API Abuse", "Explotación de APIs", "API Hacking", "Hacking de APIs"]
 tags:
-  - hacking/web
-  - hacking/explotacion
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/api
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Insecure Direct Object References IDOR]]"
+  - "[[Ataque de Asignación Masiva]]"
+  - "[[Inyección NoSQL]]"
+  - "[[JSON Web Tokens Explotación y Bypass]]"
+  - "[[GraphQL Introspección y Mutaciones en Ataques IDOR]]"
+  - "[[Cross-Site Request Forgery (CSRF)]]"
+  - "[[SQL Injection]]"
+fuente: "https://owasp.org/www-project-api-security/"
 ---
+
 # Abuso de APIs
 
 Cuando hablamos del abuso de APIs, nos referimos a la explotación de vulnerabilidades en las interfaces de programación de aplicaciones (APIs) que se utilizan para permitir la comunicación y el intercambio de datos entre diferentes aplicaciones y servicios en una red.
@@ -35,6 +46,32 @@ Algunos *endpoints* de una API pueden aceptar diferentes métodos de solicitud, 
 > *   **PATCH**: Aplicar modificaciones parciales a un recurso.
 > *   **DELETE**: Eliminar un recurso.
 > La explotación a menudo implica el uso incorrecto de estos métodos, por ejemplo, usando GET para realizar acciones que deberían ser POST.
+
+### Semántica real de los métodos (y cómo abusarla)
+
+| Método | Semántica esperada | Abuso típico |
+|---|---|---|
+| `GET` | Solo lectura, sin efectos secundarios | Bypass de controles "solo POST", CSRF por `<img>`, caché enriquecida |
+| `POST` | Crear recurso | Fuerza bruta (OTP, login), duplicación |
+| `PUT` | Actualizar/crear completo | Sobreescribir objetos enteros (masivo de campos) |
+| `PATCH` | Actualización parcial | Modificar campos sensibles no previstos (precio, rol) |
+| `DELETE` | Eliminar | BOR masivo, CSRF de borrado, IDOR de eliminación |
+| `OPTIONS` | Pre-flight / listar métodos permitidos | **Revela el mapa de métodos** del endpoint (cabecera `Allow`) |
+| `HEAD` | Cabeceras sin body | Diferencias de comportamiento vs GET |
+| `TRACE`/`DEBUG` | Echo (debería estar deshabilitado) | XST, fugas internas |
+
+> [!tip] El truco de `OPTIONS`
+> Como se ve en los laboratorios de abajo, `OPTIONS` responde con `Allow: GET, POST` — un mapa legal de la superficie del endpoint. `405 Method Not Allowed` también filtra: revela que el recurso existe pero "tu" método no es el esperado. Fuzzing de métodos con ffuf (`-X FUZZ -w http-request-methods.txt`) es el primer paso de toda auditoría de API.
+
+### Versionado expuesto: la API vieja que nadie borró
+
+| Patrón | Riesgo |
+|---|---|
+| `/api/v1`, `/api/v2`, `/api/v3` coexistiendo | Las versiones antiguas mantienen los bugs ya "corregidos" en vN+1 (rate limits, validaciones, OTP brute-forceable) |
+| `/internal/`, `/api/debug`, `/swagger`, `/api-docs` | Documentación y endpoints internos públicos |
+| Mismos endpoints bajo otro prefijo | Bypass de bloqueos por IP/rate limit del "nuevo" flujo |
+
+En el lab de abajo, el bloqueo de OTP existía solo en `/api/v3`; `/api/v2` seguía expuesto sin mitigación y permitió completar el fuerza bruta del OTP de 4 dígitos. Regla: **enumerar versiones es parte del ataque**, no curiosidad.
 
 Algunas de las vulnerabilidades comunes que se pueden explotar a través del abuso de APIs incluyen:
 
@@ -66,8 +103,140 @@ Para evitar el abuso de APIs, los desarrolladores deben asegurarse de que la API
 
 Los desarrolladores pueden utilizar herramientas como Postman para probar la API y detectar posibles vulnerabilidades antes de que sean explotadas por atacantes.
 
+## Metodología de ataque
 
-# Notas Practica
+### Fases de una auditoría de API
+
+| Fase | Acciones | Herramientas |
+|---|---|---|
+| 1. Descubrimiento | Traficar la app real (tab Network XHR), extraer JS (`grep -oE 'api[^"]+'`), buscar `/swagger`, `/api-docs`, `openapi.json`, robots/sitemaps | Burp, navegador |
+| 2. Reproducción | Levantar la colección completa en Postman: login → token en variable → cada endpoint con su auth | Postman (variables + Bearer) |
+| 3. Enumeración | Fuzzing de métodos (`-X FUZZ`), versiones (`/v1`,`/v2`), parámetros de body, IDs | ffuf, Intruder |
+| 4. Explotación | BOLA/BFLA, mass assignment, SPP, inyección (SQL/NoSQL/command), JWT (ver [[JSON Web Tokens Explotación y Bypass]]) | Burp Repeater/Intruder |
+| 5. Cadenas | Lectura → credenciales → rol admin → RCE / datos masivos | — |
+
+### BOLA y BFLA (el corazón del abuso de APIs)
+
+| Clase (OWASP API #1/#5) | Qué es | Señal | Ejemplo |
+|---|---|---|---|
+| **BOLA** (Broken Object Level Authorization) — alias IDOR | El endpoint autenticado no verifica que el objeto pertenezca al token | Cambiar `carId`/`userId` y leer datos ajenos | `/api/vehicles/123` → vehículo de otro usuario (lab crAPI) |
+| **BFLA** (Broken Function Level Authorization) | El endpoint no verifica el **rol** para la función | Usuario normal llama a acciones de admin/otro método | `DELETE /api/users/1`, `PATCH` de precio |
+| **BOLA + enumerable ID** | Fuerza bruta de IDs | Respuestas 200 con contenido distinto | `ffuf -u .../vehicles/FUZZ -w ids` |
+| **Leakage que alimenta BOLA** | Un endpoint expone IDs de otros usuarios (comentarios, búsquedas) | `vehicleId` en comentarios de autores ajenos | crAPI: comentarios → IDs → GPS de carros ajenos |
+
+Ver [[Insecure Direct Object References IDOR]] para la teoría general y [[GraphQL Introspección y Mutaciones en Ataques IDOR]] para la variante GraphQL.
+
+### Server-Side Parameter Pollution (SPP)
+
+Cuando la API concatena parámetros en un query interno, inyectar `#` (comentario) o duplicar el parámetro cambia la consulta del backend:
+
+| Payload | Efecto (según parseo del backend) |
+|---|---|
+| `?token=x#` | comenta el resto → descubre el campo que concatena (`field=`) |
+| `?field=email&token=x` | fuerza el campo email → respuesta distinta = enum de campos válidos |
+| `?field=username&token=x` | otro campo válido |
+| `?field=resetToken&token=x` | el campo oculto del JS: filtra el token de reset → account takeover |
+| `../` + versiones en path REST | descubre rutas versionadas internas (`/api/v1/forgot-password`) |
+
+### Fuerza bruta de OTP/códigos cortos
+
+- 4 dígitos = 10.000 combinaciones → ffuf con wordlist `4-digits-0000-9999.txt` y `-p 1` (sin paralelismo para evadir bloqueo).
+- Si hay bloqueo por intentos: buscar el mismo flujo en **versión anterior** del API o en otro header/endpoint sin el contador.
+- Observar diferencias de respuesta (longitud, tiempo) entre OTP correcto e incorrecto.
+
+## Detección (del lado del atacante y del defensor)
+
+| Señal observada | Lectura |
+|---|---|
+| `OPTIONS` con `Allow: GET, PATCH` | Superficie ampliada: hay método no documentado |
+| `405` vs `404` | El recurso existe; método equivocado |
+| Error "parameter price is missing" al enviar JSON | Binding por reflection → superficie de mass assignment |
+| Respuesta JSON con campos extra (PPI) | Excessive data exposure → p.ej. `vehicleId` de terceros |
+| Bloqueo en v3 pero no en v2 | Versionado expuesto = bypass de mitigación |
+| 200 con `carId` ajeno | BOLA confirmada |
+
+Defensor: logs con IDs secuenciales tocados por el mismo token, WAF con reglas de IDOR, pruebas de autorización automatizadas por cada rol × cada endpoint (matriz R × E).
+
+## Impacto real
+
+1. **BOLA masivo**: leer/alterar todos los objetos de la plataforma (vehículos, mensajes, facturas). En crAPI: GPS de carros ajenos vía `vehicleId` filtrado en comentarios.
+2. **Account takeover**: SPP filtrando `resetToken` → cambiar password del admin → `DELETE` de usuarios (lab "server-side parameter pollution in a query string").
+3. **Manipulación económica**: producto con precio negativo comprado en masa suma saldo (`70 - (-1000)`); o `PATCH` directo del precio a 0 con el método no documentado.
+4. **Bypass de MFA/OTP**: fuerza bruta del OTP por versión vieja sin rate limit.
+5. **Inyección vía API**: los parámetros JSON llegan igual a la capa de datos → [[SQL Injection]], [[Inyección NoSQL]] (`{"$ne":"1234"}` en cupones), comandos, deserialización.
+
+## Prevención (con código)
+
+```python
+# Autorización a nivel de OBJETO (BOLA) — en cada handler, no en el router
+@app.route("/api/vehicles/<car_id>")
+def get_vehicle(car_id):
+    car = Vehicle.query.get_or_404(car_id)
+    if car.owner_id != current_user.id and not current_user.is_admin:
+        abort(403)                       # 404 también es válido (no enumear existencia)
+    return jsonify(car.to_dict())       # y además: DTO mínimo, no el modelo completo
+```
+
+```java
+// Spring: regla por rol para funciones (BFLA)
+@PreAuthorize("hasRole('ADMIN')")
+@DeleteMapping("/api/users/{id}")
+public void deleteUser(@PathVariable Long id) { ... }
+```
+
+```nginx
+# Rate limiting por endpoint sensible (nginx + redis) o API gateway
+limit_req_zone $binary_remote_addr zone=otp:10m rate=5r/m;
+location = /api/v3/check-otp { limit_req zone=otp burst=3 nodelay; }
+# ⚠️ y TODAS las versiones antiguas deben recibir la misma política o desaparecer
+```
+
+Reglas de diseño:
+- **Versiones viejas: retirarlas** (410 o redirect con misma política de seguridad). Una v2 sin rate limit es una puerta trasera.
+- Enumerar rutas: bloquear `/swagger`, `/api-docs` en producción.
+- Minimizar respuestas: DTOs de salida; nunca serializar el objeto de modelo con campos internos (PPI).
+- SPP: no concatenar entrada de usuario en queries internas; usa parámetros tipados y rechaza duplicados/conflictivos.
+- Autenticación + **autorización por recurso y por función en cada endpoint** — el middleware de login no cubre BOLA/BFLA.
+- Documentación interna y firmas: mantener OpenAPI privado y usarlo para tests de autorización automatizados.
+
+## Errores comunes
+
+**Atacante:**
+1. Saltarse la reproducción en Postman: sin colección funcional no puedes iterar rápido en Intruder/Repeater.
+2. No probar `OPTIONS` y métodos alternativos: el `PATCH` oculto suele ser el tesoro (lab de la chaqueta).
+3. Fuzzear IDs sin límite ni detección de cambios: ordena por longitud de respuesta y status.
+4. Ignorar el JS del cliente: los nombres de campos (`discountRate`, `resetToken`) vienen de ahí.
+5. Fuerza bruta paralela contra OTP con bloqueo: usa `-p 1` y/o la versión antigua del endpoint.
+
+**Defensor (falsas soluciones):**
+1. "La API es interna / tiene nombre secreto": la enumeración por JS y fuzzing la encuentran.
+2. Rate limit global sin segmentación: el ataque se reparte entre IPs/endpoints.
+3. Validar solo autenticación (login OK) y asumir autorización.
+4. Dejar versiones antiguas "por compatibilidad" (el bypass de OTP del lab es exactamente esto).
+5. Devolver el objeto completo "por si acaso" (PPI = mapa para BOLA).
+6. Bloquear IDs aleatorios largos: no arregla BOLA, solo cambia el costo de enumeración.
+
+## Cheatsheet
+
+| Paso | Comando / acción |
+|---|---|
+| Métodos | `ffuf -u URL -X FUZZ -w seclists/http-request-methods.txt -mc 200,401,405` |
+| Versiones | probar `/api/v1/.. /v2/..` ante cualquier bloqueo |
+| Docs | `/swagger`, `/api-docs`, `/openapi.json`, `/graphql` (introspección) |
+| BOLA | cambiar el ID en path/param y comparar respuestas |
+| BFLA | repetir admin-acciones con token de usuario normal |
+| SPP | `#`, parámetros duplicados, `field=` en query |
+| OTP corto | ffuf con wordlist numérica y `-p 1` |
+| Tokens | `Authorization: Bearer {{accessToken}}` en Postman variable |
+
+| Header / campo | Para qué |
+|---|---|
+| `Authorization: Bearer` | transporte de JWT |
+| `X-Original-URL` / `X-Rewrite-URL` | bypass de rutas (si el proxy los respeta) |
+| `Allow` (respuesta) | mapa de métodos |
+| `Content-Type: application/json` | necesario para que el binding JSON arranque |
+
+## Notas práctica: OWASP crAPI
 
 El laboratorio es de https://github.com/OWASP/crAPI, una vez levantado vamos a ver en nuestro `localhost` por el puerto `8888` lo siguiente:
 
@@ -360,7 +529,7 @@ ffuf -u http://localhost:8888/identity/api/auth/v2/check-otp -w /usr/share/secli
 Tenemos el OTP que era valido y como se tramito en automático la contraseña se cambio.
 
 
-## PortSwiger
+## PortSwigger Labs
 
 ### Exploiting an API endpoint using documentation
 
@@ -585,4 +754,25 @@ Como observamos lo logramos:
 ![[Pasted image 20260316144617.png]]
 
 Lab terminado.
+
+## Laboratorios y referencias
+
+- OWASP API Security Top 10 (2023): https://owasp.org/API-Security/editions/2023/en/0x11-t10/
+- OWASP crAPI (lab propio con walkthrough arriba): https://github.com/OWASP/crAPI
+- PortSwigger Academy — API labs (todos los de arriba): https://portswigger.net/web-security/api
+- PortSwigger — BOLA: https://portswigger.net/web-security/idor
+- Postman Learning Center: https://learning.postman.com/
+- Seclists wordlists usadas: `Fuzzing/http-request-methods.txt`, `Fuzzing/4-digits-0000-9999.txt`
+
+## Relacionadas
+
+- [[Insecure Direct Object References IDOR]] — la teoría general de autorización por objeto (BOLA)
+- [[Ataque de Asignación Masiva]] — walkthrough del lab "Exploiting a mass assignment vulnerability" en su propia nota
+- [[JSON Web Tokens Explotación y Bypass]] — cuando el Bearer token es el objetivo: `alg`, claims, robo
+- [[GraphQL Introspección y Mutaciones en Ataques IDOR]] — BOLA/BFLA en el mundo GraphQL
+- [[Inyección NoSQL]] — el cupón `"$ne":"1234"` del crAPI walkthrough
+- [[SQL Injection]] — inyección clásica apareciendo vía parámetros de API
+- [[Cross-Site Request Forgery (CSRF)]] — APIs con cookies = CSRF; APIs con Bearer = no (casi)
+- [[Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar]] — el workflow de proxy detrás de todo esto
+- [[Nmap Guía Completa]] — enumeración de servicios/APIs en la fase inicial
 

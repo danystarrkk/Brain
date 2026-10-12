@@ -1,8 +1,23 @@
 ---
-aliases: ["Deserialización", "Deserialization Attacks"]
-tags: ["hacking/web", "hacking/laboratorios"]
-estado: 🟢 Terminado
+aliases: ["Deserialización", "Deserialization Attacks", "Insecure Deserialization"]
+tags:
+  - sec/web
+  - sec/web/deserializacion
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Ataque de Deserialización Pickle]]"
+  - "[[Ataque de Deserialización Yaml]]"
+  - "[[Prototype Pollution]]"
+  - "[[Ataque de Type Juggling]]"
+  - "[[XML External Entity Injection]]"
+  - "[[Server-Side Template Injection (SSTI)]]"
+fuente: "https://portswigger.net/web-security/deserialization"
 ---
+
+# Ataques de Deserialización
 
 Los **ataques de deserialización** son un tipo de ataque que aprovecha las vulnerabilidades en los procesos de **serialización** y **deserialización** de objetos en aplicaciones que utilizan la programación orientada a objetos (**POO**).
 
@@ -11,21 +26,146 @@ Los **ataques de deserialización** son un tipo de ataque que aprovecha las vuln
 > *   **Deserialización**: Proceso inverso, donde una secuencia de bytes es convertida de nuevo a un objeto.
 > *   **Vulnerabilidad**: Ocurre cuando un atacante puede manipular los datos que se están deserializando, lo que puede llevar a la **ejecución de código malicioso** en el servidor.
 
-Los ataques de deserialización pueden ocurrir en diferentes tipos de aplicaciones, incluyendo aplicaciones web, aplicaciones móviles y aplicaciones de escritorio. Estos ataques pueden ser explotados de varias maneras, como:
+Los ataques de deserialización pueden ocurrir en diferentes tipos de aplicaciones, incluyendo aplicaciones web, aplicaciones móviles y aplicaciones de escritorio. Pueden explotarse de varias maneras: modificar el objeto serializado antes de enviarlo (MITM o manipulación directa del parámetro), enviar un objeto malicioso construido desde cero, o reinyectar blobs almacenados (sesiones, colas, caché) que otro vector permitió escribir.
 
-*   Modificar el objeto serializado antes de que sea enviado a la aplicación, lo que puede causar errores en la deserialización y permitir que un atacante ejecute código malicioso.
-*   Enviar un objeto serializado malicioso que aproveche una vulnerabilidad en la aplicación para ejecutar código malicioso.
-*   Realizar un ataque de “**man-in-the-middle**” para interceptar y modificar el objeto serializado antes de que llegue a la aplicación.
+## Mecánica: por qué "leer datos" se convierte en ejecución
 
-Los ataques de deserialización pueden ser muy peligrosos, ya que pueden permitir que un atacante tome el control completo del servidor o la aplicación que está siendo atacada.
+La clave está en distinguir dos familias de formatos:
 
-Para evitar estos ataques, es importante que las aplicaciones validen y autentiquen adecuadamente todos los datos que reciben antes de deserializarlos. También es importante utilizar bibliotecas de serialización y deserialización seguras y actualizar regularmente todas las bibliotecas y componentes de la aplicación para corregir posibles vulnerabilidades.
+| Familia | Ejemplos | ¿Puede invocar código? |
+|---|---|---|
+| **Formatos de datos** | JSON, XML (sin XXE), CSV, MessagePack, Protobuf | No por diseño: solo primitivas |
+| **Formatos de objetos** | PHP `serialize`, Java `ObjectInputStream`, Python `pickle`, Ruby `Marshal`, .NET `BinaryFormatter`, Swift `NSKeyedArchiver` | **Sí**: el formato describe *cómo reconstruir* el objeto, incluidas clases y métodos |
 
-A continuación, se os proporciona el enlace directo a la máquina de Vulnhub donde explotamos un ‘**PHP Deserialization Attack**‘:
+Un formato de objetos necesita un "plan de reconstrucción": qué clase instanciar, con qué propiedades y — en muchos lenguajes — ejecutar sus **métodos mágicos de ciclo de vida** (`__wakeup`, `__destruct` en PHP; `readObject` en Java; `marshal_load` en Ruby). Si el atacante controla el stream, controla el plan: selecciona una clase existente en la aplicación cuyo método de reconstrucción haga algo peligroso con propiedades que también controla. Esa cadena se llama **gadget chain** (POP chain en PHP: *Property-Oriented Programming*).
 
-*   **Máquina Cereal 1**: [https://www.vulnhub.com/entry/cereal-1,703/](https://www.vulnhub.com/entry/cereal-1,703/)
+El ataque no necesita que la aplicación "use" el objeto: **basta con deserializarlo**. El daño ocurre dentro del parser.
+
+### Gadget chains: anatomía
+
+Una cadena necesita tres piezas (todas presentes en la aplicación, ninguna creada por el atacante):
+
+```
+Trigger (método que el parser llama solo)  →  Propagación (método mágico intermedio)  →  Sink (efecto peligroso)
+   __destruct / readObject / marshal_load        __toString / __call / invokeArgs          system / exec / unlink / eval
+```
+
+| Lenguaje | Parser peligroso | Trigger clásico | Sink típico | Herramienta |
+|---|---|---|---|---|
+| PHP | `unserialize()` | `__wakeup`, `__destruct` | `system`, `unlink`, `call_user_func` | **phpggc**, script propio |
+| Java | `ObjectInputStream.readObject()` | `readObject`, `readResolve` | `Runtime.exec`, `ScriptEngine` | **ysoserial** (+ GadgetProbe) |
+| Python | `pickle.loads()` | opcode `REDUCE` | `os.system`, `subprocess` | `__reduce__` (ver [[Ataque de Deserialización Pickle]]) |
+| Python | `yaml.load()` | tags `!!python/object` | `os.system` | ver [[Ataque de Deserialización Yaml]] |
+| Ruby | `Marshal.load()` | `marshal_load`, `marshal_dump` | `Kernel.system` vía `Net::WriteAdapter` | Marshalkit, scripts documentados |
+| .NET | `BinaryFormatter`, `LosFormatter`, ViewState `ObjectStateFormatter` | `ISerializable` | `File.Delete`, `Process.Start` | **ysoserial.NET** |
+| JavaScript | `node-serialize`, `funcster` | IIFE en `_$$ND_FUNC$$_` | `child_process.exec` | payloads propios |
+| Swift/Cocoa | `NSKeyedUnarchiver` | `awakeAfterUsingCoder` | vía `TagAwareAdaptor` (gadget del lab propio) | phpggc (cadenas Symfony/Cocoa) |
+
+> [!warning] El error conceptual más común
+> "Es solo un cookie serializado con datos del usuario". El formato no distingue entre "datos" y "plan de ejecución": si no está firmado, el atacante sustituye el objeto entero. La defensa nunca puede ser "validar el objeto después" — ya se ejecutó durante el parseo.
+
+## Metodología de ataque
+
+1. **Localizar el parser**: cookies/parámetros con blobs base64/hex; cabeceras `Content-Type: application/x-java-serialized-object`; errores de `unserialize`, `InvalidClassException`, `ClassNotFoundException`; tokens con formato `O:4:"User"...` (PHP) tras base64.
+2. **Fingerprint del framework**: mensajes de error que filtran clases (`Symfony\Component\...` al corromper la cookie), `phpinfo` accesible (versiones, claves), JARs en `/backup`, código fuente con `~`.
+3. **Primeras pruebas de impacto**: modificar campos primitivos del objeto (auth bypass: `admin` 0→1, cambiar `username` + `access_token`). Si hay firma HMAC → buscar la clave (phpinfo, JS, defaults).
+4. **Escalar a RCE**: con framework identificado, elegir gadget de phpggc/ysoserial (`phpggc <framework> <gadget> <comando>`), codificar en la cadena exacta que espera la app (base64 → URL-encode según el transporte).
+5. **Verificar out-of-band**: `curl http://<collaborator>` o `touch /tmp/pwned` antes de intentar shells. Fingerprint ciego con URLDNS (Java) sin efecto destructivo.
+6. **Probar versiones de gadget**: ysoserial genera para una versión concreta de librería; probar variantes (`CommonsCollections1..7`, `K1/K2`) hasta que una no pete.
+
+### Herramientas de referencia
+
+| Herramienta | Uso |
+|---|---|
+| `ysoserial-all.jar` | `java -jar ysoserial-all.jar CommonsCollections1 'whoami'` — payloads Java |
+| `phpggc` | `phpggc Symfony/RCE1 4.3.6 'rm /home/carlos/morale.txt'` — payloads PHP/frameworks |
+| Marshalkit / scripts Ruby | `Marshal.dump` de cadenas `Gem::` + `Net::WriteAdapter` |
+| ysoserial.NET | BinaryFormatter/ViewState .NET |
+| Burp + serial scanners | PHP/Java Deserialization Scanner (extensiones) |
+| Serial-Killer / serianalyzer | análisis estático de gadgets en JARs |
+
+## Impacto
+
+- **RCE completa** al deserializar (labs de abajo: `rm morale.txt` como demo; una shell es lo mismo).
+- **Auth bypass** modificando campos primitivos (labs 1 y 2: `admin` 0→1, tipo de dato de `access_token`).
+- **Eliminación/escritura de ficheros** vía gadgets de `unlink`/`file_put_contents`.
+- **Cadenas**: deserialización → [[SQL Injection]] (gadget que construye una query con propiedad controlada — lab propio "custom gadget Java"), o deserialización → lectura de código fuente → secretos → cifrado/tokens rotos.
+- **DoS**: objetos que consumen recursos al reconstruirse (ampliación de arrays, referencias circulares).
+
+## Prevención (con código)
+
+```php
+// PHP: firmar el stream ANTES de unserialize y validar primero
+$blob = $_COOKIE['session'];
+$data = json_decode($blob, true);
+if (!hash_equals(hash_hmac('sha1', $data['token'], SECRET), $data['sig_hmac_sha1'])) { die('firma'); }
+unserialize($data['token'], ['allowed_classes' => [User::class]]);  // allowlist estricta
+```
+
+```java
+// Java: JEP 290 look-ahead (filtrar clases ANTES de instanciar)
+ObjectInputFilter filter = ObjectInputFilter.Config.createFilter(
+    "com.myapp.session.*;java.base/*;!*" );          // deny por defecto
+ObjectInputStream ois = new ObjectInputStream(stream);
+ois.setObjectInputFilter(filter);
+Object obj = ois.readObject();
+// Además: NO usar BinaryFormatter en ViewState sin MAC; preferir JSON sin polymorphism
+```
+
+```python
+# Python: formatos de datos + firma (detalle en las notas específicas)
+data = json.loads(signed_blob)                        # no pickle
+# Si pickle es inevitable: HMAC verificado ANTES de loads
+```
+
+Reglas universales:
+1. **Autenticar antes de deserializar** (HMAC con secreto o firma asimétrica; comparación de tiempo constante).
+2. **Allowlist de clases** (`allowed_classes` en PHP, `ObjectInputFilter` en Java, SafeLoader en YAML).
+3. **Formatos de datos** cuando el objetivo sean datos: JSON/Protobuf/MessagePack.
+4. **Actualizar librerías**: los gadgets dependen de versiones concretas (CommonsCollections, Symfony…).
+5. Aislar: el proceso que deserializa no debe tener permisos que conviertan el gadget en compromiso total.
+
+## Errores comunes
+
+**Atacante:**
+1. Codificación incorrecta de la cadena de entrega: la app puede hacer `base64` Y `url-encode` (o solo uno) — imitar exactamente la cadena original.
+2. Gadget de versión incompatible: `CommonsCollections1` falla con `InvalidClassException` → probar el resto (K1/K2/4/5/6/7 en el lab Java).
+3. Payload que rompe la cookie: largos de campos PHP (`s:5:"admin"`) incorrectos tras editar → la app pete sin ejecutar; recalcular largos.
+4. No identificar el framework antes de generar: primero fingerprint (errores, phpinfo, source), luego gadget.
+5. Ignorar firmas HMAC: sin la clave todo payload muere — buscarla en fuentes clásicas (phpinfo, JS, defaults) en vez de insistir.
+
+**Defensor (falsas soluciones):**
+1. "Deserializamos y luego validamos el objeto": tarde demáis, el gadget ya corrió.
+2. Ofuscar la serialización sin firma: es ofuscación, no control.
+3. Firma DESPUÉS del unserialize, o comparación con `==` (nuevo oráculo de timing).
+4. "JSON también es seguro" sin mirar: en Java, Jackson con `enableDefaultTyping` convierte JSON en deserialización de objetos (RCE documentada) — ver [[Prototype Pollution]] para el parentesco JS.
+5. Deshabilitar un gadget concreto y dar por cerrada la clase: las cadenas se reciclan entre librerías.
+
+## Cheatsheet
+
+| Tarea | Comando / señal |
+|---|---|
+| Detectar PHP | base64 → `O:4:"` / `a:2:{` |
+| Detectar Java | `rO0AB` (base64 de `ac ed 00 05`) |
+| Payload Java | `java -jar ysoserial-all.jar CommonsCollections4 'cmd'` |
+| Payload PHP | `phpggc <Framework>/<Gadget> <ver> 'cmd'` |
+| Fingerprint Java ciego | URLDNS (callback DNS, sin efecto) |
+| PHP firmado | `hash_hmac('sha1', obj, secret)` → cookie JSON `token` + `sig_hmac_sha1` |
+| Source leak | `index.php~`, `/.git`, `backup/` |
+| Defensa | firmar + allowlist de clases + formatos de datos |
+
+| Señal | Significado |
+|---|---|
+| `rO0AB` en parámetro | Java serialized object |
+| `Tzo0Nzoi...` (base64) | PHP `O:40:"...` objeto |
+| Error con FQCN de framework | gadget disponible probable |
+| `sig_hmac_sha1` junto al blob | hay firma: buscar clave |
 
 ## Notas de las Prácticas
+
+A continuación, la máquina de VulnHub donde explotamos un "PHP Deserialization Attack" y los laboratorios de PortSwigger:
+
+*   **Máquina Cereal 1**: [https://www.vulnhub.com/entry/cereal-1,703/](https://www.vulnhub.com/entry/cereal-1,703/)
 
 Ya con la máquina desplegada, vamos a ir un poco más al grano, donde vamos a realizar fuzzing a la web alojada en el puerto 80:
 
@@ -545,3 +685,26 @@ Vemos un error, pero si revisamos la web principal, vamos a observar que se comp
 ![[{D4D77245-4278-4894-97BC-19443C4D7F70}.png]]
 
 Lab Terminado.
+
+## Laboratorios y referencias
+
+- PortSwigger Academy — Insecure deserialization (todos los labs de arriba): https://portswigger.net/web-security/deserialization
+- phpggc (PHP gadget chains): https://github.com/ambionics/phpggc
+- ysoserial (Java): https://github.com/frohoff/ysoserial
+- ysoserial.NET: https://github.com/pwntester/ysoserial.net
+- Marshalkit (Ruby Marshal): https://github.com/mvid/marshalkit
+- PortSwigger serialization examples (custom gadgets, labs Java/PHP): https://github.com/PortSwigger/serialization-examples
+- OWASP — Deserialization of untrusted data: https://owasp.org/www-community/vulnerabilities/Deserialization_of_untrusted_data
+- Máquina VulnHub propia: Cereal 1 — https://www.vulnhub.com/entry/cereal-1,703/
+
+## Relacionadas
+
+- [[Ataque de Deserialización Pickle]] — deep dive Python: opcodes, `REDUCE`, `__reduce__`
+- [[Ataque de Deserialización Yaml]] — deep dive YAML: `yaml.load` vs `safe_load`, bombs
+- [[Ataque de Type Juggling]] — la prima PHP de la confusión de tipos
+- [[Prototype Pollution]] — el equivalente JS con potencial RCE vía gadgets
+- [[XML External Entity Injection]] — otro parser confiado (XML) con impacto comparable
+- [[Server-Side Template Injection (SSTI)]] — otra vía de RCE "interpretando" entradas del usuario
+- [[Abuso de APIs]] — los blobs suelen viajar en cookies/headers de APIs
+- [[SQL Injection]] — la cadena personalizada del último lab la encadena con SQLi
+- [[Nmap Guía Completa]] y [[Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar]] — workflow de descubrimiento y análisis

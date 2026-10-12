@@ -1,91 +1,265 @@
 ---
-aliases:
-  - Padding Oracle Attack
-  - Ataque de Oráculo de Relleno
+aliases: ["Padding Oracle Attack", "Ataque de Oráculo de Relleno", "CBC Oracle"]
 tags:
-  - hacking/explotacion
-  - hacking/laboratorios
-  - hacking/herramientas
-estado: 🟢 Terminado
+  - sec/web
+  - sec/crypto
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[JSON Web Tokens Explotación y Bypass]]"
+  - "[[Abuso de APIs]]"
+  - "[[Information disclosure]]"
+  - "[[Condiciones de Carrera]]"
+fuente: "https://portswigger.net/web-security/crypto/padding-oracle"
 ---
-Un ataque de oráculo de relleno (Padding Oracle Attack) es un tipo de ataque contra datos cifrados que permite al atacante descifrar el contenido de los datos sin conocer la clave de cifrado.
 
-Un oráculo hace referencia a una "indicación" que brinda a un atacante información sobre si la acción que ejecuta es correcta o no. Imagina que estás jugando a un juego de mesa o de cartas con un niño: la cara se le ilumina con una gran sonrisa cuando cree que está a punto de hacer un buen movimiento. Eso es un oráculo. En tu caso, como oponente, puedes usar este oráculo para planear tu próximo movimiento según corresponda.
+# Ataque de Oráculo de Relleno (Padding Oracle Attack)
+
+Un ataque de oráculo de relleno (**Padding Oracle Attack**) es un ataque contra datos cifrados en modo CBC que permite al atacante **descifrar (y también fabricar) contenido cifrado sin conocer la clave**, usando como única información la reacción del servidor ante rellenos (padding) válidos o inválidos. Es uno de los ataques más elegantes de criptografía aplicada: con ~128 peticiones por byte (256/2, en promedio) recupera el texto plano completo.
+
+Un **oráculo** hace referencia a una "indicación" que brinda al atacante información sobre si la acción que ejecuta es correcta o no. Imagina que estás jugando a un juego de mesa o de cartas con un niño: la cara se le ilumina con una gran sonrisa cuando cree que está a punto de hacer un buen movimiento. Eso es un oráculo. En tu caso, como oponente, puedes usar este oráculo para planear tu próximo movimiento según corresponda.
 
 > [!info]
 > En criptografía, un oráculo es una función o servicio que, al ser consultado con datos cifrados, revela información sobre la validez o propiedades de los datos descifrados, sin exponer la clave de cifrado. Esta "indicación" puede ser explícita (un mensaje de error) o implícita (diferencias de tiempo de respuesta).
 
-El relleno (padding) es un término criptográfico específico. Algunos cifrados, que son los algoritmos que se usan para cifrar los datos, funcionan en bloques de datos, donde cada bloque tiene un tamaño fijo. Si los datos que deseas cifrar no tienen el tamaño adecuado para rellenar los bloques, los datos se rellenan automáticamente hasta que lo hacen. Muchas formas de relleno requieren que este siempre esté presente, incluso si la entrada original tenía el tamaño correcto. Esto permite que el relleno siempre se quite de manera segura tras el descifrado.
+El **relleno** (*padding*) es un término criptográfico específico. Los cifrados de bloque funcionan sobre bloques de tamaño fijo (8 bytes en DES, 16 en AES). Si los datos no llenan el último bloque, se completan automáticamente. Muchos esquemas exigen que el relleno esté **siempre** presente, incluso si la entrada original llenaba el bloque exacto — así el descifrado siempre puede quitarlo de forma no ambigua.
 
 > [!tip]
 > Los esquemas de relleno más comunes incluyen PKCS#7 (el más extendido), ANSI X9.23 e ISO 10126. Cada uno define reglas específicas sobre cómo se añaden los bytes de relleno y qué valores deben tener, lo que es crucial para su correcta eliminación tras el descifrado.
 
-Al combinar ambos elementos, una implementación de software con un oráculo de relleno revela si los datos descifrados tienen un relleno válido. El oráculo podría ser algo tan sencillo como devolver un valor que dice "Relleno no válido", o bien algo más complicado como tomar un tiempo considerablemente diferente para procesar un bloque válido en lugar de uno no válido.
+Al combinar ambos elementos, una implementación con un oráculo de relleno revela si los datos descifrados tienen un relleno válido. El oráculo podría ser tan sencillo como un error "Relleno no válido", o algo más sutil como un tiempo de respuesta considerablemente diferente.
 
-> [!warning]
-> Los ataques de temporización (timing attacks) son una forma común de oráculo de relleno. Si el procesamiento de un relleno válido toma un tiempo diferente (aunque sea mínimo) al de un relleno inválido, un atacante puede explotar esta diferencia para inferir información byte a byte.
+> [!warning] Timing attacks como oráculo implícito
+> Si el procesamiento de un relleno válido toma un tiempo diferente (aunque sea mínimo) al de uno inválido, un atacante puede explotar esa diferencia para inferir información byte a byte. Las redes modernas permiten detectar diferencias < 0.1 ms en remoto, lo que convierte a cualquier rama de error en un oráculo práctico en todos los lenguajes.
 
-Los cifrados basados en bloques tienen otra propiedad, denominada "modo de operación", que determina la relación de los datos del primer bloque con los datos del segundo bloque, y así sucesivamente. Uno de los modos más usados es CBC (Cipher Block Chaining). CBC presenta un bloque aleatorio inicial, conocido como "vector de inicialización" (IV), y combina el bloque cifrado anterior con el resultado del cifrado estático a fin de que cifrar el mismo mensaje con la misma clave no siempre genere la misma salida cifrada.
+## Mecánica: cómo funciona CBC
 
-> [!info]
-> El modo CBC proporciona difusión, lo que significa que un cambio en un bit del texto plano o del IV afectará a todos los bloques cifrados subsiguientes. Esto dificulta la manipulación directa de bloques individuales sin afectar la validez del relleno, pero es precisamente esta propiedad la que el ataque de oráculo de relleno explota.
+Los cifrados de bloque tienen una **modo de operación** que determina la relación entre bloques. En **CBC** (*Cipher Block Chaining*) cada bloque de texto plano se XOR-ea con el bloque cifrado anterior antes de cifrarse; el primer bloque se XOR-ea con un **IV** (*Initialization Vector*) aleatorio. Así, cifrar dos veces el mismo mensaje con la misma clave produce salidas distintas.
 
-Un atacante puede usar un oráculo de relleno, en combinación con la manera en que CBC estructura los datos, para enviar mensajes ligeramente modificados al código que expone el oráculo y seguir enviando datos hasta que el oráculo indique que son correctos. A partir de esta respuesta, el atacante puede descifrar el mensaje byte a byte.
+**Cifrado** (bloques `P1..Pn`, clave `K`, `E` = cifrar):
 
-Las redes informáticas modernas son de una calidad tan alta que un atacante puede detectar diferencias muy pequeñas (menos de 0.1 ms) en el tiempo de ejecución en sistemas remotos. Las aplicaciones que suponen que un descifrado correcto solo puede ocurrir cuando no se alteran los datos pueden resultar vulnerables a ataques desde herramientas que están diseñadas para observar diferencias en el descifrado correcto e incorrecto. Si bien esta diferencia de temporización puede ser más significativa en algunos lenguajes o bibliotecas que en otros, ahora se cree que se trata de una amenaza práctica para todos los lenguajes y las bibliotecas cuando se tiene en cuenta la respuesta de la aplicación ante el error.
+```
+C1 = E(P1 XOR IV)
+C2 = E(P2 XOR C1)
+C3 = E(P3 XOR C2)
+...Cn = E(Pn XOR C(n-1))
+```
 
-Este tipo de ataque se basa en la capacidad de cambiar los datos cifrados y probar el resultado con el oráculo. La única manera de mitigar completamente el ataque es detectar los cambios en los datos cifrados y rechazar cualquier acción sobre ellos. La manera estándar de hacerlo es crear una firma para los datos y validarla antes de realizar cualquier operación de descifrado. La firma debe ser verificable y el atacante no debe poder crearla; de lo contrario, podría modificar los datos cifrados y calcular una firma nueva en función de esos datos cambiados.
+![[Pasted image 20250826090918.png]]
 
-Un tipo común de firma adecuada se conoce como "código de autenticación de mensajes hash con clave" (HMAC). Un HMAC difiere de una suma de comprobación en que requiere una clave secreta, que solo conoce la persona que genera el HMAC y la persona que la valida. Si no se tiene esta clave, no se puede generar un HMAC correcto. Cuando recibes los datos, puedes tomar los datos cifrados, calcular de manera independiente el HMAC con la clave secreta que compartes tanto tú como el emisor y, luego, comparar el HMAC que este envía respecto del que calculaste. Esta comparación debe ser de tiempo constante; de lo contrario, se habrá agregado otro oráculo detectable, permitiendo así un tipo de ataque distinto (un ataque de temporización en la verificación del HMAC).
+**Descifrado** (`D` = descifrar; el XOR se aplica tras descifrar):
 
-> [!info]
-> La implementación correcta de la autenticación de mensajes es crucial. El consenso actual favorece el enfoque "Encrypt-then-MAC" (cifrar y luego autenticar), donde primero se cifra el mensaje y luego se calcula el HMAC sobre el texto cifrado. Esto garantiza la confidencialidad y la integridad, y previene ataques como los de oráculo de relleno y otros ataques de manipulación de texto cifrado.
+```
+P1 = D(C1) XOR IV
+P2 = D(C2) XOR C1
+P3 = D(C3) XOR C2
+...Pn = D(Cn) XOR C(n-1)
+```
 
-En resumen, para usar de manera segura los cifrados de bloques de CBC rellenados, es necesario combinarlos con un HMAC (u otra comprobación de integridad de datos) que se valide mediante una comparación de tiempo constante antes de intentar descifrar los datos. Dado que todos los mensajes modificados tardan el mismo tiempo en generar una respuesta (debido a la verificación temprana del HMAC), el ataque se evita.
+![[Pasted image 20250826091519.png]]
 
-El ataque de oráculo de relleno puede parecer un poco complejo de entender, ya que implica un proceso de retroalimentación iterativo para adivinar el contenido cifrado y modificar el relleno. Sin embargo, existen herramientas como PadBuster que pueden automatizar gran parte del proceso.
+> [!info] La propiedad que el ataque explota
+> El descifrado de `Cn` es **local**: `Pn = D(Cn) XOR C(n-1)`. `D(Cn)` depende solo del bloque y la clave — pero `C(n-1)` (o el IV) lo **controla el atacante** si puede modificar el texto cifrado. Manipulando el bloque anterior manipula el texto plano resultante, byte a byte, SIN tocar la clave.
 
-PadBuster es una herramienta diseñada para automatizar el proceso de descifrado de mensajes cifrados en modo CBC que utilizan relleno PKCS#7. La herramienta permite a los atacantes enviar peticiones HTTP con rellenos maliciosos para determinar si el relleno es válido o no. De esta forma, los atacantes pueden adivinar el contenido cifrado y descifrar todo el mensaje.
+### Relleno PKCS#7
 
-A continuación, se proporciona el enlace directo de descarga a la máquina 'Padding Oracle' de Vulnhub, la cual estaremos importando en VMWare para practicar esta vulnerabilidad:
+Para que el texto plano encaje en bloques completos se añade relleno. En PKCS#7: si faltan `N` bytes, se añaden `N` bytes de valor `N`. Si el mensaje llena el bloque exacto, se añade un bloque entero de `0x08` (con bloques de 8):
 
-Pentester Lab – Padding Oracle: `https://www.vulnhub.com/?q=padding+oracle`
+![[Pasted image 20250826091746.png]]
+
+En la imagen: la primera cadena no completa el bloque de 8 bytes; faltan dos → `0x02 0x02`. Reglas completas:
+
+| Bytes que faltan | Relleno añadido |
+|---|---|
+| 2 | `02 02` |
+| 1 | `01` |
+| 0 (bloque lleno) | `08 08 08 08 08 08 08 08` (bloque entero) |
+
+El descifrado correcto **quita el relleno validando**: el último byte `k` debe ser un valor plausible de relleno y los últimos `k` bytes deben coincidir. Si no coincide → error. **Ese error diferencial es el oráculo.**
+
+### Condición de oráculo
+
+Cuando una aplicación descifra y luego limpia el relleno, si un relleno inválido provoca un comportamiento detectable (error 500 vs 200, redirect vs render, respuesta más lenta, log distinto), tenemos un **oráculo de relleno**. Con él podemos descifrar cualquier bloque observado e incluso **partir de texto plano y fabricar un cifrado válido** — el escenario completo que convierte una cookie cifrada en sesión de administrador.
+
+## El ataque, byte a byte (matemática paso a paso)
+
+Notación: `C0` = IV, `C1..Cn` = bloques cifrados, `I` = valor **intermedio** de un bloque tras el descifrado pero **antes** del XOR: `I(Cn) = D(Cn)`. El texto plano es `Pn = I(Cn) XOR C(n-1)`.
+
+Para recuperar `Pn`, el atacante envía pares `(C', Cn)` donde `C'` es un bloque que **fabrica** y controla byte a byte:
+
+```
+Pn_controlado = I(Cn) XOR C'
+```
+
+**Objetivo**: fabricar `C'` tal que `Pn_controlado` termine en un relleno válido que le diga algo sobre `I`.
+
+### Paso 1 — recuperar el último byte `Pn[15]` (bloques de 16, posiciones 0..15)
+
+Queremos que el último byte del texto plano fabricado sea `0x01` (relleno válido de 1 byte):
+
+```
+Pn[15]_controlado = I[15] XOR C'[15] = 0x01
+⇒ I[15] = 0x01 XOR C'[15]
+```
+
+Se fuerza bruta `C'[15]` sobre los 256 valores posibles, enviando `(C', Cn)` al oráculo. Cuando responde **relleno válido**, se ha encontrado `I[15]`. Entonces:
+
+```
+Pn[15] real = I[15] XOR C(n-1)[15]
+```
+
+Un detalle: a veces la coincidencia es casual (un relleno `0x02 0x02` que también parece válido). La solución estándar: al encontrar un candidato, cambiar el byte anterior (`C'[14]`) para romper cualquier relleno más largo y reconfirmar.
+
+### Paso 2 — bytes siguientes (de derecha a izquierda)
+
+Para recuperar `Pn[j]`, se **construye** el relleno esperado de la derecha: se conocen ya `I[j+1..15]`, así que se rellena `C'` para que `Pn_controlado[j+1..15] = 0x02, 0x02` (por ejemplo, al ir por el byte 14) y se fuerza bruta `C'[j]` hasta que el oráculo acepte `...0x02 0x02`:
+
+```
+C'[k] = I[k] XOR desired_padding_byte   (para k > j, ya conocido)
+C'[j] = candidato (fuerza bruta 0..255)
+⇒ cuando el oráculo dice "válido": I[j] = C'[j] XOR 0x02
+⇒ Pn[j] = I[j] XOR C(n-1)[j]
+```
+
+### Algoritmo completo (por cada bloque, hacia atrás)
+
+| Paso | Acción | Peticiones (promedio) |
+|---|---|---|
+| 1 | Empezar por el último byte: forzar `C'[15]` hasta relleno `0x01` | 128 |
+| 2 | `I[15]` conocido → `P[15] = I[15] XOR C(n-1)[15]` | 0 |
+| 3 | Para `j = 14 … 0`: rellenar `C'` con el padding ya derivado, forzar `C'[j]` hasta válido | 128 × 15 |
+| 4 | `I` completo del bloque ⇒ `P = I XOR bloque_anterior` | 0 |
+| 5 | Repetir con el par `(C(n-2), C(n-1))` para descifrar bloques previos | — |
+
+Total por bloque ≈ 128 × 16 ≈ **2048 peticiones**; por mensaje completo de `n` bloques ≈ 2048 × `n`. La operatoria con los valores intermedios `I`:
+
+![[Pasted image 20250826092855.png]]
+
+Como se ve en la imagen: `C15 = E7 XOR I15` — perdón, la relación correcta del descifrado es `P15 = D(C15) XOR E7` (donde `E7`/`C14` es el bloque anterior). Por conmutatividad del XOR: `I15 = C15 XOR P15`, y forzando `P15` vía el bloque anterior fabricado se despeja byte a byte. Lo esencial: **el XOR es conmutativo y el bloque anterior es tuyo**.
+
+> [!info] De la decifrado a la fabricación (bit-flipping)
+> La misma capacidad sirve para **modificar** texto plano: si quieres que el byte 5 de la cookie diga `X`, calculas `C'(5) = C(5) XOR valor_actual XOR X`. El descifrado reflejará tu cambio. Es el ataque de bit-flipping contra cookies firmadas-con-MAC-debajo-del-cifrado.
+
+## Herramientas: PadBuster y amigos
+
+La ejecución manual es tediosa; se automatiza:
+
+| Herramienta | Notas |
+|---|---|
+| **PadBuster** (Perl) | El clásico. Descifra y **fabrica** ciphertexts nuevos. Necesita: URL, valor cifrado, tamaño de bloque y un oráculo (código de respuesta o diferencia) |
+| **POODLE-TLS / DROWN / SWEET32** | Familias distintas que comparten la idea de "oráculo por relleno"; no confundirlas con el ataque genérico |
+| **tlspoodle / custom scripts** | Oráculos a nivel TLS (fallback SSLv3) |
+| Scripts propios (Python `padder`/`padbuster`) | Cuando el oráculo es no estándar (respuestas binarias, timing) |
+
+Sintaxis de PadBuster:
+
+```bash
+padbuster <URL> <VALOR_CIFRADO> <TAMAÑO_BLOQUE> \
+  -cookies 'auth=<VALOR_CIFRADO>' \
+  [-plaintext 'user=admin'] \
+  [-brute] [-prefix <IV_prependido>]
+```
+
+| Flag | Uso |
+|---|---|
+| posiciónles | URL, valor cifrado, block size (8 DES / 16 AES) |
+| `-cookies` | cookie/s header para mantener sesión y definir dónde vive el cifrado |
+| `-plaintext` | fabricar un texto plano nuevo (modo de **cifrado**, no solo descifrado) |
+| `-encoding 2` | salida en base64 (1=hex, 2=base64, 3=raw, 6=Base64URL) |
+| `-error` / `-prefix` | definir el oráculo alternativo / IV embebido como prefijo |
+| `-brute` | fuerza bruta de IV cuando no se conoce |
+
+## Detección
+
+- Cualquier endpoint que refleje **errores diferenciados** ante tokens/cookies alterados: 500 vs 302, JSON con `"error":"bad padding"` vs `"error":"invalid user"`, respuesta vacía vs completa.
+- Alterar un solo byte del ciphertext (XOR con `\xff`) y comparar respuestas: en CBC con relleno, ~1/256 de los cambios producirán "relleno válido" y el resto error — una distribución de respuestas bimodal es señal.
+- Timing: respuestas con dos clusteres temporales distintos según byte modificado.
+- Formatos típicos afectados: cookies ASP.NET (` ViewState` sin MAC), tokens de sesión cifrados en CBC+PKCS#7, parámetros `auth=`, JWT con `dir` simétrico mal implementado (raro), WebService fields.
+
+## Impacto
+
+1. **Descifrado total** de cualquier mensaje observado (incluido el tuyo — el IV y los bloques son "públicos" para el oráculo): sesiones, PII, tokens.
+2. **Fabricación de mensajes**: cifrar `user=admin` sin conocer la clave → suplantación directa (como en la práctica de abajo).
+3. **Bit-flipping**: alterar campos específicos (rol, precio) dentro del texto plano.
+4. Cadenas: descifrar un token de reset (lectura) → administración (como el lab de PortSwigger con el parámetro `forgot-password`).
+
+## Prevención (con código)
+
+La única mitigación completa: **autenticar el texto cifrado ANTES de descifrar** (Encrypt-then-MAC), con comparación de tiempo constante:
+
+```python
+import hmac, hashlib, os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+KEY_ENC = os.urandom(32)
+KEY_MAC = os.urandom(32)
+
+def encrypt_then_mac(pt: bytes) -> bytes:
+    iv = os.urandom(16)
+    enc = Cipher(algorithms.AES(KEY_ENC), modes.CBC(iv)).encryptor()
+    ct = iv + enc.update(pkcs7_pad(pt, 16)) + enc.finalize()
+    mac = hmac.new(KEY_MAC, ct, hashlib.sha256).digest()   # MAC sobre IV+CT
+    return mac + ct
+
+def mac_then_decrypt(blob: bytes) -> bytes:
+    mac, ct = blob[:32], blob[32:]
+    expect = hmac.new(KEY_MAC, ct, hashlib.sha256).digest()
+    if not hmac.compare_digest(mac, expect):      # tiempo constante, ANTES del descifrado
+        raise ValueError("integridad")            # → nunca se llega al oráculo de relleno
+    iv, body = ct[:16], ct[16:]
+    dec = Cipher(algorithms.AES(KEY_ENC), modes.CBC(iv)).decryptor()
+    return pkcs7_unpad(dec.update(body) + dec.finalize())
+```
+
+Reglas:
+
+- **Encrypt-then-MAC** (HMAC-SHA256 con clave separada) o directamente **AEAD** (AES-GCM, ChaCha20-Poly1305) — los modos autenticados no tienen "relleno" que adivinar.
+- Comparar MAC con `hmac.compare_digest` / `constant_time_equals`: una comparación `==` crea un **nuevo oráculo de timing**.
+- Nunca exponer errores de descifrado diferenciados al cliente; loguea en servidor con mensaje genérico.
+- Preferir AEAD sobre CBC+HMAC: elimina la clase entera de errores de implementación (orden MAC-then-encrypt, IV predecible, etc.).
+
+## Errores comunes
+
+**Atacante:**
+1. Usar el tamaño de bloque equivocado (8 para AES; AES = 16): PadBuster fallará ruidosamente.
+2. Ignorar el IV embebido/extra: si el IV viaja como prefijo del ciphertext, hay que pasárselo a la herramienta (`-prefix`) o el descifrado arranca mal.
+3. Asumir que el oráculo es el código HTTP: a veces es el **tamaño** de respuesta, un redirect o el tiempo — definir el detector correcto.
+4. En el modo `-plaintext`, olvidar que los bloques intermedios dependen de bloques anteriores: PadBuster maneja la cadena, pero entenderlo evita interpretar mal los resultados.
+
+**Defensor (falsas soluciones):**
+1. "Ciframos con AES": CBC sin integridad autenticada sigue vulnerable aunque la clave sea fuerte.
+2. MAC pero **después** de validar el relleno (MAC-then-encrypt sin revisar antes): el oráculo de relleno sigue vivo.
+3. MAC con comparación `==`: sigue existiendo un oráculo de tiempo.
+4. Ocultar los mensajes de error: si la **falta de error** también es distinguible (redirect de éxito), el oráculo persiste.
+5. IV aleatorio pero reutilizado / IV constante: rompe confidencialidad aunque no haga padding oracle.
+
+## Cheatsheet
+
+| Elemento | Valor |
+|---|---|
+| Bloque DES | 8 bytes |
+| Bloque AES | 16 bytes |
+| Peticiones por byte | ~128 (promedio), 256 (máximo) |
+| Peticiones por bloque | ~2048 |
+| PKCS#7 bloque completo | bloque entero `0x10` × 16 |
+| Relación clave | `P = D(C) XOR bloque_anterior` |
+| Bit-flip | `C' = C XOR P_actual XOR P_deseado` |
+| Defensa | Encrypt-then-MAC / AES-GCM + `compare_digest` |
+
+```bash
+# Descifrar
+padbuster http://target/index.php <COOKIE> 8 -cookies 'auth=<COOKIE>'
+# Fabricar cookie válida con texto plano propio
+padbuster http://target/index.php <COOKIE> 8 -cookies 'auth=<COOKIE>' -plaintext 'user=admin'
+```
 
 ## Práctica con PadBuster
 
 ![[Pasted image 20250826090824.png]]
 
-Esta es la interfaz web en la que vamos a practicar.
-
-### Entendiendo el Cifrado CBC
-![[Pasted image 20250826090918.png]]
-
-En sí, este modo de cifrado parte de un texto plano, el cual lo separa en diferentes bloques de bytes. Cada bloque se somete a una operación XOR con el bloque cifrado anterior. Luego, mediante una clave (key), cada uno de los bloques se cifra y, al final, todo se concatena.
-
-El primer bloque no tiene un bloque cifrado anterior, por lo que utiliza un Vector de Inicialización (IV) con el cual realiza la operación XOR.
-
-![[Pasted image 20250826091519.png]]
-
-En el proceso inverso, partimos del texto cifrado, el cual diseccionamos en diferentes bloques de bytes de longitud fija. Cada bloque se descifra y se somete a una operación XOR con el bloque cifrado anterior. Para el primer bloque, utilizamos nuevamente el Vector de Inicialización (IV).
-
-### Relleno PKCS#7
-Ahora, para asegurarnos de que el texto claro encaje en uno o varios bloques, se usa lo que es el relleno (padding), y se suele emplear `PKCS#7`:
-![[Pasted image 20250826091746.png]]
-Por ejemplo, en la imagen vemos cómo la primera cadena no completa todo el bloque de 8 bytes, por lo que el método se encarga de complementar el relleno con los valores faltantes. Como vemos, faltan dos bytes, por lo que usa `0x02`, y lo mismo ocurre con los demás ejemplos.
-
-> [!info]
-> El esquema de relleno PKCS#7 funciona de la siguiente manera: si se necesitan `N` bytes de relleno para completar el último bloque, se añaden `N` bytes, cada uno con el valor `N`. Por ejemplo, si se necesitan 2 bytes, se añaden `0x02 0x02`. Si se necesitan 8 bytes (un bloque completo), se añaden `0x08 0x08 0x08 0x08 0x08 0x08 0x08 0x08`.
-
-Ahora, cuando una aplicación realiza el proceso de descifrar un mensaje, su flujo es descifrar el mensaje y luego limpiar el relleno. Si, durante la limpieza del relleno, se detecta un relleno inválido que provoca un comportamiento detectable, ahí es donde decimos que tenemos un Oráculo de Relleno. El comportamiento detectable puede ser un error, una falta de resultados, una respuesta más lenta, entre otros. Si logramos detectar este comportamiento, seremos capaces de descifrar los datos e incluso podemos partir de un texto en claro y cifrarlo.
-
-### Ejemplo de Operatoria
-
-![[Pasted image 20250826092855.png]]
-
-La operatoria es sencilla: una vez que pasamos del bloque de encriptación, obtenemos los valores intermedios `I` (por ejemplo, `I8, I9, I10`). Con estos valores, se aplica una operación XOR, como se ve en la imagen: `c15 = E7 XOR I15`. Algo fundamental que debemos conocer es que la operación XOR es conmutativa, por lo que `E7 = c15 XOR I15` y `I15 = C15 XOR E7`. Conociendo esto y cómo se emplea el relleno (padding) cuando no se completa un bloque, podemos deducir para un bloque de relleno, por ejemplo: `0x01 = valor_conocido XOR I15`. Aquí, `valor_conocido` es el byte que estamos probando en el bloque anterior para que el último byte del bloque descifrado sea `0x01`. Conociendo que la operación XOR es conmutativa, podemos despejar `I15` (o el byte `I` correspondiente) quedando `I15 = 0x01 XOR valor_conocido`. Este valor `valor_conocido` se puede obtener mediante fuerza bruta, probando todos los posibles bytes (0-255) hasta que el oráculo indique un relleno válido. Una vez que tenemos `I15`, podemos reemplazarlo en la ecuación original de descifrado para obtener el texto plano: `P15 = D(C15) XOR C14` (donde `D(C15)` es el bloque descifrado y `C14` es el bloque cifrado anterior, o el IV para el primer bloque). El ataque de oráculo de relleno manipula el bloque cifrado anterior (`C14` o IV) para controlar el resultado del XOR y forzar un relleno válido, revelando así los bytes del texto plano uno por uno. Esto es complicado de hacer de forma manual, por lo que usaremos diferentes herramientas que nos ayudarán, pero tener claro el concepto es muy importante.
-
-> [!info]
-> El proceso de descifrado byte a byte en un ataque de oráculo de relleno implica iterar sobre cada byte del último bloque del texto cifrado. Para cada byte, se manipula el byte correspondiente en el bloque cifrado *anterior* (o el IV si es el primer bloque) y se envía al oráculo. Se prueban todos los 256 posibles valores para el byte manipulado hasta que el oráculo indica un relleno válido. Una vez que se encuentra un valor que produce un relleno válido, se puede inferir el valor del byte del texto plano. Este proceso se repite para cada byte, trabajando desde el final del bloque hacia el principio, y luego se extiende a los bloques anteriores.
+Esta es la interfaz web en la que vamos a practicar (máquina Vulnerable "Padding Oracle" de VulnHub, con cifrado aplicado en la cookie de sesión).
 
 Entonces, vamos a registrarnos en la web:
 
@@ -96,15 +270,18 @@ Entonces, vamos a registrarnos en la web:
 Podemos ver que ya estamos registrados y que la sesión ha iniciado.
 
 Ahora, el cifrado se aplica en la cookie, por lo que vamos a extraerla para analizarla:
+
 ![[Pasted image 20250826095940.png]]
 
-Ahora, detrás de esta cookie tenemos texto claro y podemos intentar obtenerlo. Para ello, usaremos la herramienta `PadBuster`:
+Detrás de esta cookie tenemos texto claro y podemos intentar obtenerlo. Para ello, usaremos la herramienta `PadBuster`:
+
 ```bash
 padbuster http://192.168.1.105/index.php H2er5oQSzYRp5tkgCCyBbYr2UmIu3TJC 8 -cookies 'auth=H2er5oQSzYRp5tkgCCyBbYr2UmIu3TJC'
 ```
 
 ![[Pasted image 20250826100401.png]]
-Seleccionamos la opción recomendada:
+
+Seleccionamos la opción recomendada (el detector de oráculo por defecto analiza las respuestas):
 
 ![[Pasted image 20250826100443.png]]
 
@@ -119,6 +296,21 @@ padbuster http://192.168.1.105/index.php H2er5oQSzYRp5tkgCCyBbYr2UmIu3TJC 8 -coo
 ![[Pasted image 20250826100908.png]]
 
 Hemos generado el valor, como podemos observar. Con esto, podemos intentar usarlo para verificar si funciona:
+
 ![[Pasted image 20250826100944.png]]
 
-¡Ya estamos como admin!
+¡Ya estamos como admin! El servidor solo validaba el relleno del CBC — sin MAC ni AEAD, fabricar `user=admin` era cuestión de peticiones.
+
+## Laboratorios y referencias
+
+- PortSwigger Academy — Padding oracle attack (lab online interactivo): https://portswigger.net/web-security/crypto/padding-oracle
+- Pentester Lab – Padding Oracle (práctica propia con PadBuster): https://www.vulnhub.com/?q=padding+oracle
+- Menezes, van Oorschot, Vanstone — *Handbook of Applied Cryptography*, cap. 7 (construcción del ataque)
+- ASP.NET padding oracle (CVE-2010-3332 / MS10-070) — el incidente que popularizó la técnica
+
+## Relacionadas
+
+- [[JSON Web Tokens Explotación y Bypass]] — manipulación de tokens de sesión; si el token está cifrado (JWE) en CBC, este ataque aplica
+- [[Information disclosure]] — el oráculo ES información filtrada por el canal de error
+- [[Abuso de APIs]] — cookies/parámetros cifrados de APIs como superficie del ataque
+- [[Condiciones de Carrera]] — otra clase de ataque donde el "comportamiento detectable" del servidor es el gancho
