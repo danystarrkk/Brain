@@ -1,423 +1,272 @@
 ---
-title: "Docker - Laboratorios y Vulhub"
+aliases: ["Vulhub", "Labs Docker", "Laboratorios de seguridad Docker", "Entornos vulnerables Docker"]
 tags:
-  - lang/docker
-  - concept/vulnerable-environments
-  - concept/ctf
-  - concept/security-labs
-  - level/intermedio
-  - type/reference
-  - area/security
-created: 2024-01-15
-updated: 2024-09-25
-status: active
+  - devops/docker
+tipo: concepto
+estado: terminado
+creado: 2024-01-15
+actualizado: 2026-10-11
+relacionado:
+  - "[[Docker - Fundamentos y Conceptos]]"
+  - "[[Docker - Redes y Volúmenes]]"
+  - "[[Docker - Docker Compose]]"
+  - "[[Docker - Gestión de Contenedores]]"
+  - "[[Docker - Buenas Prácticas y Seguridad]]"
+  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
+  - "[[Comandos Básicos de Sistema y Red en Linux]]"
+fuente: "https://github.com/vulhub/vulhub"
 ---
 
 # Docker - Laboratorios y Vulhub
 
-> **Objetivo**: Desplegar entornos vulnerables controlados para práctica de hacking ético, CTFs, y testing de seguridad.
+Los contenedores son la mejor herramienta que tuvo un practicante de seguridad: **entornos vulnerables que se levantan en segundos, se destruyen sin miedo y se reinician idénticos mil veces**. Vulhub empaquetó cientos de CVEs famosas como stacks de Docker Compose; DVWA, Juice Shop y WebGoat son clásicos de práctica web. Esta nota cubre cómo usarlos **sin exponer nada ni quemar tu propio host**: aislamiento de red, límites de recursos, patrones de reset, y cómo portar o crear tus propios laboratorios. La contraparte teórica de todo lo que practicás aquí: [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]].
 
----
+> [!info] Por qué Docker cambió la práctica de seguridad
+> Antes: una VM de 4 GB por laboratorio, snapshots frágiles, "se me rompió el entorno". Hoy: `docker compose up -d` levanta un Apache 2.4.49 con CVE-2021-41773 en 20 s; `down -v` lo devuelve al estado cero. La disciplina que falta no es técnica — es **aislamiento**: un entorno vulnerable publicado en `0.0.0.0` en una red corporativa es un caballo de Troya. Las secciones de red y recursos de esta nota existen por eso.
 
-## 1. Vulhub - Repositorio Principal
+## Reglas de higiene de un lab (las cinco de oro)
 
-**Vulhub** (https://github.com/vulhub/vulhub) es la colección más completa de entornos vulnerables dockerizados.
+1. **Nunca `--network host`** y nunca publicar en `0.0.0.0` si no es estrictamente necesario: `-p 127.0.0.1:8080:80` (ver [[Docker - Redes y Volúmenes]]).
+2. **Red interna por defecto**: `internal: true` o `--network none` cuando el lab no necesita internet (la mayoría no lo necesita si la imagen ya está descargada).
+3. **Nunca `--privileged` ni montar el socket de Docker** en el contenedor vulnerable: un lab que necesita eso para "funcionar" es un lab mal diseñado — y esos son exactamente los vectores que practicás en [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]].
+4. **Límites de recursos siempre**: `--memory --cpus --pids-limit`. Un DoS accidental no debe tumbar tu workstation.
+5. **Reset idéntico**: `docker compose down -v` destruye datos; el estado inicial vive en imágenes/git, nunca en el contenedor (filosofía de inmutabilidad en [[Docker - Fundamentos y Conceptos]]).
 
-### 1.1 Estructura del Repositorio
+```yaml
+# plantilla lab segura (usable con cualquier stack)
+services:
+  vulnerable:
+    build: ./victim
+    networks: [lab]
+    cap_drop: ["ALL"]
+    cap_add: ["NET_BIND_SERVICE"]        # solo si bindea <1024
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+    # sin `ports:` — el atacante entra por la red del proyecto
+  attacker:
+    build: ./attacker
+    networks: [lab]
+    cap_add: ["NET_ADMIN", "NET_RAW"]    # necesario para sniffing/ARP dentro del lab
+    profiles: ["attack"]                 # solo levanta con --profile attack
+networks:
+  lab:
+    internal: true                       # sin salida a internet
+```
+
+## Vulhub: el catálogo CVE-dockerizado
+
+[Vulhub](https://github.com/vulhub/vulhub) es un repositorio de **cientos** de entornos vulnerables, cada uno en su carpeta con `docker-compose.yml` + `Dockerfile` + README con el exploit. Estructura (fragmento representativo):
 
 ```
 vulhub/
-├── apache/
-│   ├── CVE-2021-41773/          # Path traversal
-│   └── CVE-2021-42013/
-├── docker/
-│   ├── CVE-2019-5736/           # runc escape
-│   └── unauthorized-access/     # Docker daemon sin auth
-├── elasticsearch/
-│   └── CVE-2014-3120/           # RCE via script
-├── jenkins/
-│   └── CVE-2018-1999002/        # RCE
-├── kafka/
-│   └── CVE-2018-1266/
-├── kubernetes/
-│   └── CVE-2018-1002105/
-├── mysql/
-│   └── CVE-2016-6662/
-├── nginx/
-│   ├── CVE-2013-2028/
-│   └── CVE-2017-7529/
-├── redis/
-│   ├── CVE-2022-0543/           # Lua sandbox escape
-│   └── unauthorized-access/
-├── spring/
-│   ├── CVE-2018-1273/
-│   └── CVE-2022-22965/          # Spring4Shell
-├── struts2/
-│   ├── CVE-2017-5638/           # Jakarta Multipart RCE
-│   └── CVE-2017-9805/
-├── tomcat/
-│   ├── CVE-2017-12615/          # PUT RCE
-│   └── CVE-2020-1938/           # Ghostcat
-└── wordpress/
-    ├── CVE-2019-6977/
-    └── CVE-2021-29447/
+├── apache/CVE-2021-41773/         # path traversal + RCE (2.4.49)
+├── docker/unauthorized-access/    # daemon TCP expuesto sin auth
+├── docker/CVE-2019-5736/          # escape vía runc (imagen del lab)
+├── elasticsearch/CVE-2014-3120/   # RCE vía scripting
+├── jenkins/CVE-2018-1999002/
+├── log4j/CVE-2021-44228/          # Log4Shell
+├── mysql/CVE-2016-6662/
+├── nginx/CVE-2017-7529/           # integer overflow → info leak
+├── redis/CVE-2022-0543/           # escape del sandbox Lua
+├── spring/CVE-2022-22965/         # Spring4Shell
+├── struts2/CVE-2017-5638/         # Jakarta Multipart RCE
+├── tomcat/CVE-2020-1938/          # Ghostcat
+└── wordpress/…, ghostscript/…, wordpress/…
 ```
 
-### 1.2 Uso Básico
+### Descarga selectiva (sin clonar 2 GB)
 
 ```bash
-# Clonar solo lo necesario (recomendado)
-# Opción A: downgit (descarga subcarpeta)
-pip install downgit
-downgit https://github.com/vulhub/vulhub/tree/master/apache/CVE-2021-41773
+# Opción A: sparse-checkout (git moderno, recomendada)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/vulhub/vulhub.git
+cd vulhub && git sparse-checkout set apache/CVE-2021-41773
 
-# Opción B: svn export (sin git history)
-svn export https://github.com/vulhub/vulhub/trunk/apache/CVE-2021-41773
+# Opción B: export de una sola carpeta vía svn
+svn export https://github.com/vulhub/vulhub/trunk/apache/CVE-2021-41773 lab-apache
 
-# Opción C: Clonar completo (pesado ~2GB)
-git clone https://github.com/vulhub/vulhub.git
+# Explorar sin descargar
+svn list https://github.com/vulhub/vulhub/trunk    # o navegar la web de GitHub
 ```
 
-### 1.3 Levantar Entorno
+### Flujo estándar con cualquier lab de Vulhub
 
 ```bash
 cd apache/CVE-2021-41773
-
-# Ver docker-compose.yml primero
-cat docker-compose.yml
-
-# Levantar en background
-docker compose up -d
-
-# Ver logs
-docker compose logs -f
-
-# Verificar funcionamiento
-curl http://localhost:8080
-
-# Parar y limpiar
-docker compose down
-docker compose down -v  # Con volúmenes
+cat docker-compose.yml && less README.md      # 1) SIEMPRE leer antes de up
+docker compose up -d                           # 2) levantar
+docker compose ps                              # 3) estado/puertos reales
+curl -s http://127.0.0.1:8080 | head          # 4) verificar
+# … práctica …
+docker compose down -v                         # 5) reset completo (incluye volúmenes)
 ```
 
----
+> [!warning] Los compose de Vulhub están pensados para VMs descartables
+> Algunos publican en `0.0.0.0` y no traen límites. Antes del `up`: editar el `ports:` a `127.0.0.1:…` o añadir `deploy.resources.limits`, o envolverlo en tu compose overlay (ver sección de aislamiento). Nunca corras un lab de este tipo en un host con datos o exposición corporativa.
 
-## 2. Entornos Vulnerables Populares
+## Catálogo de imágenes vulnerables populares
 
-### 2.1 Web Applications
-
-| Entorno | Puerto | Vulnerabilidad | Dificultad |
-|---------|--------|----------------|------------|
-| `dvwa` | 80 | XSS, SQLi, CSRF, File Upload | Principiante |
-| `bWAPP` | 80 | 100+ vulns web | Principiante |
-| `webgoat` | 8080 | OWASP Top 10 interactivo | Intermedio |
-| `mutillidae` | 80 | OWASP Top 10 | Principiante |
-| `juice-shop` | 3000 | OWASP Top 10, moderna | Intermedio |
+| Lab | Imagen (Docker Hub) | Puerto | Tema | Nivel |
+|-----|---------------------|--------|------|-------|
+| DVWA | `vulnerables/web-dvwa` | 80 | SQLi, XSS, CSRF, upload | Principiante |
+| bWAPP | `raesene/bwapp` | 80 | 100+ vulnerabilidades | Principiante |
+| OWASP Juice Shop | `bkimminich/juice-shop` | 3000 | OWASP Top 10 moderna (Node) | Intermedio |
+| WebGoat | `webgoat/webgoat` | 8080 | Aprendizaje guiado OWASP | Intermedio |
+| Mutillidae | `citizenstig/nowasp` | 80 | OWASP Top 10 (PHP) | Principiante |
+| WordPress legacy | `wordpress:4.9.8` (tag viejo) | 80 | Plugins/CMS vulnerables | Variable |
+| Metasploitable2 | `tleemcjr/metasploitable2` | 21,22,80,445,3306… | Linux vulnerable completo | Explotación clásica |
+| Vulnerhub Vulhub stacks | `vulhub/<servicio>:<versión>` | según CVE | CVE específica | Intermedio–Avanzado |
 
 ```bash
-# DVWA (Damn Vulnerable Web App)
-docker run -d --name dvwa -p 80:80 vulnerables/web-dvwa
-
-# OWASP Juice Shop
-docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop
-
-# bWAPP
-docker run -d --name bwapp -p 80:80 raesene/bwapp
-
-# WebGoat
-docker run -d --name webgoat -p 8080:8080 -p 9090:9090 webgoat/webgoat-8.0
+# Los clásicos en un comando (⚠️ con bind a loopback)
+docker run -d --name dvwa -p 127.0.0.1:8080:80 vulnerables/web-dvwa
+docker run -d --name juice -p 127.0.0.1:3000:3000 bkimminich/juice-shop
+docker run -d --name webgoat -p 127.0.0.1:8080:8080 webgoat/webgoat
 ```
 
-### 2.2 CMS Vulnerables
+- Los nombres exactos de imágenes **cambian con el tiempo**: verificá siempre el repo oficial del proyecto (DVWA, Juice Shop, WebGoat tienen docs dockerizadas) antes de `pull`.
+- Cada `pull` es código de terceros: en un host serio, escanéalas (Trivy) — ver [[Docker - Buenas Prácticas y Seguridad]] — y desconfiá de forks no oficiales.
+- Para CTFs multi-equipo, la plataforma CTFd se dockeriza (`ctfd/ctfd` + MySQL), y existen repos de challenges dockerizados listos; montalos con la misma plantilla de aislamiento.
 
-```bash
-# WordPress vulnerable
-docker run -d --name wp -p 80:80 wordpress:4.9.8
+## Portar una app vulnerable a contenedor
 
-# Joomla vulnerable
-docker run -d --name joomla -p 80:80 joomla:3.8.13
-
-# Drupal vulnerable (Drupalgeddon2)
-docker run -d --name drupal -p 80:80 drupal:7.58
-```
-
-### 2.3 Servicios y Protocolos
-
-| Entorno | Puerto | Vulnerabilidad |
-|---------|--------|----------------|
-| `msfconsole` | - | Metasploit framework |
-| `metasploitable2` | Múltiples | Linux vulnerable completo |
-| `metasploitable3` | Múltiples | Windows/Linux vulnerable |
-| `samba` | 445 | CVE-2017-7494 (SambaCry) |
-| `ftp` | 21 | vsftpd 2.3.4 backdoor |
-| `ssh` | 22 | Credenciales débiles |
-| `ldap` | 389 | Anonymous bind |
-
-```bash
-# Metasploitable2
-docker run -d --name msf2 -p 21:21 -p 22:22 -p 80:80 -p 445:445 -p 3306:3306 tleemcjr/metasploitable2
-
-# Metasploitable3 (Windows)
-docker run -d --name msf3 -p 80:80 -p 445:445 -p 3389:3389 rapid7/metasploitable3-win2k8
-
-# Samba vulnerable
-docker run -d --name samba -p 445:445 vulhub/samba:4.5.9
-```
-
----
-
-## 3. Descarga Selectiva con `downgit` / `svn`
-
-### 3.1 Script Automatizado
-
-```bash
-#!/bin/bash
-# download_lab.sh - Descargar lab específico de Vulhub
-# Uso: ./download_lab.sh "apache/CVE-2021-41773"
-
-LAB_PATH="$1"
-BASE_URL="https://github.com/vulhub/vulhub/trunk"
-DEST_DIR="labs/$(basename "$LAB_PATH")"
-
-if [[ -z "$LAB_PATH" ]]; then
-    echo "Uso: $0 <ruta/lab>"
-    echo "Ejemplo: $0 apache/CVE-2021-41773"
-    exit 1
-fi
-
-mkdir -p "$(dirname "$DEST_DIR")"
-svn export "$BASE_URL/$LAB_PATH" "$DEST_DIR"
-echo "Lab descargado en: $DEST_DIR"
-```
-
-### 3.2 Listar Labs Disponibles
-
-```bash
-# Ver estructura sin clonar
-svn list https://github.com/vulhub/vulhub/trunk
-
-# Buscar por tecnología
-svn list https://github.com/vulhub/vulhub/trunk | grep -E "(apache|nginx|tomcat|spring)"
-```
-
----
-
-## 4. Otras Fuentes de Labs
-
-### 3.1 VulnHub (VMs Completas)
-
-```bash
-# Descargar OVA/VMware y convertir a Docker (avanzado)
-# O usar imágenes preconvertidas:
-docker pull vulnub/basic-pentesting
-docker pull vulnub/kioptrix
-```
-
-### 3.2 HackTheBox / TryHackMe
-
-```bash
-# Algunas máquinas liberadas como Docker
-docker pull hackthebox/academy
-docker pull tryhackme/room-name
-```
-
-### 3.3 CTFd (Plataforma CTF)
-
-```bash
-# Plataforma completa para CTFs
-docker run -d --name ctf -p 8000:8000 ctfd/ctfd
-```
-
----
-
-## 4. Crear tu Propio Lab Vulnerable
-
-### 4.1 Estructura Mínima
-
-```
-mi-lab/
-├── docker-compose.yml
-├── Dockerfile
-├── vulnerable-app/
-│   └── app.py
-└── README.md
-```
-
-### 4.2 Dockerfile Vulnerable (Ejemplo: RCE)
+Cualquier app que corra en un SO puede dockerizarse; para labs conviene **fijar la versión vulnerable explícitamente**:
 
 ```dockerfile
-# Dockerfile - App Flask con RCE intencional
-FROM python:3.11-slim
-
+# Lab: Flask con RCE intencional (inyección de comandos en /ping)
+FROM python:3.12-slim
 WORKDIR /app
-COPY vulnerable-app/ .
-
-RUN pip install flask
-
-# Usuario no-root (buena práctica incluso en labs)
-RUN useradd -r -s /bin/bash labuser
-USER labuser
-
+COPY app.py .
+RUN pip install --no-cache-dir flask==3.0.3
+# En labs el non-root es opcional pero recomendable: practicarás escalada de todas formas
 EXPOSE 5000
 CMD ["python", "app.py"]
 ```
-
-### 4.3 App Vulnerable (Flask RCE)
-
 ```python
-# vulnerable-app/app.py
+# app.py — vulnerable A PROPÓSITO
 from flask import Flask, request
 import subprocess
-
 app = Flask(__name__)
 
 @app.route("/ping")
 def ping():
-    # VULNERABLE: Inyección de comandos
-    host = request.args.get("host", "127.0.0.1")
-    # Sin validación ni sanitización
-    result = subprocess.check_output(f"ping -c 3 {host}", shell=True, text=True)
-    return f"<pre>{result}</pre>"
+    host = request.args.get("host", "127.0.0.1")     # sin sanitizar → command injection
+    return f"<pre>{subprocess.check_output(f'ping -c 1 {host}', shell=True, text=True)}</pre>"
 
 @app.route("/")
 def index():
-    return '''
-    <h1>Lab RCE - Ping</h1>
-    <form action="/ping">
-        Host: <input name="host" value="127.0.0.1">
-        <input type="submit" value="Ping">
-    </form>
-    <p>Prueba: <code>127.0.0.1; id</code></p>
-    '''
+    return '<form action="/ping">host <input name="host"><input type="submit"></form>'
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+app.run(host="0.0.0.0", port=5000)
 ```
 
-### 4.4 docker-compose.yml
+Puntos al portar apps reales antiguas:
+- **Fijá versiones**: `pip install flask==0.12`, `npm install express@3` — la vulnerabilidad vive en la versión.
+- **Evita dependencias de servicios externos caídos**: la mayoría de labs antiguos necesitan archivos que ya no se descargan; vendoréalos en el build context.
+- **La imagen vieja del lab puede requerir repos muertos** (`apt-get update` falla en Debian EOL): mirror en `archive.debian.org` o build desde snapshot.
+- PHP 5/7, Tomcat 7, Struts 2: usá las imágenes oficiales de la época (`tomcat:7`, `php:5.6-apache`) — son el lab perfecto sin escribir Dockerfile.
+
+## Snapshot y reset: patrones
+
+| Patrón | Comando | Cuándo |
+|--------|---------|--------|
+| Reset total | `docker compose down -v --rmi local --remove-orphans` | Entre sesiones / devolver a cero |
+| Reset de datos, conservar imágenes | `down -v` | Rápido entre intentos |
+| Snapshot del estado *actual* | `docker commit c lab/snapshot:punto1` | Guardar avance a mitad de CTF (lab efímero; no confundir con el anti-patrón de prod, ver [[Docker - Gestión de Contenedores]]) |
+| Restaurar snapshot | `docker run -d --name c2 lab/snapshot:punto1` | Continuar desde ahí |
+| Backup de evidencias | `docker cp c:/root/loot ./evidencias/` | Antes de cualquier `down` |
+| Reinicio limpio | `docker compose restart` | Sin perder datos |
+
+> [!tip] El estado de un lab vive en la definición
+> Todo lo que no esté en el repo del lab (compose, Dockerfile, script de explotación, notas) **se pierde** en el próximo `down -v`. Tratá el lab como código: lo importante son tus writeups y scripts, no el contenedor. La práctica de documentar hallazgos es la que se lleva el CTF — ver los writeups de concepto en la sección de Seguridad del vault (20 - Seguridad).
+
+## Laboratorio completo: víctima + atacante aislados
 
 ```yaml
-version: "3.8"
+# docker-compose.yml del lab
 services:
-  rce-lab:
-    build: .
-    ports:
-      - "5000:5000"
-    restart: unless-stopped
-    # Sin red externa para aislamiento
-    networks: []
-```
-
----
-
-## 5. Aislamiento y Seguridad en Labs
-
-### 5.1 Red Aislada (Sin Internet)
-
-```yaml
-version: "3.8"
-services:
-  vulnerable:
-    build: .
-    networks:
-      - lab-net
-    # Sin ports publicados al host
-    # Acceso solo via docker exec o contenedor atacante
-
+  victim:
+    build: ./victim                      # la app vulnerable
+    networks: { lab: { aliases: [victim] } }
+    deploy: { resources: { limits: { cpus: "0.5", memory: 512M } } }
   attacker:
-    build: ./attacker  # Kali, Parrot, o custom
-    networks:
-      - lab-net
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-
+    image: kalilinux/kali-rolling        # ver receta de tools abajo
+    networks: [lab]
+    cap_add: ["NET_ADMIN", "NET_RAW"]
+    stdin_open: true
+    tty: true
+    profiles: ["attack"]
 networks:
-  lab-net:
-    driver: bridge
-    internal: true  # ¡Clave! Sin salida a internet
+  lab: { internal: true }
 ```
-
-### 5.2 Contenedor Atacante (Kali/Parrot)
 
 ```dockerfile
-# attacker/Dockerfile
+# attacker/Dockerfile: kali con lo mínimo del kit
 FROM kalilinux/kali-rolling
-
-RUN apt-get update && apt-get install -y \
-    nmap \
-    curl \
-    netcat \
-    python3 \
-    python3-pip \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nmap netcat-openbsd curl python3 python3-pip sqlmap gobuster \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /root
-CMD ["bash"]
+WORKDIR /lab
+CMD ["sleep", "infinity"]
 ```
 
-### 5.3 Uso del Lab Aislado
-
 ```bash
-# Levantar lab
-docker compose up -d
-
-# Atacar desde contenedor atacante
+docker compose up -d                              # solo víctima
+docker compose --profile attack up -d             # con atacante
 docker compose exec attacker bash
-# Dentro:
-nmap -sV vulnerable
-curl http://vulnerable:5000/ping?host=127.0.0.1\;id
-
-# O desde host via docker exec
-docker compose exec vulnerable bash
+# dentro del atacante:
+nmap -sV victim
+curl 'http://victim:5000/ping?host=127.0.0.1%3Bid'
 ```
 
----
+El victim es inalcanzable desde fuera de la red `lab` (sin `ports:`, red interna) — práctica íntegra de red: [[Docker - Redes y Volúmenes]].
 
-## 6. Herramientas de Escaneo en Docker
+## Recursos y límites
+
+Sin límites, un lab te puede tumbar la máquina (un cryptominer, un fork bomb, un `stress-ng` de una prueba mal dimensionada):
 
 ```bash
-# Trivy (vulnerabilidades en imágenes)
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-    aquasec/trivy image miapp:latest
+# CLI
+docker run --memory 1g --cpus 1 --pids-limit 256 --name victim vulnerable/app
 
-# Grype (Syft + Grype)
-docker run --rm anchore/grype miapp:latest
-
-# Hadolint (Dockerfile linting)
-docker run --rm -i hadolint/hadolint < Dockerfile
-
-# Dockle (security audit)
-docker run --rm goodwithtech/dockle miapp:latest
-
-# Checkov (IaC scanning)
-docker run --rm -v $(pwd):/tf bridgecrew/checkov -d /tf
+# Compose (como en la plantilla)
+deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
 ```
 
----
+Y para que el lab tampoco envenene tu host: logging con `max-size`, `--restart: "no"` (labs no deben sobrevivir a reboots), y `docker compose down` como parte del ritual — semántica exacta de todo esto en [[Docker - Gestión de Contenedores]].
 
-## 7. Checklist de Lab Seguro
+## Errores comunes de labs
 
-```
-[ ] Red interna (internal: true) sin salida a internet
-[ ] Contenedor vulnerable sin privilegios innecesarios
-[ ] Contenedor atacante con tools necesarias
-[ ] Volúmenes para persistencia de evidencias
-[ ] Logs centralizados
-[ ] Documentación del exploit/POC
-[ ] Limpieza automática (docker compose down -v)
-[ ] Versión fija de imágenes (tags, no latest)
-```
+1. **`Cannot connect to 127.0.0.1:8080` tras `up -d`**: la app tarda en arrancar (DB interna, migrations). `docker compose logs -f` y esperar; o healthchecks (ver [[Docker - Docker Compose]]).
+2. **Lab "no vulnerable" tras unos días**: muchas apps antiguas generan datos aleatorios al primer arranque (DVWA pide reset en cada sesión; hay que recrear la DB con su botón o credenciales por defecto `admin/password`).
+3. **`apt-get update` falla en imágenes EOL**: repos movidos a archive; no es la vulnerabilidad que buscabas — parchá el Dockerfile con el mirror.
+4. **Puerto ocupado**: otro lab quedó corriendo; `docker ps` + `docker compose down` en el viejo.
+5. **Exposición accidental**: `docker ps` con `0.0.0.0:8080->…` en un host con IP pública = tu lab es de todos. Bind loopback siempre.
+6. **`down` sin `-v` "no resetea"**: volúmenes con datos de la sesión anterior sobreviven; `-v` cuando querés cero real.
+7. **Kali sin herramientas / image gigante**: la rolling de Kali es enorme; instalá solo el kit (`nmap`, `nc`, `sqlmap`, `gobuster`) como arriba, o usá `kalilinux/kali-rolling-lite` + tools.
 
----
+## Cheatsheet de labs
 
-## 8. Referencias Cruzadas
+| Tarea | Comando |
+|-------|---------|
+| Levantar lab de Vulhub | `cd <lab> && docker compose up -d` |
+| Ver logs de la víctima | `docker compose logs -f victim` |
+| Reset total | `docker compose down -v` |
+| Red aislada | `internal: true` / `--network none` |
+| Sin puerto publicado | solo `networks:` (sin `ports:`) |
+| Límites | `deploy.resources.limits` / `--memory --cpus` |
+| Snapshot | `docker commit c lab/snap:punto1` |
+| Evidencias | `docker cp c:/ruta ./evidencias/` |
+| Atacante interno | `docker compose --profile attack up -d` + `exec attacker bash` |
+| Escanear la imagen del lab | `trivy image vulnerables/web-dvwa` |
 
-- [Fundamentos y Conceptos](./Docker%20-%20Fundamentos%20y%20Conceptos.md)
-- [Docker Compose](./Docker%20-%20Docker%20Compose.md)
-- [Redes y Volúmenes](./Docker%20-%20Redes%20y%20Vol%C3%BAmenes.md)
-- [Buenas Prácticas y Seguridad](./Docker%20-%20Buenas%20Pr%C3%A1cticas%20y%20Seguridad.md)
+## Relacionadas
 
----
-
-*Etiquetas: #docker #vulhub #labs #vulnerable-environments #ctf #dvwa #juice-shop #metasploitable #security-training #aislamiento*
+- [[Docker - Fundamentos y Conceptos]] — el aislamiento que hace posible (y frágil) estos labs
+- [[Docker - Redes y Volúmenes]] — `internal: true`, bind loopback, DNS entre victim/attacker
+- [[Docker - Docker Compose]] — el formato nativo de los stacks de Vulhub
+- [[Docker - Gestión de Contenedores]] — ciclo de vida efímero, límites, snapshot/commit
+- [[Docker - Buenas Prácticas y Seguridad]] — endurecer; y qué mirar cuando atacas
+- [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]] — el objetivo final de muchos labs: escapar del contenedor
+- [[Comandos Básicos de Sistema y Red en Linux]] — `nmap`/`ss`/redes del host para el trabajo de campo

@@ -1,559 +1,346 @@
 ---
-title: "Docker - Buenas Prácticas y Seguridad"
+aliases: ["Seguridad Docker", "Hardening de contenedores", "Docker Security"]
 tags:
-  - lang/docker
-  - concept/security
-  - concept/best-practices
-  - concept/hardening
-  - level/avanzado
-  - type/reference
-  - area/devops
-created: 2024-01-15
-updated: 2024-09-25
-status: active
+  - devops/docker
+tipo: concepto
+estado: terminado
+creado: 2024-01-15
+actualizado: 2026-10-11
+relacionado:
+  - "[[Docker - Fundamentos y Conceptos]]"
+  - "[[Docker - Dockerfile y Construcción de Imágenes]]"
+  - "[[Docker - Gestión de Contenedores]]"
+  - "[[Docker - Redes y Volúmenes]]"
+  - "[[Docker - Laboratorios y Vulhub]]"
+  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
+fuente: "https://docs.docker.com/build/building/best-practices/"
 ---
 
 # Docker - Buenas Prácticas y Seguridad
 
-> **Objetivo**: Construir imágenes seguras, minimalistas, y configurar contenedores con principio de menor privilegio.
+Un contenedor **no es una frontera de seguridad**: es un proceso con defensas apilables (namespaces, capabilities, cgroups, seccomp, AppArmor — ver [[Docker - Fundamentos y Conceptos]]). Endurecerlo significa aplicar **defensa en profundidad** y **menor privilegio** en cada capa: imagen mínima, usuario sin privilegios, filesystem de solo lectura, capacidades mínimas, secretos que no vivan en capas, y un pipeline que escanee y firme. Esta nota es la guía completa, y su contraparte ofensiva es [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]] — lo que allí se explota es exactamente lo que aquí se cierra.
 
----
+## Principios (y su traducción concreta)
 
-## 1. Principios Fundamentales
+| Principio | Qué significa en Docker | Dónde se aplica |
+|-----------|-------------------------|-----------------|
+| **Menor privilegio** | Root solo si es obligatorio; caps mínimas; sin `--privileged` | Dockerfile `USER`, `--cap-drop`, `--security-opt` |
+| **Superficie mínima** | Imagen = solo runtime; sin shells/package managers si se puede | Multi-stage, distroless, scratch |
+| **Inmutabilidad** | Nunca parchar contenedores vivos | Nuevo build, no `docker exec apt install` |
+| **Segreación de secretos** | Nada sensible en imágenes ni YAML | secrets mounts, Vault, CI secrets |
+| **Reproducibilidad** | Pines de versión/digest, lockfiles | `FROM` digest, `npm ci`, SBOM |
+| **Observabilidad** | Logs a stdout + escaneo continuo | logging driver, Trivy en CI, Falco |
+| **Respuesta** | Rebuild ante CVE de base | Dependabot/Renovate, rebuild semanal |
 
-| Principio | Aplicación |
-|-----------|------------|
-| **Menor privilegio** | Usuario no-root, capabilities mínimas, read-only fs |
-| **Superficie mínima** | Imágenes distroless/scratch, solo lo necesario |
-| **Inmutabilidad** | No modificar contenedores en producción |
-| **Cifrado** | TLS en registry, secrets en runtime |
-| **Auditoría** | Escaneo continuo, logging centralizado |
-| **Actualizaciones** | Base images actualizadas, rebuild automatizado |
+## Elección de imagen base — tabla comparativa
 
----
-
-## 2. Hardening de Imágenes
-
-### 2.1 Base Images Seguras
-
-```dockerfile
-# ❌ EVITAR
-FROM ubuntu:latest          # Tag mutable, grande
-FROM python:3.11            # Incluye build tools
-FROM node:20                # Incluye npm, yarn, etc.
-
-# ✅ RECOMENDADO
-FROM python:3.11-slim       # Solo runtime, ~40MB
-FROM python:3.11-alpine     # Muy pequeño, musl libc
-FROM gcr.io/distroless/python3-debian11  # Sin shell, sin package manager
-FROM scratch                # Solo binario estático (Go, Rust)
-```
-
-### 2.2 Multi-Stage para Separar Build/Runtime
+| Base | Tamaño | Shell | Package manager | CVE surface | Cuándo |
+|------|--------|-------|-----------------|-------------|--------|
+| `ubuntu` / `debian` | 70–150 MB | bash | apt | Alta | Dev, imágenes con tooling |
+| `*-slim` (python, node…) | 40–90 MB | bash | apt (parcial) | Media | **Default sensato**: compatibilidad glibc |
+| `*-alpine` | 5–20 MB | sh | apk | Baja (musl) | Prod con cuidado: musl puede romper wheels/behaviors (DNS search, `getent`) |
+| `distroless` (Google) | 2–20 MB | ❌ **ninguno** | ❌ | Mínima | **Prod recomendada**: sin shell no hay `sh` que invocar en un RCE |
+| `scratch` | 0 | ❌ | ❌ | Cero (es vacío) | Binarios estáticos Go/Rust |
+| Distroless + debugging | + busybox | sh temporal | — | Media | `:debug` para diagnosticar y salir |
 
 ```dockerfile
-# Build stage - con herramientas
-FROM golang:1.21-alpine AS builder
-RUN apk add --no-cache git make
-WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/bin .
+# Patrón hardening completo en 2 etapas
+FROM python:3.12-slim AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /wheels
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-# Runtime stage - MÍNIMO
-FROM gcr.io/distroless/static-debian12
-COPY --from=builder /app/bin /app/bin
-USER nonroot:nonroot
-ENTRYPOINT ["/app/bin"]
-```
-
-### 2.3 Usuario No-Root Obligatorio
-
-```dockerfile
-# Crear usuario y grupo
-RUN groupadd -r appgroup -g 1000 \
-    && useradd -r -g appgroup -u 1000 -s /sbin/nologin -d /app appuser
-
-# Cambiar ownership de archivos necesarios
-COPY --chown=appuser:appgroup . /app
+FROM gcr.io/distroless/python3-debian12:nonroot
 WORKDIR /app
-
-# Cambiar a usuario no-root
-USER appuser
-
-# Verificar en runtime
-# docker run --rm miapp id
-# uid=1000(appuser) gid=1000(appgroup) groups=1000(appgroup)
+COPY --from=builder /wheels /wheels
+COPY --chown=nonroot:nonroot . .
+# sin USER: la variante :nonroot ya corre como UID 65532
+ENTRYPOINT ["python", "main.py"]
 ```
 
----
+> [!info] Distroless sin shell: por qué importa
+> El 90 % de la explotación post-RCE usa `sh` para lateralizar (`wget|sh`, reverse shells). Sin shell y sin package manager, un RCE "solo" puede correr **tu binario** — reduce drásticamente lo que [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]] puede hacer desde dentro. El costo: no podés `docker exec sh`. Se diagnostica con imágenes `:debug` temporales o `docker cp`/`docker export`.
 
-## 3. Configuración de Contenedor Segura
+Multi-stage para excluir herramientas de build: gcc, npm, SDKs de Go, llaves de SSH del builder **no llegan** al stage final si no los copiás — ver recetas en [[Docker - Dockerfile y Construcción de Imágenes]].
 
-### 3.1 Flags de Seguridad en `docker run`
+## Usuario no-root: la mitigación nº1
+
+```dockerfile
+RUN groupadd --system --gid 10001 app \
+ && useradd --system --uid 10001 --gid app --home /app --shell /usr/sbin/nologin app
+WORKDIR /app
+COPY --chown=app:app . .
+USER app
+```
+
+- **UIDs numéricos** (`USER 10001:10001`) evitan depender de `/etc/passwd` y de colisiones de nombres.
+- El usuario debe poder leer lo que necesita (`--chown` en `COPY`) pero **no escribir** donde no hace falta.
+- Verificación: `docker run --rm --entrypoint id miapp` → debe decir `uid=10001`.
+- Impacto real: con root interno, cualquier escape de app (RCE, path traversal) ya tiene `CAP_DAC_OVERRIDE` y acceso casi total al contenedor; con UID 10001, la mayoría de ataques muere en permisos.
+
+## Filesystem de solo lectura + tmpfs
 
 ```bash
-# Filesystem read-only
-docker run --read-only \
-    --tmpfs /run --tmpfs /tmp \
-    miapp
-
-# Capabilities: quitar todas, añadir solo necesarias
-docker run --cap-drop ALL \
-    --cap-add NET_BIND_SERVICE \
-    miapp
-
-# No new privileges (previene privilege escalation)
-docker run --security-opt no-new-privileges:true \
-    miapp
-
-# Seccomp profile personalizado
-docker run --security-opt seccomp=perfil.json \
-    miapp
-
-# AppArmor
-docker run --security-opt apparmor=mi-perfil \
-    miapp
-
-# Usuario específico
-docker run --user 1000:1000 \
-    miapp
-
-# Límites recursos
-docker run --cpus="1" --memory="512m" --pids-limit=100 \
-    miapp
+docker run --read-only --tmpfs /tmp:rw,size=64m,mode=1777 \
+    --tmpfs /run miapp
 ```
-
-### 3.2 Docker Compose Seguridad
 
 ```yaml
+# Compose
 services:
-  app:
-    image: miapp:1.0
-    user: "1000:1000"
+  api:
     read_only: true
-    tmpfs:
-      - /run
-      - /tmp
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE  # Solo si necesita puerto < 1024
-    security_opt:
-      - no-new-privileges:true
-      - seccomp:default.json
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512M
-        reservations:
-          cpus: "0.5"
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    ulimits:
-      nofile:
-        soft: 64000
-        hard: 64000
+    tmpfs: ["/tmp", "/run"]
+    volumes: ["uploadcache:/app/uploads"]   # solo los paths que DEBEN escribir
 ```
 
-### 3.3 Seccomp Profile Personalizado
+`--read-only` no impide escribir en volúmenes montados ni en tmpfs: la app se moderniza para no asumir escritura en su propio root. Efecto: una payload que quiera soltar un binario en `/tmp`… no puede escribirlo en disco persistente; y `docker diff` del contenedor queda limpio.
+
+## Capabilities y `no-new-privileges`
+
+```bash
+docker run --cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges:true miapp
+```
+
+| Mecanismo | Qué corta |
+|-----------|-----------|
+| `--cap-drop ALL` | Todo el superpoder root del contenedor; añadir solo lo demostrado necesario (`NET_BIND_SERVICE` si bindea <1024; `CHOWN`/`SETUID` si el entrypoint los usa) |
+| `no-new-privileges:true` | `setuid`/`setgid` y `execve` con filecaps **no elevan**: mata la escalada via binarios SUID (clásico `chmod u+s /bin/bash`) |
+| `--security-opt seccomp=perfil.json` | Filtro de syscalls (default: ~44 bloqueadas, p.ej. `mount`, `kexec_load`, `bpf`, `add_key`) |
+| `--security-opt apparmor=docker-default` | Perfil MAC por defecto (Ubuntu/Debian) |
+| `--pids-limit` | Fork bombs |
+| `--network none` / `internal` | lateralización de red |
+
+Las capabilities por defecto del contenedor y cuáles retira Docker: tabla completa en [[Docker - Fundamentos y Conceptos]]. Para una auditoría de un contenedor vivo: `docker inspect c --format '{{.HostConfig.CapAdd}} {{.HostConfig.CapDrop}} {{.HostConfig.SecurityOpt}}'`.
+
+Perfil seccomp mínimo de ejemplo (la default de Docker ya es decente; personalizás cuando la app necesita syscalls que la default bloquea):
 
 ```json
-// perfil-seccomp.json
 {
   "defaultAction": "SCMP_ACT_ERRNO",
-  "architectures": ["SCMP_ARCH_X86_64", "SCMP_ARCH_X86", "SCMP_ARCH_X32"],
+  "architectures": ["SCMP_ARCH_X86_64"],
   "syscalls": [
-    {"names": ["read", "write", "open", "close", "stat", "fstat", "lstat", "poll", "epoll_wait", "epoll_ctl", "epoll_pwait", "select", "pselect6"], "action": "SCMP_ACT_ALLOW"},
-    {"names": ["socket", "connect", "accept", "bind", "listen", "getsockname", "getpeername", "setsockopt", "getsockopt"], "action": "SCMP_ACT_ALLOW"},
-    {"names": ["clone", "fork", "vfork", "execve", "exit", "exit_group", "wait4", "waitpid"], "action": "SCMP_ACT_ALLOW"},
-    {"names": ["brk", "mmap", "mprotect", "munmap", "mremap", "msync", "mincore", "madvise"], "action": "SCMP_ACT_ALLOW"},
-    {"names": ["rt_sigaction", "rt_sigprocmask", "rt_sigreturn", "sigaltstack"], "action": "SCMP_ACT_ALLOW"},
-    {"names": ["futex", "nanosleep", "clock_gettime", "gettimeofday"], "action": "SCMP_ACT_ALLOW"},
-    {"names": ["getpid", "getppid", "getuid", "geteuid", "getgid", "getegid", "gettid", "sysinfo"], "action": "SCMP_ACT_ALLOW"}
+    { "names": ["read", "write", "open", "close", "stat", "fstat", "lstat", "poll", "epoll_wait",
+                "socket", "connect", "accept", "bind", "listen", "clone", "fork", "execve",
+                "exit_group", "wait4", "brk", "mmap", "mprotect", "munmap", "rt_sigaction",
+                "futex", "nanosleep", "clock_gettime", "gettimeofday", "getpid", "getuid", "geteuid"],
+      "action": "SCMP_ACT_ALLOW" }
   ]
 }
 ```
 
-```bash
-# Usar
-docker run --security-opt seccomp=perfil-seccomp.json miapp
-```
+> `defaultAction: ERRNO` (allowlist) es el modo seguro; la default de Docker es también allowlist con reglas de compatibilidad. Bloquear por denylist es un espejismo.
 
----
-
-## 4. Gestión de Secretos
-
-### 4.1 NO Hacer Nunca
+## Secretos: lo que NO hacer y las tres formas correctas
 
 ```dockerfile
-# ❌ NUNCA en Dockerfile
-ENV DB_PASSWORD=secret
-ARG API_KEY
-RUN echo "secret" > /tmp/key
-
-# ❌ NUNCA en docker-compose.yml
-environment:
-  - DB_PASSWORD=secret
-
-# ❌ NUNCA en imagen (history lo guarda)
-RUN curl -H "Authorization: Bearer token" ...
-```
-
-### 4.2 Formas Correctas
-
-#### A. Build Args (Solo Build Time)
-
-```dockerfile
-# Dockerfile
+# ❌ Todo esto deja el secreto en la imagen (docker history / capas):
+ENV API_KEY=abc123
 ARG NPM_TOKEN
-RUN npm ci --registry=https://npm.pkg.github.com
-
-# Build
-docker build --build-arg NPM_TOKEN=$NPM_TOKEN .
+RUN npm config set //npm.pkg.github.com/:_authToken=${NPM_TOKEN}
+RUN curl -H "Authorization: Bearer $TOKEN" https://internal/tool && ./install.sh
 ```
 
-#### B. Variables de Entorno (Runtime)
+> [!warning] Las capas son para siempre
+> Una instrucción con un secreto queda en el historial del build **aunque la borres en una capa posterior** (`RUN echo s > /f && rm /f` sigue siendo inspeccionable con `docker history`/`docker save`). Si un secreto coló: **rotalo** (revocalo) — borrar la capa no basta, y si ya se push-eó, está en el registry para quien tenga acceso.
+
+| Forma | Mecanismo | Ventaja | Uso |
+|-------|-----------|---------|-----|
+| **Build secret (BuildKit)** | `RUN --mount=type=secret,id=x` + `docker build --secret` | Nunca entra a capa ni cache | Tokens de registry privado, npmrc |
+| **Docker secrets (Swarm)** | Archivo montado en `/run/secrets/<nombre>` | No es env var; rotación por orquestador | Credenciales de DB en Swarm/Stacks |
+| **env vars de runtime** | `-e` / `env_file` / K8s secrets→env | Simple | Menos ideal: visibles en `inspect`, `/proc`, dumps, logs de crash |
+| **Vault / cloud secret managers** | Sidecar/injector/CSI | Rotación, auditoría, dynámicos | Prod real |
+| **Archivos externos** | Bind/secret file a los que la app lee | Cero magia | TLS keys, config sensible |
 
 ```yaml
-# docker-compose.yml
+# Compose + Swarm: secrets como archivos
 services:
-  app:
-    env_file: .env.prod  # No commitear .env.prod
-    environment:
-      - DB_HOST=db
-```
-
-#### C. Docker Secrets (Swarm Mode)
-
-```yaml
-# docker-compose.yml (deploy en Swarm)
-services:
-  app:
-    image: miapp:1.0
-    secrets:
-      - db_password
-      - api_key
-
+  api:
+    secrets: [db_password]
 secrets:
-  db_password:
-    external: true
-  api_key:
-    file: ./secrets/api_key.txt
+  db_password: { file: ./secrets/pg.pass }        # compose simple: declarativo (no monta real sin Swarm)
+# En Swarm real: echo "s3cret" | docker secret create db_password -
+# Montaje: /run/secrets/db_password — la app lee el FILE, no variable
 ```
+
+Regla de la app: leer credenciales de **archivo** (`DB_PASSWORD_FILE`), así funciona igual con secrets de Swarm, Vault y Kubernetes.
+
+## Secretos en la historia del build — detección
 
 ```bash
-# Crear secrets
-echo "supersecret" | docker secret create db_password -
-docker secret create api_key ./secrets/api_key.txt
+docker history --no-trunc miapp | grep -iE "token|secret|password|_auth"   # indicio de fuga
+docker save miapp | tar -xO manifest.json                                  # inspección offline
+trivy image --scanners secret miapp                                        # buscador de secretos en capas
+gitleaks detect --source .                                                 # también en el repo (Dockerfile incluido)
 ```
 
-#### C. HashiCorp Vault / AWS Secrets Manager / Azure Key Vault
+Y la higiene de CI: secretos solo desde el vault del sistema (`secrets.*` de GitHub Actions), `--password-stdin` en `docker login` (nunca en argv: queda en `ps`), y nunca `set -x` con credenciales en pipelines.
+
+## Escaneo de vulnerabilidades
+
+| Herramienta | Qué hace | Cuándo |
+|-------------|----------|--------|
+| **Trivy** | CVEs por paquete + secretos + IaC + SBOM | CI, pre-commit, local |
+| **Docker Scout** | CVEs con contexto Docker, policy checks, delta entre tags | Integrado en CLI/Hub/ACR |
+| **Grype** (Anchor) | CVEs (motor Syft) | Alternativa a Trivy |
+| **Hadolint** | Lint de Dockerfile (estilo+seguridad) | Pre-commit y CI |
+| **Dockle** | CIS Docker Benchmark a imágenes | CI |
+| **Checkov** | IaC: Dockerfile/compose/K8s | CI |
+| **cosign / syft** | Firmas y SBOM | Supply chain |
 
 ```bash
-# Sidecar pattern con Vault Agent Injector
-# O CSI driver para Kubernetes
+docker scout quickview miapp:1.0                       # vista rápida en CLI
+docker scout cves --only-fixed miapp:1.0               # solo con fix disponible
+trivy image --severity HIGH,CRITICAL --ignore-unfixed miapp:1.0
+trivy image --scanners vuln,secret --format table miapp:1.0
+docker run --rm -i hadolint/hadolint < Dockerfile      # lint
+cat .trivyignore                                       # CVEs aceptados con justificación (con fecha y ticket)
 ```
 
----
+Cómo interpretar: priorizá **CRITICAL/HIGH con fix** y **secretos detectados** (incidente inmediato); MEDIUM/LOW documentás. Un CVE en la base sin explotabilidad en tu configuración se justifica en `.trivyignore`, no se ignora.
 
-## 5. Escaneo de Vulnerabilidades
+## Higiene de registries y etiquetado
 
-### 5.1 Herramientas Recomendadas
+| Práctica | Mal | Bien |
+|----------|-----|------|
+| Tags | `latest` en prod | `1.4.2`, y `main-<sha>` para dev |
+| Provenance | "¿de dónde salió esta imagen?" | Tag = git sha; CI es el único que push-ea |
+| Digest pinning | `FROM node:22` | `FROM node@sha256:…` para bases críticas |
+| Acceso | Hub público + autodescubierto | GHCR/privado + permisos mínimos + `docker login --password-stdin` |
+| Retención | Imágenes eternas | Lifecycle: borrar tags viejos, mantener últimos N |
+| Firma | nadie verifica | `cosign verify` en deploy (ver supply chain) |
 
-| Herramienta | Uso | Integración |
-|-------------|-----|-------------|
-| **Trivy** | Vuln DB, misconfig, secrets | CI/CD, IDE, pre-commit |
-| **Grype** | Vuln DB (Syft) | CI/CD |
-| **Snyk** | Vuln + licencia + IaC | CI/CD, IDE |
-| **Hadolint** | Dockerfile linting | CI/CD, pre-commit |
-| **Dockle** | CIS Benchmark | CI/CD |
-| **Checkov** | IaC (Dockerfile, compose, K8s) | CI/CD |
+```bash
+# El flujo mínimo honesto de una imagen interna
+docker build -t registry.internal/shop/api:1.4.2 -t registry.internal/shop/api:sha-${GITSHA} .
+docker push registry.internal/shop/api:1.4.2
+docker pull registry.internal/shop/api@sha256:abc...   # deploy pinnnea digest
+```
 
-### 5.2 Pipeline CI/CD Ejemplo (GitHub Actions)
+## Supply chain: firmas, attestations y SBOM
+
+```bash
+# Cosign (Sigstore): firma y verificación
+cosign generate-key-pair                                  # o keyless con OIDC
+cosign sign --key cosign.key registry.internal/shop/api:1.4.2
+cosign verify --key cosign.pub registry.internal/shop/api:1.4.2   # ← el deploy verifica
+
+# SBOM: inventario de componentes
+docker sbom --format spdx-json miapp:1.0 > sbom.spdx.json   # o: syft / trivy sbom
+cosign attest --predicate sbom.spdx.json --type spdx registry.internal/shop/api:1.4.2
+
+# Provenance de build (SLSA): qué, quién y cómo lo construyó
+docker buildx build --provenance=mode=max -t miapp:1.0 --push .
+```
+
+El valor: ante un CVE tipo log4shell, el SBOM te dice **qué imágenes tuyas lo contienen** en minutos. Sin SBOM, es una cacería manual.
+
+## Patrones seguros de CI/CD
 
 ```yaml
-# .github/workflows/security.yml
-name: Security Scan
-on: [push, pull_request]
-
+# .github/workflows/image-security.yml (patrón)
 jobs:
-  scan:
+  build-scan-sign:
     runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write, security-events: write }
     steps:
       - uses: actions/checkout@v4
-      
-      # Hadolint
-      - name: Lint Dockerfile
-        uses: hadolint/hadolint-action@v3
-        with:
-          dockerfile: Dockerfile
-      
-      # Build imagen
-      - name: Build image
-        run: docker build -t miapp:${{ github.sha }} .
-      
-      # Trivy scan
-      - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: miapp:${{ github.sha }}
-          format: sarif
-          output: trivy.sarif
-          severity: CRITICAL,HIGH
-      
-      # Upload SARIF to GitHub Security
-      - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy.sarif
-```
-
-### 5.3 Escaneo Local
-
-```bash
-# Trivy
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-    aquasec/trivy image miapp:latest
-
-# Trivy con salida tabla
-trivy image --severity HIGH,CRITICAL --format table miapp:latest
-
-# Grype
-docker run --rm anchore/grype miapp:latest
-
-# Hadolint
-docker run --rm -i hadolint/hadolint < Dockerfile
-
-# Dockle (CIS Docker Benchmark)
-docker run --rm goodwithtech/dockle miapp:latest
-```
-
----
-
-## 5.4 Interpretar Resultados
-
-```bash
-# Trivy severities
-# CRITICAL: Explotable remotamente, RCE, auth bypass
-# HIGH: Privilege escalation, DoS, info disclosure
-# MEDIUM: Configuración insegura, versión vulnerable
-# LOW: Info disclosure menor
-# UNKNOWN: No clasificado
-
-# Filtrar solo críticos/altos
-trivy image --severity HIGH,CRITICAL --ignore-unfixed miapp:latest
-
-# Ignorar vulnerabilidades específicas (con justificación)
-trivy image --ignorefile .trivyignore miapp:latest
-```
-
-```text
-# .trivyignore
-# CVE-2023-XXXX: No afecta nuestra configuración (justificación)
-CVE-2023-XXXX
-```
-
----
-
-## 6. CIS Docker Benchmark
-
-### 6.1 Controles Críticos (Nivel 1)
-
-| Control | Descripción | Verificación |
-|---------|-------------|--------------|
-| 4.1 | Usuario no-root | `docker inspect --format '{{.Config.User}}' img` |
-| 4.2 | Read-only rootfs | `docker inspect --format '{{.HostConfig.ReadonlyRootfs}}'` |
-| 4.3 | No privileged | `docker inspect --format '{{.HostConfig.Privileged}}'` |
-| 4.4 | Capabilities mínimas | `docker inspect --format '{{.HostConfig.CapAdd}} {{.HostConfig.CapDrop}}'` |
-| 4.5 | No new privileges | `docker inspect --format '{{.HostConfig.SecurityOpt}}'` |
-| 4.6 | Resource limits | `docker inspect --format '{{.HostConfig.Memory}} {{.HostConfig.CpuQuota}}'` |
-| 5.1 | Imagen base actualizada | `docker pull baseimage && docker build --no-cache` |
-| 5.2 | No secrets en imagen | `trivy image --scanners secret miapp` |
-| 5.3 | Verificar integridad | `docker image inspect --format '{{.RepoDigests}}'` |
-
-### 6.2 Automatización con Dockle
-
-```bash
-# Dockle implementa CIS Docker Benchmark
-docker run --rm goodwithtech/dockle miapp:latest
-
-# Output con códigos CIS
-# WARN  - CIS-DI-0001: Create a user for the container
-# FATAL - CIS-DI-0005: Enable user namespace
-# INFO  - CIS-DI-0008: Confirm safety of setuid/setgid files
-```
-
----
-
-## 7. Runtime Security (Falco, Sysdig)
-
-### 7.1 Falco (Detección Anomalías Runtime)
-
-```bash
-# Instalar en host
-curl -s https://falco.org/repo/falcosecurity-packages.asc | sudo apt-key add -
-echo "deb https://download.falco.org/packages/deb stable main" | sudo tee /etc/apt/sources.list.d/falcosecurity.list
-sudo apt update && sudo apt install -y falco
-
-# Reglas personalizadas
-# /etc/falco/falco_rules.local.yaml
-```
-
-### 7.2 Reglas Comunes
-
-```yaml
-# Detectar shell en contenedor
-- rule: Terminal shell in container
-  desc: A shell was spawned in a container
-  condition: container and proc.name in (bash, sh, zsh, ksh)
-  output: "Shell spawn in container (user=%user.name container=%container.name)"
-  priority: WARNING
-
-# Detectar escritura en /etc
-- rule: Write to /etc in container
-  desc: Writing to /etc directory in container
-  condition: container and open_write and fd.directory=/etc
-  output: "Write to /etc in container (file=%fd.name)"
-  priority: ERROR
-```
-
----
-
-## 8. Supply Chain Security
-
-### 8.1 Firmar Imágenes (Cosign/Sigstore)
-
-```bash
-# Instalar cosign
-curl -O -L https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
-sudo mv cosign-linux-amd64 /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
-
-# Generar par de claves
-cosign generate-key-pair
-
-# Firmar imagen
-cosign sign --key cosign.key miapp:1.0
-
-# Verificar firma
-cosign verify --key cosign.pub miapp:1.0
-```
-
-### 8.2 SBOM (Software Bill of Materials)
-
-```bash
-# Generar SBOM con Syft
-docker run --rm anchore/syft miapp:latest -o spdx-json > sbom.spdx.json
-
-# O con Trivy
-trivy image --format spdx-json --output sbom.spdx.json miapp:latest
-```
-
-### 8.3 Verificar Provenance (SLSA)
-
-```bash
-# Verificar attestations
-cosign verify-attestation --type slsaprovenance miapp:1.0
-```
-
----
-
-## 9. Actualizaciones y Mantenimiento
-
-### 9.1 Dependabot / Renovate
-
-```yaml
-# .github/dependabot.yml
-version: 2
-updates:
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "dependencies"
-      - "docker"
-```
-
-### 9.2 Rebuild Automatizado Semanal
-
-```yaml
-# .github/workflows/weekly-rebuild.yml
-on:
-  schedule:
-    - cron: '0 2 * * 1'  # Lunes 2 AM
-
-jobs:
-  rebuild:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build with no cache
-        run: docker build --no-cache -t miapp:latest .
+      - name: Lint
+        run: docker run --rm -i hadolint/hadolint < Dockerfile
+      - name: Build (sha tag)
+        run: docker build -t miapp:sha-${{ github.sha }} .
       - name: Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: miapp:latest
-          severity: CRITICAL,HIGH
-      - name: Push if clean
-        if: success()
-        run: |
-          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
-          docker push miapp:latest
+        run: trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 miapp:sha-${{ github.sha }}
+      - name: Sign (keyless)
+        run: cosign sign --yes miapp:sha-${{ github.sha }}
+      - name: Push
+        run: echo "${{ secrets.REG_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+             && docker push miapp:sha-${{ github.sha }}
 ```
 
----
+Puntos que hacen la diferencia: **el build falla si hay CRITICAL con fix** (`--exit-code 1`); el tag es el sha (reproducible); el push solo lo hace CI (nadie más publica); login con `--password-stdin`.
 
-## 10. Checklist de Seguridad Pre-Deploy
+## Actualización continua de bases
 
-```
-IMAGEN:
-[ ] Base image con tag fijo (no latest)
-[ ] Multi-stage build (build ≠ runtime)
-[ ] Usuario no-root (UID > 0)
-[ ] Read-only rootfs + tmpfs para /tmp, /run
-[ ] Capabilities: DROP ALL, ADD solo necesarias
-[ ] No new privileges
-[ ] Seccomp profile (default o custom)
-[ ] Sin secrets en capas (trivy --scanners secret)
-[ ] Vulnerabilidades CRITICAL/HIGH = 0 (trivy/grype)
-[ ] Hadolint pasa sin warnings
-[ ] Dockle pasa CIS Benchmark
-[ ] Imagen firmada (cosign)
-[ ] SBOM generado (syft)
-
-RUNTIME:
-[ ] --user no-root
-[ ] --read-only + tmpfs
-[ ] --cap-drop ALL --cap-add MINIMAS
-[ ] --security-opt no-new-privileges:true
-[ ] --security-opt seccomp=perfil.json
-[ ] Resource limits (CPU, RAM, PIDs)
-[ ] --pids-limit < 100
-[ ] Red aislada (internal: true si no necesita internet)
-[ ] Volúmenes read-only donde posible
-[ ] Logging configurado (max-size, max-file)
-[ ] Healthcheck configurado
-[ ] Restart policy: unless-stopped
-[ ] Secrets via Docker Secrets / Vault (nunca env vars)
-[ ] Monitoring/Falco activo
+```yaml
+# dependabot.yml / renovate: rebuild cuando la base se parchea
+updates:
+  - package-ecosystem: docker
+    directory: "/"
+    schedule: { interval: weekly }
 ```
 
----
+```yaml
+# rebuild semanal (lunes 2 AM): CVEs de la base se cierran aunque tu código no cambie
+on: { schedule: [{ cron: "0 2 * * 1" }] }
+jobs:
+  rebuild: { steps: [ { uses: actions/checkout@v4}, { run: docker build --no-cache -t miapp:latest . && trivy image --exit-code 1 --severity CRITICAL miapp } ] }
+```
 
-## 11. Referencias Cruzadas
+Por qué: los CVEs viven en los **paquetes de la base**, no en tu código; sin rebuild periódico, tu imagen envejece sin que nadie toque nada.
 
-- [Fundamentos y Conceptos](./Docker%20-%20Fundamentos%20y%20Conceptos.md)
-- [Dockerfile y Construcción](./Docker%20-%20Dockerfile%20y%20Construcci%C3%B3n%20de%20Im%C3%A1genes.md)
-- [Gestión de Contenedores](./Docker%20-%20Gesti%C3%B3n%20de%20Contenedores.md)
-- [Laboratorios y Vulhub](./Docker%20-%20Laboratorios%20y%20Vulhub.md)
+## Aislamiento de recursos también es seguridad
 
----
+Un contenedor sin límites es un vector DoS vecino: con `--memory`, `--cpus` y `--pids-limit` el kernel enmuere al abusador y no al host (semántica en [[Docker - Gestión de Contenedores]]). Añade `--ulimit nofile` para DBs y `logging` con `max-size` para que un log flood tampoco llene el disco. Y la red: servicios internos en `internal: true` — ver [[Docker - Redes y Volúmenes]].
 
-*Etiquetas: #docker #security #hardening #cis-benchmark #trivy #grype #hadolint #secrets #cosign #sbom #falco #seccomp #capabilities #read-only #supply-chain*
+## Checklist pre-deploy
+
+```
+IMAGEN
+[ ] Base con tag fijo/digest; Dependabot/Renovate activo
+[ ] Multi-stage: sin compiladores ni dev-deps en runtime
+[ ] USER no-root (UID numérico) verificado con `id`
+[ ] Hadolint sin WARN/ERROR
+[ ] Trivy/Scout: 0 CRITICAL/HIGH con fix; secret-scan limpio
+[ ] SBOM generado; imagen firmada (cosign)
+[ ] LABELs OCI completos
+
+RUNTIME
+[ ] read_only + tmpfs donde la app escribe
+[ ] cap_drop: ALL (+ mínimos demostrables)
+[ ] security_opt: no-new-privileges:true (+ seccomp/apparmor)
+[ ] --user numérico (o USER del Dockerfile)
+[ ] límites: memory, cpus, pids-limit, ulimit nofile
+[ ] red interna para db/cache; solo web publica puertos
+[ ] secrets como archivos (/run/secrets) o Vault — nunca ENV/ARG
+[ ] logging json-file con max-size/max-file
+[ ] restart: unless-stopped; healthcheck real
+[ ] sin mounts del socket de Docker ni --privileged
+```
+
+## Errores comunes de seguridad
+
+1. **`--privileged` "temporal" en prod**: devuelve todas las caps, desactiva AppArmor/seccomp y da acceso a todos los devices. Es root del host con pasos extra. Alternativa: caps puntuales + device específico.
+2. **Montar `/var/run/docker.sock`** en apps: control total del host ver [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]. Solo en herramientas de build/scan de confianza.
+3. **Usuario non-root que rompe la app**: la app intenta escribir donde no puede → crashea. Solución: `--chown` correcto + read_only + tmpfs/volumen para escritura real, no volver a root.
+4. **Alpine "por seguridad" que rompe comportamiento**: musl vs glibc (DNS, threads, wheels). Distroless/Alpine son decisiones de testing, no dogmas.
+5. **Escaneo una sola vez**: el CVE llega mañana; el pipeline debe escanear **cada build** y las bases deben rebuildearse.
+6. **`.env` con prod secrets en el repo**: git history también es para siempre. Vault/CI secrets + `.gitignore`.
+
+## Cheatsheet de hardening
+
+| Capa | Acción | Comando / clave |
+|------|--------|-----------------|
+| Imagen | mínima | multi-stage → distroless/scratch/alpine |
+| Usuario | non-root | `USER 10001:10001` |
+| FS | solo lectura | `--read-only` + `--tmpfs` |
+| Caps | drop todo | `--cap-drop ALL --cap-add …` |
+| Privilegios | sin elevación | `--security-opt no-new-privileges:true` |
+| Syscalls | filtro | seccomp default o custom |
+| Secretos | archivos | `--mount=type=secret` / `/run/secrets` |
+| Red | mínima | networks `internal: true` |
+| Límites | cgroups | `--memory --cpus --pids-limit` |
+| Escaneo | por build | trivy/scout `--exit-code 1` |
+| Integridad | firma | `cosign sign` / `cosign verify` |
+| Updates | automatizar | Dependabot docker + rebuild semanal |
+
+## Relacionadas
+
+- [[Docker - Fundamentos y Conceptos]] — las primitivas (namespaces, caps, cgroups) que estas defensas ajustan
+- [[Docker - Dockerfile y Construcción de Imágenes]] — multi-stage, secrets de build, .dockerignore
+- [[Docker - Gestión de Contenedores]] — flags de runtime completos (`--read-only`, `--cap-*`, límites)
+- [[Docker - Redes y Volúmenes]] — redes internas, `:ro`, tmpfs y bind mounts seguros
+- [[Docker - Laboratorios y Vulhub]] — ver la cara ofensiva de estos controles en un lab aislado
+- [[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]] — los vectores reales que esta nota mitiga
+- [[Docker - Comandos de Referencia Rápida]] — auditoría rápida con `inspect`/`history`
