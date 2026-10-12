@@ -1,14 +1,73 @@
 ---
-aliases:
-  - IDOR
-  - Insecure Direct Object References
+aliases: ["IDOR", "Insecure Direct Object References", "Referencias Directas Inseguras"]
 tags:
-  - hacking/web
-  - hacking/explotacion
-  - hacking/laboratorios
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/idor
+  - sec/web/access-control
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[GraphQL Introspección y Mutaciones en Ataques IDOR]]"
+  - "[[Labs - Control de Acceso]]"
+  - "[[Abuso de APIs]]"
+  - "[[Ataque de Asignación Masiva]]"
+  - "[[Gestión de Autenticación]]"
+  - "[[Information disclosure]]"
+fuente: "https://portswigger.net/web-security/access-control/idor"
 ---
+
+# Insecure Direct Object References (IDOR)
+
 Las **Insecure Direct Object References** (**IDOR**) son un tipo de vulnerabilidad de seguridad que se produce cuando una aplicación web utiliza **identificadores internos** (como números o nombres) para identificar y acceder a recursos (como archivos o datos) y no se valida adecuadamente la autorización del usuario para acceder a ellos.
+
+> [!info]
+> Las IDOR son una forma de control de acceso roto (Broken Access Control), donde la aplicación no verifica si el usuario autenticado tiene permiso para acceder al recurso solicitado, basándose únicamente en la existencia del identificador. Esto puede llevar a la divulgación de información sensible o a la ejecución de acciones no autorizadas.
+
+## Mecánica: por qué existe IDOR
+
+El servidor necesita un *identificador* para saber qué objeto devolver o modificar: `?pdf_id=1487`, `GET /orders/124`, `{"userId": 3}`. El error no está en usar el identificador — es inevitable — sino en **asumir que conocer el identificador implica tener derecho sobre el objeto**. La autorización correcta es una relación `(usuario, acción, objeto)`:
+
+```
+Petición:   GET /download   con cookie de USER_A   y pdf_id=1489
+Correcto:   server.check(A, READ, pdf_1489)  ->  ¿A es dueño o admin?
+Vulnerable: server.get(pdf_id)               ->  si existe, lo devuelve
+```
+
+| Dimensión | Tipos | Ejemplo |
+|---|---|---|
+| **Horizontal** | Usuario A → objetos de usuario B (mismo rol) | Leer el pedido 124 de otro cliente |
+| **Vertical** | Usuario → funciones de rol superior | `?role=admin`, acceso a `/admin` por ID |
+| **Metadata** | Cambiar el *tipo* de referencia | `document.pdf` → `../../etc/passwd` (ver [[Path Traversal]]) |
+
+### El mito del UUID
+
+Usar UUIDs hace la enumeración *casi imposible*, pero **no arregla un IDOR**: si el servidor no valida propiedad, basta un UUID filtrado (URL compartida, log, referencia en otra API, [[Information disclosure]]) para explotarlo igual. Los UUIDs son defensa de profundidad, no sustituto de la comprobación de autorización.
+
+### Blind IDOR
+
+Cuando el servidor responde igual (mismo status, misma longitud) exista o no el objeto —o directamente no responde (204, imagen vacía)— hablamos de **IDOR ciego**: no puedes enumerar con respuestas, pero sí con **oráculos laterales**: diferencias de tiempo (objeto grande vs. inexistente), efectos secundarios (el correo del dueño se envía, el balance se modifica), o disparadores (webhook, notificación push). Ver [[Condiciones de Carrera]] para los casos con efectos asíncronos.
+
+## Metodología de testing de autorización
+
+1. **Mapea referencias**: en cada petición, marca todo valor que parezca un identificador: path params, query, body JSON/XML, headers (`X-Id`, `Referer`), cookies, IDs en respuestas (hasta los `userId` de payloads grandes).
+2. **Consigue dos cuentas** (A = víctima atacante, B = objetivo) y repite la operación legítima con cada una: define los objetos "propios" de cada cuenta.
+3. **Intercambia**: toma la petición de A y pon el ID de B (Repeater). Éxito → horizontal. Repite con endpoints de gestión (update/delete) → impacto de escritura.
+4. **Prueba variantes del valor**: decimal, hex, octal, negativo, `%41`, double-encoding (`%2561`), path traversal (`../`), UUID vs numérico, JSON number vs string, arrays (`[1,2]`).
+5. **Prueba cabeceras de contexto**: `X-Original-URL`, `X-Rewrite-URL`, cambio de método (GET→POST/PUT/PATCH) — muchos controles solo protegen un método (ver [[Labs - Control de Acceso]]).
+6. **Prueba la vertical**: IDs de objetos admin, funciones de rol (`?admin=1`), rutas `/admin`.
+7. **Automatiza**: Intruder/wfuzz sobre rangos (como el lab de `pdf_id`) o sobre una lista de IDs extraídos; filtra por longitud/contenido distinto al "no encontrado".
+8. **Cadena**: IDOR de lectura → [[Information disclosure]] → hallas IDs de objetos de alto valor (admin, facturas, tokens) → IDOR de escritura → escalada.
+
+| Payload de prueba | Cuándo |
+|---|---|
+| `1` → `2`, `3`... | IDs secuenciales (el caso clásico del lab de cafés) |
+| `0`, `-1`, `999999`, `2147483647` | Rangos y límites de tipo |
+| `%00`, `%0a` | Truncado/injection en el lookup |
+| `1000`, `0x3E8`, `03570` | Codificaciones alternativas |
+| UUID ajeno filtrado | IDs no enumerables |
+| `../` sobre la referencia | Metadatos / [[Path Traversal]] |
 
 > [!info]
 > Las IDOR son una forma de control de acceso roto (Broken Access Control), donde la aplicación no verifica si el usuario autenticado tiene permiso para acceder al recurso solicitado, basándose únicamente en la existencia del identificador. Esto puede llevar a la divulgación de información sensible o a la ejecución de acciones no autorizadas.
@@ -108,3 +167,110 @@ Como vemos, las vulnerabilidades IDOR son relativamente simples de explotar, don
 
 > [!warning]
 > El impacto de una vulnerabilidad IDOR puede variar desde la divulgación de información confidencial (datos de usuarios, documentos privados) hasta la modificación o eliminación de datos, la toma de control de cuentas de usuario o la ejecución de funciones administrativas. Es crucial tratarlas con la misma seriedad que otras vulnerabilidades de seguridad críticas.
+
+## Patrones de cadena (IDOR como eslabón)
+
+| Cadena | Pasos |
+|---|---|
+| IDOR de lectura → toma de cuenta | Filtrar `password_reset_token`/API key de otro usuario → usarlo (ver [[Gestión de Autenticación]]) |
+| Mass assignment → IDOR | Asignar `userId` en el update → modificar objeto ajeno ([[Ataque de Asignación Masiva]]) |
+| IDOR → GraphQL | Mismo campo `user(id:)` en query y mutation ([[GraphQL Introspección y Mutaciones en Ataques IDOR]]) |
+| IDOR ciego → race | Efecto asíncrono con doble redeem de un token ([[Condiciones de Carrera]]) |
+| IDOR en API | Headers `X-User-Id`, filtros de tenant mal validados ([[Abuso de APIs]]) |
+
+## Defensa
+
+### 1. Autorización explícita en cada objeto (el control correcto)
+
+```python
+# ❌ El ID manda
+def get_order(order_id):
+    return Order.get(order_id)
+
+# ✅ Filtro de propiedad en la query + re-chequeo en el objeto
+@app.route("/orders/<order_id>")
+def get_order(order_id):
+    order = Order.query.filter_by(
+        id=order_id,
+        tenant_id=session["tenant_id"]    # el scope viaja en la query
+    ).first_or_404()
+    require(order, action="read", user=session["user"])  # re-chequeo (defensa en profundidad)
+    return order
+```
+
+```java
+// ✅ Spring: control por anotación + criterio de propiedad
+@PreAuthorize("#id == authentication.principal.owns(#id)")
+@GetMapping("/orders/{id}")
+public Order get(@PathVariable long id) { ... }
+```
+
+### 2. Indirect object references (referencias del cliente)
+
+Devolver al cliente un **token opaco** (URL firmada de corta vida) en lugar del ID interno:
+
+```python
+# ✅ El cliente nunca ve el ID real
+token = itsdangerous.URLSafeSerializer(secret).dumps({"pdf": 1489, "uid": user.id, "exp": t+300})
+return redirect(f"/download/{token}")
+```
+
+### 3. Modelos multi-tenant: el tenant en TODAS las queries
+
+```python
+# ❌ SELECT * FROM docs WHERE id = ?
+# ✅ SELECT * FROM docs WHERE id = ? AND tenant_id = ?   (con tenant del token, nunca del body)
+```
+
+Middlewares/RLS (PostgreSQL Row-Level Security) como última línea de defensa.
+
+### 4. Higienización de identificadores
+
+Validar tipo y rango (`id` entero positivo, UUID con `parse()` estricto) — reduce superficie de fuzzing y encadenamientos con [[Path Traversal]]/SQLi aunque no sustituye la autorización.
+
+### 5. Sin feedback distintivo
+
+Respuestas uniformes para "no existe" y "no autorizado" (404 genérico) para no dar oráculo de enumeración.
+
+## Errores comunes
+
+**Atacante:**
+- Probar solo el objeto de lectura y dar por terminado el test: los IDOR de **escritura** (update/delete/admin) son los que escalan a reporte crítico.
+- No obtener una segunda cuenta: sin baseline "objeto propio vs ajeno" no hay comparación.
+- Rendirse con UUIDs sin buscar filtraciones (misma app, otras APIs, referer, respuestas).
+- Ignorar parámetros "no numéricos" como `tenant`, `org`, `user` en bodies JSON.
+
+**Defensor:**
+- Validar autorización en la capa de UI ("el botón solo se ve si eres dueño") y olvidar el backend.
+- Filtrar por ID sin el scope de tenant/usuario en la misma query.
+- Creer que "los IDs son UUIDs, está seguro".
+- Devolver 403 vs 404 distintos y regalar el oráculo.
+
+## Cheatsheet
+
+```
+# Intercambio básico (Repeater)
+#  petición propia (A) -> sustituir id por el de B
+GET /download?pdf_id=1489   Cookie: session=<user_A>
+
+# Enumeración (lab pdf_id 1-1500)
+wfuzz -c --hh=10703,1233 -t 200 -z range,1-1500 -d 'pdf_id=FUZZ' -u http://target/download
+
+# Variantes del identificador
+1  0  -1  999999  0x2  02  %31  %2531  [1]  "1"  1.0  ../  %00
+
+# Variantes de contexto
+X-Original-URL: /admin      X-Rewrite-URL: /admin
+GET /x -> POST /x (método no protegido)
+
+# Blind IDOR: oráculos
+#  tiempo: objeto grande vs id inexistente
+#  efecto: notificación/correo del dueño, balance modificado
+```
+
+## Referencias
+
+- PortSwigger Academy — IDOR: https://portswigger.net/web-security/access-control/idor
+- OWASP — Broken Access Control: https://owasp.org/Top10/A01_2021-Broken_Access_Control/
+- HackTricks — IDOR: https://book.hacktricks.wiki/en/pentesting-web/idor-insecure-direct-object-reference.md.html
+- Related internals: [[GraphQL Introspección y Mutaciones en Ataques IDOR]] · [[Labs - Control de Acceso]] · [[Abuso de APIs]] · [[Ataque de Asignación Masiva]] · [[Gestión de Autenticación]] · [[Information disclosure]] · [[Nmap Guía Completa]]

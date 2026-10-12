@@ -1,9 +1,83 @@
 ---
-aliases: ["PortSwigger"]
-tags: ["hacking/web", "herramientas/burpsuite"]
-estado: 🟢 Terminado
+aliases: ["Gestión de Autenticación", "Autenticación Rota", "Broken Authentication", "PortSwigger"]
+tags:
+  - sec/web
+  - sec/web/auth
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[JSON Web Tokens Explotación y Bypass]]"
+  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
+  - "[[Session Puzzling Session Fixation y Session Variable Overloading]]"
+  - "[[Insecure Direct Object References IDOR]]"
+  - "[[HTTP Host header attacks]]"
+  - "[[Laboratorios de Vulnerabilidades Lógicas y de Autenticación]]"
+  - "[[Cross-Site Scripting XSS]]"
+fuente: "https://portswigger.net/web-security/authentication"
 ---
-# Gestión de Ahutenticación
+
+# Gestión de Autenticación
+
+La **gestión de autenticación** cubre todo el ciclo por el cual una aplicación verifica *quién eres* y mantiene esa identidad entre peticiones: login, segundo factor, cookies de sesión, persistentes "stay logged in", reset de contraseña y protecciones contra fuerza bruta. Cuando alguno de esos eslabones falla se produce **autenticación rota** (*broken authentication*): enumeración de usuarios, bypass de 2FA, toma de cuentas y acceso administrativo.
+
+> [!info] Autenticación ≠ autorización ≠ sesión
+> - **Autenticación**: pruebas de identidad (credenciales, 2FA). Ataca con *credential stuffing*, enumeración, bypass de 2FA.
+> - **Autorización**: qué puede hacer esa identidad (ver [[Insecure Direct Object References IDOR]] y [[Labs - Control de Acceso]]).
+> - **Sesión**: el estado post-login (cookies, tokens). Ataca con fijación, robo de cookie, JWT débil (ver [[JSON Web Tokens Explotación y Bypass]]).
+> Un solo lab puede encadenar varios: robo de cookie por XSS + cracking offline del hash que contiene.
+
+## Mecánica: el ciclo de vida de una autenticación
+
+```
+[Login form] --POST usuario/contraseña--> [Server]
+     |                                        |
+     |   ¿usuario existe? (error/timing)     |
+     |   ¿contraseña OK? (hash compare)      |
+     |   ¿2FA pendiente?  --codigo--> [verificar]
+     v                                        v
+  Errores diferenciables              Set-Cookie: session=...
+  (enumeración / brute force)         (+ stay-logged-in opcional)
+```
+
+| Eslabón | Mecánica correcta | Fallo típico explotable |
+|---|---|---|
+| **Verificación de credenciales** | Mensaje único "usuario o contraseña inválidos", comparación en tiempo constante de hashes | Mensajes distintos, early-return antes del hash → enumeración y timing |
+| **Almacenamiento de contraseña** | Argon2id / bcrypt con salt | MD5/SHA-1 sin salt → cracking offline (lab *stay-logged-in*) |
+| **Segundo factor** | Estado `2FA_completado` en la sesión, rate limit y expiración de código | Verificación solo en una ruta (`/login2`) → salto directo a `/my-account` |
+| **Sesión** | Cookie aleatoria, `HttpOnly` + `Secure` + `SameSite` | Cookie predecible o con hash de la contraseña dentro |
+| **Reset de contraseña** | Token aleatorio de un solo uso ligado al usuario, expiración, no reflejar username en el POST | Token reutilizable o `username` controlable → IDOR de reset |
+| **Anti-fuerza bruta** | Rate limit por cuenta **e** IP, lockout progresivo, CAPTCHA | Contador por IP eludible con `X-Forwarded-For`, o reseteado por un intento válido |
+
+> [!warning] Timing-unsafe comparison
+> Comparar contraseñas/tokens con `==` o `strcmp` que retorna al primer byte distinto permite **ataques de temporización** remotos (como los de HMAC/secretos). La verificación debe ser `hmac.compare_digest()` / `MessageDigest.isEqual()` / `crypto.timingSafeEqual()` — pero ojo: si el servidor hace *early return* cuando el usuario no existe, el timing ya delata la cuenta aunque la comparación sea segura (lab *response timing*).
+
+## Catálogo de debilidades (mapa de ataque)
+
+| Debilidad | Señal observable | Lab (abajo) |
+|---|---|---|
+| Enumeración por mensajes distintos | `invalid username` vs `incorrect password` | *different responses* |
+| Enumeración sutil | Falta un punto final, longitud distinta | *subtly different responses* |
+| Enumeración por timing | Respuesta lenta con usuario válido | *response timing* |
+| Enumeración por lockout | `account locked` solo con usuario real | *account lock* |
+| 2FA simple bypass | Tras login, navegar a `/my-account` sin código | *2FA simple bypass* |
+| 2FA broken logic | `login2` acepta el código de cualquier usuario | *2FA broken logic* |
+| 2FA por fuerza bruta | PIN de 4 dígitos sin rate limit | *2FA broken logic* |
+| 2FA con token limitado | 2 usos por token → macros para refrescarlo | *2FA brute-force + macros* |
+| Reset con lógica rota | POST de cambio con `username=wiener` → cambiar a `carlos` | *password reset broken logic* |
+| Reset poisoning | `X-Forwarded-Host` / Host reflejado en el link del correo | *reset poisoning via middleware* |
+| Fuerza bruta por IP eludible | `X-Forwarded-For` reinicia el contador | *response timing*, *IP block* |
+| Contador reseteable | 2 fallos + 1 éxito mantiene el contador limpio | *broken brute-force, IP block* |
+| Rate limit por peticiones | Múltiples credenciales en un solo JSON | *multiple credentials per request* |
+| Fuerza bruta fuera del login | Cambio de contraseña sin rate limit y con errores diferenciados | *via password change* |
+| Cookie persistente débil | `stay-logged-in` = Base64(user:md5(pass)) | *stay-logged-in cookie* |
+| Hash de contraseña robable | Cookie sin `HttpOnly` + hash dentro | *offline password cracking* |
+
+> [!tip] Flujo metodológico
+> 1) Intercepta un login y observa mensajes, códigos, longitudes y tiempos. 2) Determina si hay **enumeración** (Intruder + Grep/longitud/timing). 3) Prueba **bypasses de 2FA** (navegación directa, lógica de token). 4) Audita el **flujo de reset** completo (¿el token queda ligado al usuario? ¿el host del link es controlable?). 5) Revisa **todas** las rutas con credenciales: login, cambio de contraseña, 2FA, API. 6) Analiza **cookies persistentes**: decodifica, identifica el hash, crackea offline. 7) Diseña el payload del brute force según la protección real (rotación de IP, macros, aliases).
+
+## Laboratorios (PortSwigger — Authentication)
 
 ## Lab: Username enumeration via different responses
 
@@ -535,3 +609,166 @@ Lab Terminado.
 
 > [!warning] Bypass de 2FA con fuerza bruta y macros de Burp Suite
 > Este laboratorio demuestra un escenario avanzado de fuerza bruta contra un token 2FA con un límite de intentos por token. La solución implica el uso de macros de Burp Suite para automatizar el proceso de obtener un nuevo token 2FA (iniciando sesión y obteniendo el `login2` *request*) antes de cada par de intentos de fuerza bruta del código. Esto permite eludir la protección de intentos limitados por token, ya que se genera un token fresco para cada ciclo de ataque. La configuración del *payload* numérico y el *pool* de hilos en Intruder son clave para la eficiencia del ataque.
+
+## Defensa: cómo se implementa autenticación segura
+
+### 1. Mensajes uniformes y comparación en tiempo constante
+
+```python
+# ❌ Enumeración + timing: early return por usuario
+user = db.find(username)
+if not user:
+    return "Usuario inválido"          # oráculo de existencia
+if bcrypt.checkpw(password, user.hash):
+    login(user)
+
+# ✅ Uniforme + constante: verificar siempre un hash (dummy si no existe)
+DUMMY_HASH = "$2b$12$<hash aleatorio fijo>"
+user = db.find(username) or FakeUser(DUMMY_HASH)
+ok = bcrypt.checkpw(password, user.hash)  # mismo camino siempre
+if ok and user.exists:
+    login(user)
+return "Usuario o contraseña incorrectos"  # mismo mensaje, mismo tiempo
+```
+
+En Java: `MessageDigest.isEqual()`; en Node: `crypto.timingSafeEqual()`; en PHP: `hash_equals()`.
+
+### 2. Almacenamiento de contraseñas
+
+```python
+# ❌ MD5/SHA-1, sin salt, o con salt compartida
+hashlib.md5(password.encode()).hexdigest()
+
+# ✅ Argon2id (preferido) o bcrypt con coste adecuado
+from argon2 import PasswordHasher
+ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
+hash = ph.hash(password)          # salt automático por contraseña
+ph.verify(hash, password)         # comparación segura + timing constante
+```
+
+### 3. Estado real de 2FA en la sesión
+
+```python
+# ❌ El 2FA es solo una pantalla: cualquier ruta autenticada pasa
+@app.route("/my-account")
+def account():
+    if session.get("pre_2fa_user"):   # logueado pero sin 2FA
+        return show_account()          # BYPASS
+
+# ✅ Bandera explícita: nada accesible hasta completar el 2FA
+@app.route("/my-account")
+def account():
+    if not session.get("mfa_verified"):
+        return redirect("/login/mfa")
+    return show_account()
+```
+
+Además: códigos TOTP de un solo uso con expiración (5–10 min), rate limit por cuenta y por IP en `/login2`, y bloqueo tras N intentos.
+
+### 4. Flujo de restablecimiento de contraseña seguro
+
+```python
+# ❌ Token no ligado al usuario / username reflejado en el POST
+token = create_token(); email_link(f"/reset?token={token}")
+# POST /reset  {token, username, new_password}  -> IDOR
+
+# ✅ Token aleatorio, un solo uso, ligado a la cuenta en server-side
+@app.route("/reset", methods=["POST"])
+def reset():
+    t = tokens.consume(request.form["token"])   # un solo uso + expiración (15 min)
+    if not t:
+        return generic_error()
+    set_password(t.user_id, hash_password(request.form["new_password"]))
+    revoke_all_sessions(t.user_id)
+
+# ✅ El host del link sale de la configuración, jamás de la request
+reset_url = f"https://{config.APP_DOMAIN}/reset?token={token}"
+```
+
+Y aplicar el host-seguro de [[HTTP Host header attacks]] para que `X-Forwarded-Host` no contamine el enlace del correo.
+
+### 5. Anti-fuerza bruta que no se bypasea
+
+```python
+# ❌ Contador solo por IP + cabecera confiable
+count = redis.incr(f"fail:{client_ip}")   # X-Forwarded-For lo rota
+
+# ✅ Contador doble + ventana deslizante + backoff
+key = f"fail:{account_id}:{client_ip}"
+if redis.incr(key) > 5 or account.locked_until > now():
+    audit_log("brute force", account, client_ip)
+    return lockout(minutes=15)            # no se resetea con un éxito ajeno
+redis.expire(key, 900)                    # ventana deslizante
+```
+
+Cabeceras de cliente (`X-Forwarded-For`) solo se confían detrás de un proxy propio que las **sobrescribe**.
+
+### 6. Cookies de sesión endurecidas
+
+```python
+# ❌ cookie persistente = Base64(user:md5(pass)), sin flags
+resp.set_cookie("stay-logged-in", base64(user + ":" + md5(pw)))
+
+# ✅ token opaco aleatorio (256 bits) guardado server-side, flags completos
+session_token = secrets.token_urlsafe(32)
+resp.set_cookie("session", session_token,
+                httponly=True, secure=True, samesite="Lax", max_age=3600)
+```
+
+Nunca derivar tokens de datos del usuario (contraseña, email): si el derivado se filtra, se crackea offline — como el lab *stay-logged-in* con MD5. Ver [[JSON Web Tokens Explotación y Bypass]] para el equivalente JWT (algoritmo `none`, clave débil, `kid` controlado).
+
+## Errores comunes
+
+**Atacante:**
+- No mirar el campo *Response Completed* (timing) en Intruder — la enumeración por tiempo se pierde si solo se filtra por longitud.
+- Olvidar habilitar la columna de tiempos o no usar `Grep - Extract` cuando el oráculo es un punto final que falta.
+- Fuerza bruta lineal contra un 2FA con token de 2 usos: sin macro de refresco nunca llegas al código.
+- Ignorar rutas auxiliares (cambio de contraseña, API de login) que no tienen el rate limit del formulario principal.
+- No decodificar cookies "raras" (Base64/MD5) — su estructura es el ataque.
+
+**Defensor:**
+- Implementar lockout por IP confiando en cabeceras spoofables.
+- Diferenciar mensajes "por UX" sin darse cuenta de que son oráculos de enumeración.
+- Proteger solo `/login` y dejar `/reset`, `/change-password` y `/login2` sin rate limit.
+- Generar tokens de reset que no se invalidan al usarse o que aceptan el `username` del cliente.
+- Comparar con `==`/`strcmp` y confiar en que la red es "muy rápida para timing" (con redes locales y oráculos estadísticos, no lo es).
+
+## Cheatsheet
+
+```
+# Enumeración — Intruder, payload de usuarios
+#  filtros: Longitud | Status | Response Completed (ms) | Grep - Extract
+#  mensajes: "invalid username" vs "incorrect password" vs falta el punto
+
+# Timing — contraseña larga para amplificar (bcrypt argon2)
+password = "A" * 5000
+# eludir bloqueo por IP mientras mides:
+X-Forwarded-For: 1.2.3.<incrementar>
+
+# 2FA bypass
+GET /my-account            # sin pasar por /login2
+POST /login2  {username: "carlos", mfa-code: "XXXX"}   # lógica rota
+seq -w 1 9999 > codes.txt  # brute force PIN de 4 dígitos
+
+# 2FA con token de 2 usos: macro Burp = login -> login2 -> probe
+# Settings > Sessions > Session handling rules > Macro
+
+# Reset poisoning
+X-Forwarded-Host: exploit-server.example
+# o Host: exploit-server.example  -> robar /reset?token=... de la víctima
+
+# Cookie persistente
+stay-logged-in = echo -n "carlos:<md5pass>" | base64
+# Intruder Payload Processing: MD5 -> añadir "carlos:" -> Base64
+
+# Bypass de rate limit
+- múltiples pares user/pass en un solo JSON
+- intercalar 1 login válido cada 2 fallos (si el contador se resetea)
+```
+
+## Referencias
+
+- PortSwigger Academy — Authentication: https://portswigger.net/web-security/authentication
+- OWASP ASVS V2 (Authentication) y V3 (Session Management): https://owasp.org/www-project-application-security-verification-standard/
+- NIST SP 800-63B (digital identity guidelines): https://pages.nist.gov/800-63-3/sp800-63b.html
+- Related internals: [[JSON Web Tokens Explotación y Bypass]] · [[Vulnerabilidades OAuth en PortSwigger Labs]] · [[Session Puzzling Session Fixation y Session Variable Overloading]] · [[HTTP Host header attacks]] · [[Cross-Site Scripting XSS]] · [[Laboratorios de Vulnerabilidades Lógicas y de Autenticación]] · [[Nmap Guía Completa]]

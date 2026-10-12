@@ -1,10 +1,60 @@
 ---
-aliases:
+aliases: ["Host Header Attacks", "Ataques con Cabecera Host", "Password Reset Poisoning"]
 tags:
-  - hacking/web
-  - hacking/explotacion
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/http
+  - sec/web/cache
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Envenenamiento de Caché Web]]"
+  - "[[Gestión de Autenticación]]"
+  - "[[Server-Side Request Forgery (SSRF)]]"
+  - "[[Vulnerabilidades de HTTP Request Smuggling]]"
+  - "[[Vulnerabilidad de Redirección Abierta]]"
+  - "[[Information disclosure]]"
+fuente: "https://portswigger.net/web-security/host-header"
 ---
+
+# HTTP Host header attacks
+
+Los **ataques con cabecera Host** explotan la confianza de la aplicación en la cabecera `Host` (o sus *proxies*: `X-Forwarded-Host`, `X-Forwarded-Server`, `Forwarded`) para **construir URLs, generar enlaces en correos, clasificar cachés y decidir seguridad**. Si el servidor usa ese valor sin validarlo contra una allowlist, el atacante controla el "dónde" de las URLs generadas por el servidor.
+
+## Mecánica: para qué usa el servidor la cabecera Host
+
+HTTP/1.1 **requiere** `Host` (RFC 9112): con virtual hosting, el servidor lo usa para elegir el sitio; las apps lo reutilizan para mucho más:
+
+| Uso legítimo | Abuso potencial |
+|---|---|
+| Selección de virtual host | Acceso a vhosts internos (`Host: localhost`, `admin.internal`) |
+| Generación de URLs absolutas (enlaces en correos, redirecciones, OAuth callbacks) | **Password reset poisoning**: el link del correo apunta al dominio del atacante y filtra el token |
+| Clave de caché (`Vary: Host` o key implícita) | [[Envenenamiento de Caché Web]]: respuesta maliciosa cacheada para víctimas |
+| Enrutado interno / balanceadores (SSRF routing) | `Host: 192.168.0.50` llega al panel interno |
+| Comprobaciones de seguridad ("solo localhost") | Bypass parseando la cabecera de otra forma que el frontend |
+| Logs y rate limiting | Poisoning de logs, evasión de bloqueos |
+
+> [!warning] La clave: parsing divergente
+> Casi todos los labs de esta nota son un problema de **discrepancia de parsing** entre capas (WAF/proxy vs. app): cabecera duplicada, URL absoluta en la línea de petición, `Host` con puerto, espacios, `
+` smuggleado... La capa A confía en la B y viceversa. Ver también [[Vulnerabilidades de HTTP Request Smuggling]] y la conexión con [[Vulnerabilidad de Redirección Abierta]] (host reflejado en redirect).
+
+### Variantes de la cabecera (catálogo de bypass)
+
+| Vector | Ejemplo | Cuándo probarlo |
+|---|---|---|
+| `Host` directo | `Host: evil.com` | Siempre, primer intento |
+| `X-Forwarded-Host` | `X-Forwarded-Host: evil.com` | Detrás de proxies/CDN (lab *reset poisoning via middleware*) |
+| `X-Forwarded-Server` / `X-Host` / `X-Original-Host` | idem | Variantes de middlewares |
+| `Forwarded` | `Forwarded: host=evil.com` | Estándar RFC 7239 |
+| Cabecera duplicada | dos `Host:` en la petición | Discrepancia proxy/app (lab *ambiguous requests*) |
+| URL absoluta en request line | `GET http://internal/admin HTTP/1.1` | Parsing diferente en frontends (lab *flawed request parsing*) |
+| Puerto/alias | `Host: evil.com:443`, `Host: target.com@evil.com` | Validaciones por prefijo/sufijo |
+| HTTP/2 → HTTP/1 downgrade | authority distinto del host | Cadena CDN→origin |
+| Connection-state | petición válida seguida de maliciosa en el **mismo TCP** | Validación solo en la primera (lab *connection state attack*) |
+
+## Laboratorios (PortSwigger — Host header attacks)
+
 Vamos a centrarnos en ataques específicos a tipo de cabecera HOST en las solicitudes.
 ## PortSwigger
 
@@ -259,3 +309,112 @@ ya tenemos la contraseña para el usuario caros vamos a intentar acceder:
 ![[{E05DDD79-35ED-43B2-A72D-F52B3D08D6FB}.png]]
 
 Lab Terminado.
+
+## Detección
+
+| Señal | Qué probar |
+|---|---|
+| El valor de `Host` aparece reflejado en la respuesta (headers `Location`, HTML, correos) | Ping: `Host: unprobe-<canary>.com` y buscar el canario |
+| Diferencias al duplicar `Host` o con URL absoluta | Discrepancia de parsing → candidato a cache poisoning/SSRF |
+| Redirecciones a `localhost`/IP interna con `Host` interno | Routing bypass → enumerar vhosts/rangos internos |
+| Correos con link generado dinámicamente | Reset poisoning (observar dominio del enlace con tu propio registro) |
+| `X-Forwarded-*` aceptados de internet | Confianza ciega en middlewares |
+
+Flujo: 1) Baseline en Repeater con Host legítimo. 2) Canary en Host y en cada variante del catálogo. 3) Si el canario se refleja en URL generadas → explota reset poisoning. 4) Si cambia la cache key/respuesta → envenenamiento de caché. 5) Si cambia el routing → SSRF/bypass interno.
+
+## Impacto
+
+- **Toma de cuenta**: token de reset robado (labs *basic* y *via dangling markup*).
+- **XSS masivo**: script enriquecido cacheado para todas las víctimas (lab *ambiguous requests*).
+- **Acceso a paneles internos** y acciones administrativas (labs *routing-based SSRF*, *flawed parsing*, *connection state*).
+- **Bypass de autenticación** por confianza en host interno (lab *authentication bypass*).
+
+## Defensa
+
+### 1. Allowlist de hosts (el control correcto)
+
+```python
+# ❌ Confianza ciega
+host = request.headers.get("Host")
+reset_url = f"https://{host}/reset?token={t}"
+
+# ✅ Host canónico de configuración + validación estricta
+ALLOWED = {"www.example.com", "example.com"}
+if request.headers.get("Host") not in ALLOWED:
+    abort(404)                       # ni redirigir: no confirmar existencia
+reset_url = f"https://{config.PUBLIC_DOMAIN}/reset?token={t}"  # nunca de la request
+```
+
+```nginx
+# Nginx: descartar Host no esperados antes de llegar a la app
+server {
+    if ($host !~* ^(www\.example\.com|example\.com)$) { return 444; }
+    proxy_set_header Host $host;         # valor ya validado
+    proxy_set_header X-Forwarded-Host ""; # borrar entradas del cliente
+    proxy_set_header X-Forwarded-Server "";
+}
+```
+
+### 2. Cabeceras de proxy saneadas
+
+Solo confiar en `X-Forwarded-Host` si viene de **tu** proxy y este lo **sobrescribe** (no appendea). Detrás de CDN/balanceador: política de header sanitization en el primer salto.
+
+### 3. URLs generadas desde configuración, no desde la request
+
+Correos, redirecciones y callbacks (OAuth, webhooks) usan el dominio público configurado. Esto elimina de raíz el password reset poisoning — ver [[Gestión de Autenticación]] para el flujo completo de reset.
+
+### 4. Caché endurecida
+
+Incluir el host validado en la key y no servir respuestas con hosts no canónicos — ver [[Envenenamiento de Caché Web]].
+
+### 5. Un solo parser
+
+Frontend y backend deben normalizar authority de la misma forma (o el frontend reescribe la request a forma canónica: `GET /path` + `Host` único). Deshabilitar URL absoluta en la línea de petición si no es necesaria.
+
+## Errores comunes
+
+**Atacante:**
+- Probar solo `Host: evil.com` y rendirse: los middlewares modernos suelen filtrar ese, pero dejan `X-Forwarded-Host` o la URL absoluta.
+- No verificar el correo propio antes de escalar: el reflejo del host en el enlace es la señal gratuita.
+- Olvidar duplicar la cabecera cuando el proxy concatena (`evil.com, legit.com`) en vez de sobrescribir.
+- Con cache poisoning, no medir la *cache key* (parámetro aleatorio que reinicia el TTL) antes de envenenar.
+
+**Defensor:**
+- Validar `Host` en la app pero no en el edge, o viceversa (discrepancia = bypass).
+- "Validar" por substring (`endsWith("example.com")` → `evil-example.com`).
+- Generar enlaces de correo con el host de la petición por comodidad.
+- Confiar en `X-Forwarded-Host` porque "solo llega por el proxy" sin verificar que el proxy lo sobrescribe.
+
+## Cheatsheet
+
+```
+# Ping de reflejo
+Host: probe-<canariotoken>.com
+
+# Variantes por orden de probabilidad
+Host: evil.com
+X-Forwarded-Host: evil.com
+X-Host: evil.com
+X-Forwarded-Server: evil.com
+Forwarded: host=evil.com
+Host: evil.com:443          # puerto extra
+# duplicar la cabecera Host (dos líneas)
+# URL absoluta en request line:
+GET http://internal/admin HTTP/1.1
+
+# Password reset poisoning
+# 1) registra tu dominio, 2) inyecta host en forgot-password,
+# 3) abre el correo, 4) copia /reset?token=... de los logs,
+# 5) úsalo con la víctima
+
+# Routing/SSRF interno
+Host: 127.0.0.1        Host: localhost     Host: 192.168.0.X
+# connection-state: misma conexión TCP
+# Burp Repeater > Group > send en paralelo
+```
+
+## Referencias
+
+- PortSwigger Academy — Host header attacks: https://portswigger.net/web-security/host-header
+- HackTricks — Host header injection: https://book.hacktricks.wiki/en/pentesting-web/host-header-injection.md.html
+- Related internals: [[Envenenamiento de Caché Web]] · [[Gestión de Autenticación]] · [[Server-Side Request Forgery (SSRF)]] · [[Vulnerabilidades de HTTP Request Smuggling]] · [[Web cache deception]] · [[Reconocimiento y Escaneo de Redes y Web]]

