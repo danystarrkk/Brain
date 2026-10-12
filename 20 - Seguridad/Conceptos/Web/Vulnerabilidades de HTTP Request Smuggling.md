@@ -3,13 +3,24 @@ aliases:
   - HTTP Smuggling
   - Request Smuggling
 tags:
-  - hacking/explotacion
-  - redes/conceptos
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/smuggling
+  - sec/redes
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Envenenamiento de Caché Web]]"
+  - "[[Web cache deception]]"
+  - "[[Cross-Site Scripting XSS]]"
+  - "[[HTTP Host header attacks]]"
+  - "[[Gestión de Autenticación]]"
+fuente: "https://portswigger.net/web-security/request-smuggling"
 ---
 # Vulnerabilidades de HTTP Request Smuggling
 
-Las vulnerabilidades de HTTP Request Smuggling se presentan cuando el inicio y fin de una solicitud HTTP son interpretados de manera diferente por el front-end y el back-end de una aplicación.
+Las vulnerabilidades de HTTP Request Smuggling ocurren cuando **el inicio y el fin de una solicitud HTTP son interpretados de manera diferente por el front-end y el back-end** de una aplicación. Un atacante contrabandea (*smuggle*) una segunda solicitud dentro de la primera: el front-end cree que envía una, el back-end procesa dos. De ahí nacen bypass de controles, robo de peticiones de otros usuarios, envenenamiento de caché y XSS persistente.
 
 De forma más entendible, lo que sucede es que el front-end, al recibir una solicitud, contempla ciertos datos o atributos, pero al enviarla al back-end, este contempla cosas extras que, aunque el front-end no las revisa, sí puede enviarlas y el back-end las interpretaría.
 
@@ -53,6 +64,116 @@ La forma exacta en que se hace esto depende del comportamiento de los dos servid
 
 > [!info] Impacto de los Tipos de Smuggling
 > Cada tipo de smuggling (CL.TE, TE.CL, TE.TE) requiere una técnica de ataque ligeramente diferente para lograr la desincronización. Comprender cuál encabezado prioriza cada servidor es crucial para construir el payload correcto. Por ejemplo, en CL.TE, el front-end leerá `Content-Length` y pasará una cantidad fija de bytes al back-end, mientras que el back-end, al ver `Transfer-Encoding: chunked`, esperará un `0` para finalizar la solicitud. Si el `Content-Length` es menor que el cuerpo completo del chunked, el back-end interpretará los bytes restantes como el inicio de una nueva solicitud.
+
+## Mecánica byte a byte: los tres desincronizadores clásicos
+
+### Gramática de un mensaje HTTP/1.1 (lo que parsea cada lado)
+
+Un mensaje HTTP/1.1 es una secuencia de bytes: cabeceras separadas por `CRLF` (`\r\n`), línea en blanco (`\r\n\r\n`) y cuerpo. El **final del cuerpo** se determina por `Content-Length: n` (exactamente *n* bytes) **o** por `Transfer-Encoding: chunked` (secuencia de chunks hex terminada por `0\r\n\r\n`). Si un servidor admite ambos, la RFC 7230 dice: **TE gana** y el CL debe ignorarse — pero no todos lo implementan igual, y ahí vive el bug.
+
+### CL.TE — el front mira CL, el back mira TE
+
+Petición del atacante (front-end lee hasta `0` del chunk… no: lee solo 6 bytes por su CL):
+
+```http
+POST / HTTP/1.1\r\n
+Host: objetivo\r\n
+Content-Length: 6\r\n          ← el FRONT usa esto: se queda con "0\r\n\r\n"
+Transfer-Encoding: chunked\r\n  ← el BACK usa esto
+\r\n
+0\r\n                          ← fin de chunk (back)…
+\r\n                            ← …pero el front solo tomó "0\r\n\r\n" (6 bytes)
+GPOST /admin HTTP/1.1\r\n       ← queda en el pipeline: es el INICIO de la request 2
+Host: localhost\r\n
+\r\n
+```
+
+El back-end espera el `0` del chunked; todo lo que siga — `GPOST /admin…` — es una **nueva solicitud** que el front-end nunca vio. En los labs, este es el truco del método `GPOST`: el payload deja una "G" suelta y la siguiente request de un usuario legítimo se concatena → `G + POST` = `GPOST`.
+
+### TE.CL — el front mira TE, el back mira CL
+
+Invertido: el front-end procesa el chunked completo y pasa **toda** la carga al back-end; el back-end, usando su `Content-Length: 4` (por ejemplo), solo consume los primeros 4 bytes del cuerpo y trata el resto — que incluye una segunda cabecera `Content-Length` inflada y una request completa — como el **principio de otra solicitud**.
+
+### TE.TE — ambos usan TE, pero se induce a uno a ignorarlo
+
+Ambos servidores *entienden* TE, así que se ofusca la cabecera para que el front-end la descarte y el back-end la acepte:
+
+```http
+Transfer-Encoding: chunked
+Transfer-Encoding: xchunked          ← TE duplicado con valor inválido
+Transfer-Encoding: chunked\x0b       ← carácter vertical tab
+Transfer-Encoding: x\r\nchunked      ← espacio/tab/case/line-folding
+```
+
+| Ofuscación | Efecto típico |
+|---|---|
+| `Transfer-Encoding: xchunked` | Un parser rechaza la primera y acepta la segunda |
+| `Transfer-Encoding: chunked` + `Transfer-Encoding: identity` | Discrepancia entre parsers |
+| `Transfer-Encoding:\tchunked` (tab) | Algunos strippean tabs, otros no |
+| `Transfer-Encoding: Chunked` (case) | Case-sensitivity distinta |
+| Cabecera plegada (`\r\n ` continuation) | Alineación distinta de headers |
+| `Content-Length` duplicado | El "obediente" toma el primero, el "estricto" el segundo o rechaza |
+
+### Familia completa de variantes
+
+| Variante | Mecanismo |
+|---|---|
+| **CL.TE / TE.CL / TE.TE** | Discrepancia CL↔TE (arriba) |
+| **CL.0** | Front usa CL; back **ignora el body en ciertos endpoints** (estáticos, redirects): el body de la request 1 se convierte en la request 2 |
+| **H2.CL / H2.TE** | Cliente habla HTTP/2 al front; el front hace **downgrade** a HTTP/1.1 hacia el back y re-inserta CL/TE mal → el back desincroniza |
+| **H2.TE** | Igual, con el back priorizando TE inyectado |
+| **H2.CRLF** | HTTP/2 no tiene CRLF, pero si el front traduce headers/sin validation, se inyectan `\r\n` en valores → nueva request |
+| **H2 tunneling** | Cuerpo HTTP/2 con una request HTTP/1.1 completa cruda; el back la procesa directo (bypass de validaciones del front) |
+| **Pause-based (0.CL)** | El back responde sin consumir el body y **deja la conexión abierta**; tras ~61s de pausa, interpreta lo siguiente como request nueva |
+| **Client-side desync** | El back **ignora CL** y responde de inmediato; la *siguiente petición del cliente* en la misma TCP es el body de la anterior → el atacante "cuelga" un prefijo que consume la request de la víctima |
+
+> [!warning] HTTP/2 y HTTP/3
+> En HTTP/2 puro no hay CL/TE: los tamaños se calculan por frames. El riesgo renace en el **downgrade H2→H1.1** (front moderno, back clásico) y en la **inyección de CRLF** en valores de header al traducir. Cualquier front que "traduzca" HTTP/2 a HTTP/1.1 es una superficie de smuggling potencial.
+
+## Metodología de detección
+
+1. **Fingerprint de headers**: enviar `Transfer-Encoding: chunked` malformado y observar reacciones — respuesta inmediata con error 400/500 → el front-end **usa TE** (o lo valida). Sin cambio → CL.
+2. **Confirmación por respuestas diferenciales** (lab "differential responses"): construir la request doble y ver cómo la app responde; enviar una request interna a un path inexistente (p. ej. `GET /0wned`) y comprobar si **una petición posterior de tu navegador** recibe la respuesta del `404` (pipeline poisoning).
+3. **Time-based**: request que declara más bytes de los que envía (`Content-Length: 30` + 13 bytes) y medir si el back-end **espera** los bytes restantes (timeout ~15-20s) — el back queda "colgado" = desincronizado.
+4. **Throttling**: en H2.CL, servir la request al back segmentada y medir que se traga el cuerpo de la víctima.
+5. **Null-byte / recursos**: probar en endpoints de estáticos (`/js/…`) donde el CL.0 brilla (el backend no lee el body).
+6. **Turbo Intruder**: para pausas largas (pause-based, 61s) y fuzzing de ofuscaciones de TE.
+
+Configuración de Burp obligatoria: `Proxy → Options → Intercept client requests` → **desmarcar "Update Content-Length"**, y usar el inspector *Raw* mostrando `
+` para editar bytes exactos (en el chunked final se envía **dos** CRLF).
+
+## Cadenas de ataque (impacto concreto)
+
+| Cadena | Mecanismo |
+|---|---|
+| **Bypass de controles del front** | El front bloquea `/admin`; la request smugeada llega al back sin pasar por el front → acceso directo (encadenable con `Host: localhost`) |
+| **Captura de peticiones de usuarios** | Request 2 quedada + CL inflado → la petición legítima siguiente se incrusta en tu body → robo de cookies/CSRF tokens (queue poisoning) |
+| **XSS reflejado convertido en XSS de víctima** | Smuggle una request que refleja XSS en algún header (User-Agent) → la request de la víctima se procesa con tu payload → ejecución en su navegador |
+| **Web cache poisoning** | Smuggle una request con `Host: tu-servidor` que hace follow-redirect → el recurso cacheado (p. ej. `tracking.js`) sirve tu JS a todos |
+| **Web cache deception** | Smuggle una ruta privada (`/my-admin`) sincronizada con la petición cacheable del usuario → su respuesta privada queda cacheada |
+| **Response queue poisoning** | Desincronizar la cola: recibes TU respuesta la respuesta de otro usuario (H2.TE) |
+| **Client-side desync** | Prefijo que absorbe la primera request de la víctima → toda su petición (cookies incluidas) va a un endpoint controlado (p. ej. comentario público) |
+
+## Defensa (con código y configuración)
+
+1. **No exponer back-ends HTTP/1.1 directamente**: si el front maneja HTTP/2, el back también (h2c) — elimina la traducción.
+2. **Normalizar y reescribir** en el proxy: descartar requests con CL+TE simultáneos, con TE ofuscado, o cabeceras duplicadas:
+
+```nginx
+# nginx: rechazar mensajes ambiguos
+# (nginx por diseño rechaza TE+CL y TE ofuscado en versiones modernas)
+# HAProxy: option http-strict-sanity / tune.bufsize
+```
+
+```java
+// Back-end Java (Tomcat/Spring): limitar headers y rechazar ambiguos
+// server.tomcat.max-http-form-post-size, y actualizaciones de Tomcat
+// con validación RFC7230 (Tomcat 9.0.31+ rechaza TE+CL duplicados)
+```
+
+3. **Cabeceras duplicadas** de `Content-Length`/`Host` deben ser **errores 400**, no "primera que sirva".
+4. WAF con detección de payloads chunked anómalos; desactivar pipeline reuse entre clientes y back-end (conexiones cortas en el back).
+5. Monitorear: respuestas cruzadas entre usuarios, timeouts anómalos, métodos raros (`GPOST`) en logs del back.
 
 ## Laboratorios PortSwigger
 
@@ -992,3 +1113,53 @@ Vemos todo lo que se modificó. Esto enviamos y solo nos queda esperar para ver 
 ![[Pasted image 20250921124344.png]]
 
 Lab Terminado.
+
+## Errores comunes
+
+**Del atacante:**
+1. Olvidar desactivar "Update Content-Length" en Burp: el proxy reescribe el CL y destruye la desincronización.
+2. Mal cerrar el chunk: hacen falta los dos CRLF (`0\r\n\r\n`) y dos enters finales en el Repeater.
+3. No inflar el `Content-Length` en TE.CL/CL.0: sin bytes "de más", la request 2 no se engancha a la siguiente petición legítima.
+4. Esperar la respuesta del smuggle en la misma request: la respuesta de la request 2 llega en **una petición posterior** (recargar el navegador / reenviar).
+5. Probar solo CL.TE y TE.CL: en front-ends modernos (H2, frameworks actuales) los ataques reales son H2.CL, CRLF o pause-based.
+6. Ignorar la naturaleza aleatoria: el pipeline es compartido; hacer varias repeticiones antes de concluir "no vulnerable".
+
+**Del defensor:**
+1. Desplegar WAF en el front sin tocar el back: el WAF ve una request, el back ve dos — el smuggling nace exactamente ahí.
+2. Aceptar CL+TE simultáneos en vez de rechazar con 400.
+3. Reutilizar conexiones TCP del front a back entre usuarios distintos sin control: amplifica el queue poisoning.
+4. No revisar logs del back-end: el `GPOST` o los `/0wned` son detectables.
+5. Creer que "solo HTTP/1.1 internamente" es seguro sin validar la traducción H2→H1.
+
+## Cheatsheet
+
+| Concepto | Señal / payload |
+|---|---|
+| CL.TE | Front usa CL, back TE → `0\r\n\r\n` + request 2 |
+| TE.CL | Front TE, back CL → CL corto + request 2 en el resto |
+| TE.TE | `Transfer-Encoding: xchunked` / duplicado / tab |
+| Confirmación | Request a `/0wned` → 404 en recarga de navegador |
+| Time-based | CL mayor que bytes enviados → back "espera" |
+| GPOST | Payload deja `G` + request legítima = método `GPOST` |
+| H2.CL/H2.TE | Downgrade HTTP/2→1.1 con CL/TE inyectado |
+| CRLF | `\r\n` en valor de header HTTP/2 → request nueva |
+| CL.0 | Back ignora body en estáticos/redirects |
+| Client-side desync | Back ignora CL; prefijo absorbe request de la víctima |
+| Defensa | Rechazar CL+TE, no duplicados, back h2, monitoreo |
+
+## Laboratorios y referencias
+
+- **PortSwigger Academy — Request Smuggling**: https://portswigger.net/web-security/request-smuggling (los ~18 labs resueltos en esta nota)
+- **PortSwigger Research — HTTP/2 attacks**: https://portswigger.net/research/http2
+- **PayloadsAllTheThings — HTTP Request Smuggling**: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/HTTP%20Request%20Smuggling
+- **Turbo Intruder**: https://portswigger.net/burp/documentation/desktop/tools/turbo-intruder
+- Notas internas: [[Envenenamiento de Caché Web]], [[Web cache deception]], [[HTTP Host header attacks]], [[Cross-Site Scripting XSS]]
+
+## Relacionadas
+
+- [[Envenenamiento de Caché Web]] — la cadena de impacto más frecuente (poisoning vía smuggling)
+- [[Web cache deception]] — cacheo de contenido privado por rutas engañosas
+- [[Cross-Site Scripting XSS]] — cómo el XSS reflejado escalado a víctimas reales vía smuggling
+- [[HTTP Host header attacks]] — manipulación de routing por Host, técnico hermano
+- [[Gestión de Autenticación]] — el objetivo final de robar cookies/requests: la sesión de otros
+- [[Vulnerabilidad de Redirección Abierta]] — los follow-redirect abusados en las cadenas de cache poisoning

