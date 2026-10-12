@@ -1,400 +1,386 @@
 ---
-title: "Bash Scripting - Entrada/Salida y Redirección"
+aliases: ["Bash Redirección", "File Descriptors Bash", "Stdin Stdout Stderr", "Here-docs"]
 tags:
-  - lang/bash
-  - concept/io
-  - concept/redirection
-  - concept/file-descriptors
-  - level/intermedio
-  - type/concept
-  - area/scripting
-created: 2024-01-15
-updated: 2024-09-25
-status: active
+  - dev/backend/bash
+tipo: concepto
+estado: terminado
+creado: 2024-01-15
+actualizado: 2026-10-11
+relacionado:
+  - "[[Bash Scripting - Fundamentos Básicos]]"
+  - "[[Bash Scripting - Control de Flujo]]"
+  - "[[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]]"
+  - "[[Bash Scripting - Procesos y Señales]]"
+  - "[[Bash Scripting - Patrones Comunes y Plantillas]]"
+  - "[[Comandos Básicos de Sistema y Red en Linux]]"
+fuente: "https://www.gnu.org/software/bash/manual/bash.html#Redirections"
 ---
 
-# Bash Scripting - Entrada/Salida y Redirección
+# Bash Scripting - Entrada-Salida y Redirección
 
-> **Objetivo**: Dominar stdin/stdout/stderr, descriptores de archivo, here-docs, y redirecciones avanzadas.
+Toda la E/S en Unix es **file descriptors** (fds): enteros que los procesos heredan y que apuntan a un canal abierto. Redirigir en Bash no es "mandar output a un archivo": es **reemplazar, duplicar o cerrar entradas de la tabla de descriptors del proceso** antes de ejecutar un comando. Con ese modelo mental, construcciones como `2>&1 > archivo` (que hace algo distinto que `> archivo 2>&1`) dejan de ser magia. Este nota cubre el modelo, toda la sintaxis, here-docs, `read`, `printf` vs `echo`, y los dispositivos especiales.
 
----
+## El modelo de descriptors
 
-## 1. Descriptores de Archivo Estándar
+| FD | Nombre | Heredado | Descripción |
+|---|---|---|---|
+| 0 | stdin | sí | De dónde lee el comando (teclado por defecto) |
+| 1 | stdout | sí | Dónde escribe resultados |
+| 2 | stderr | sí | Dónde escribe diagnósticos (NO bufferizado con stdout) |
+| 3-9 | personalizados | a elección | Libres para tus canales |
+| 10+ | alta | no heredados | Reservados por algunas herramientas (`flock` usa 200 por convención) |
 
-| FD | Nombre | Descripción | Default |
-|----|--------|-------------|---------|
-| 0 | `stdin` | Entrada estándar | Teclado / Pipe entrada |
-| 1 | `stdout` | Salida estándar | Pantalla / Pipe salida |
-| 2 | `stderr` | Error estándar | Pantalla (no bufferizado) |
+Al invocar un comando, bash hace `fork` + `execve`; el hijo **hereda la tabla de fds del padre**. Las redirecciones se aplican **antes** del exec, sobre el proceso hijo. `exec` sin comando aplica las redirecciones **al shell actual** — y ahí está la clave de los patrones avanzados.
+
+## Toda la sintaxis de redirección
+
+### Salida
 
 ```bash
-# Referencias equivalentes
-comando           # stdout → FD 1, stderr → FD 2
-comando 1>out     # Redirige stdout
-comando 2>err     # Redirige stderr
-comando >out 2>err # Ambos por separado
+comando > archivo        # fd1 → archivo (crea/trunca: O_WRONLY|O_CREAT|O_TRUNC)
+comando >> archivo       # fd1 → archivo en append
+comando 2> archivo       # fd2 → archivo (stderr solo)
+comando 2>> archivo      # fd2 append
+comando > a.txt 2> e.txt # streams separados (el patrón de logs correcto)
+comando > archivo 2>&1   # fd1 → archivo; fd2 → COPIA de fd1 actual → AMBOS al archivo
+comando &> archivo       # atajo bash de lo anterior (bash-only)
+comando &>> archivo      # atajo append de ambos
+comando >| archivo       # fuerza escritura con noclobber activo (verificado: > falla, >| escribe)
+comando 1>&2             # stdout → donde está stderr (encontrar errores: imprime por stderr)
+comando 2>&1             # stderr → donde está stdout (mezclar en el pipe)
+comando |&               # bash 4+: atajo de 2>&1 |
 ```
 
----
-
-## 2. Redirecciones Básicas
-
-### 2.1 Salida (Output)
+### El orden importa — verificado
 
 ```bash
-# Sobrescribir (truncar)
-comando > archivo.txt        # stdout → archivo
-comando 2> archivo.txt       # stderr → archivo
-comando > out.txt 2> err.txt # Separados
+out() { echo stdout; echo stderr >&2; }
 
-# Append (añadir al final)
-comando >> archivo.txt       # stdout append
-comando 2>> archivo.txt      # stderr append
-
-# Combinar stdout y stderr
-comando > archivo.txt 2>&1   # Clásico: stdout→archivo, stderr→stdout
-comando &> archivo.txt       # Bash shortcut (equivale a anterior)
-comando &>> archivo.txt      # Append ambos
+out > f 2>&1     # f contiene: "stdout\nstderr"   (1→archivo, luego 2→copia de 1)
+out 2>&1 > f     # stderr escapa a la terminal; f contiene solo "stdout"
 ```
 
-### 2.2 Entrada (Input)
+Por qué: las redirecciones se aplican **de izquierda a derecha**. En `> f 2>&1`: primero fd1 apunta al archivo, y `2>&1` duplica el fd1 **ya redirigido**. En `2>&1 > f`: fd2 copia al fd1 **original** (terminal), y recién después fd1 va al archivo. Esta es la confusión #1 de la redirección y la razón por la que el orden canónico es siempre *"stdout primero, `2>&1` después"*.
 
 ```bash
-# Desde archivo
-comando < archivo.txt        # stdin ← archivo
-
-# Here-string (Bash, Zsh, Ksh)
-comando <<< "string"         # stdin ← string literal
-comando <<< "$variable"      # stdin ← contenido variable
-
-# Here-document (ver sección 4)
-comando << 'EOF'
-contenido multilínea
-EOF
+# Intercambio de streams (swap) — verificado con captura:
+out 3>&1 1>&2 2>&3 3>&-
+# fd3=stdout original → fd1=stderr actual → fd2=copia de fd3(=stdout original)
+# Resultado: el stdout del comando aparece por stderr y viceversa.
+# Uso: error=$(comando 2>&1 >/dev/null) captura SOLO stderr en la variable.
 ```
 
----
-
-## 3. Redirección de Descriptores Personalizados (FD 3-9)
-
-### 3.1 Abrir/Cerrar Descriptores con `exec`
+### Entrada
 
 ```bash
-# Abrir archivo en FD 3 para lectura/escritura
-exec 3<> archivo.txt
-
-# Abrir solo lectura
-exec 3< archivo.txt
-
-# Abrir solo escritura (crear/truncar)
-exec 3> archivo.txt
-
-# Abrir append
-exec 3>> archivo.txt
-
-# Cerrar descriptor
-exec 3>&-   # Cerrar FD 3 (output)
-exec 3<&-   # Cerrar FD 3 (input)
-exec 3<&-   # Cerrar FD 3 (ambos)
-
-# Duplicar descriptor
-exec 4>&3   # FD 4 apunta a mismo lugar que FD 3
-exec 4<&3   # Duplicar input
+comando < archivo        # fd0 ← archivo
+comando <<< "string"     # here-string: fd0 ← "string\n" (bash añade \n siempre)
+comando << EOF ... EOF   # here-document multilínea
+comando 0< archivo       # forma explícita (rara vez necesaria)
+read -u 3 var            # leer de un fd personalizado (verificado)
 ```
 
-### 3.2 Usar Descriptores Personalizados
+### `exec`: redirecciones permanentes del shell
 
 ```bash
-# Escribir a FD 3
-echo "Log interno" >&3
+exec 3> log.txt          # abrir fd3 → log, PARA TODO EL RESTO del script
+echo "va al log" >&3     # cada comando que quiera puede escribir ahí
+exec 3>&-                # cerrar fd3
 
-# Leer de FD 3
-read -u 3 linea
-
-# Redirigir comando a FD 3
-comando >&3
-
-# Copiar FD 1 (stdout) a FD 3, luego restaurar
-exec 3>&1           # FD 3 = stdout actual
-exec 1> log.txt     # stdout → log.txt
-echo "Esto va al log"
-exec 1>&3           # Restaurar stdout desde FD 3
-exec 3>&-           # Cerrar FD 3
-echo "Esto va a pantalla"
+# Patrón "todo al log" con recuperación — verificado:
+exec 3>&1                        # fd3 guarda el stdout original
+exec 1> log.txt                  # stdout del SHELL completo → log
+echo "invisible en terminal"
+exec 1>&3 3>&-                   # restaurar stdout y cerrar el backup
+echo "visible de nuevo"
 ```
 
----
+`exec` sin argumentos de comando y sin redirecciones es un error; con redirecciones **no crea proceso** — modifica al shell. Por eso `exec 1> archivo` al principio de un script redirige todo lo que venga después.
 
-## 4. Here-Documents y Here-Strings
+> [!warning] `exec` en funciones de librería
+> Una `exec` que escape de una función redirige al script entero. Los patrones de logging deben encapsularse y restaurarse con `trap` — ver el patrón completo de logging dual en "Patrones avanzados".
 
-### 4.1 Here-Document (`<<`)
+## Here-documents (`<<`)
 
 ```bash
-# Básico (con expansión de variables)
-cat << EOF
+# Con expansión de variables y comandos (delimitador sin comillas):
+greet() {
+    cat << EOF
 Hola $USER
-Hoy es $(date)
+Fecha: $(date +%F)
 EOF
+}
+greet
 
-# Sin expansión (comillas en delimitador)
+# SIN expansión — delimitador entre comillas (plantillas, SQL, JSON, scripts):
 cat << 'EOF'
-Hola $USER          # Literal: $USER
-No se expande $(date)
+Literal: $USER, $(date), `comando`, ${todo} queda tal cual.
 EOF
 
-# Con tabulador suprimido (<<-)
+# <<- TAB al inicio de cada línea se strippingue (para indentar dentro de bloques):
 if true; then
     cat <<- EOF
-	Línea 1 (tab al inicio ignorado)
-	    Línea 2 indentada
+	línea indentada con tab
 	EOF
 fi
 
-# Heredoc a variable (Bash 4+)
-read -r -d '' variable << 'EOF'
-Contenido
+# Here-doc como stdin de un WHILE (sin subshell):
+while read -r l; do echo "got:$l"; done <<EOF
+one
+two
+EOF
+# → got:one / got:two  (verificado)
+```
+
+Casos de uso reales del delimitador literal: generar SQL/JSON/XML, escribir configs con `$`, generar otros scripts, payloads para `curl -d @-`. Si el contenido puede contener la palabra delimitadora, elegí una improbable: `<<'SQL_EOF_9f2'`.
+
+### Here-doc → variable
+
+```bash
+read -r -d '' contenido << 'EOF'    # rc=1 porque no hay \n final que cerrar: esperado
 multilínea
 EOF
-echo "$variable"
+echo "$contenido"
 ```
 
-### 4.2 Here-String (`<<<`)
+## Here-strings (`<<<`)
+
+Atajo de bash/ksh: convierte el string en stdin de un comando, **sin fork** (es builtin):
 
 ```bash
-# Equivalente a: echo "string" | comando
-tr 'a-z' 'A-Z' <<< "hola mundo"  # HOLA MUNDO
-
-# Múltiples líneas
-cat <<< $'línea1\nlínea2\nlínea3'
-
-# Útil para funciones que leen stdin
-procesar() { while read -r line; do echo ">$line"; done; }
-procesar <<< "datos de prueba"
+tr 'a-z' 'A-Z' <<< "hola"           # → HOLA
+awk -F: '{print $1}' <<< "root:x:0" # → root
+IFS=: read -r a b c <<< "x:y:z"     # splitting instantáneo
+printf '%s\n' <<< "una sola palabra"
 ```
 
----
+Limitación: es **una sola línea** (se añade `\n`); para multi-línea usá heredoc o process substitution.
 
-## 5. Tee - Duplicar Salida
+## Process substitution: `<(...)` y `>(...)`
+
+Bash expone la salida de un comando como un **archivo temporal con nombre tipo `/dev/fd/63`**:
 
 ```bash
-# stdout → archivo Y pantalla
-comando | tee archivo.log
+diff <(ls dirA) <(ls dirB)                # comparar sin archivos intermedios
+while IFS= read -r l; do ...; done < <(generador)   # while sin subshell (variables persisten)
+paste <(seq 1 3) <(seq 10 12)             # inputs múltiples
 
-# Append
-comando | tee -a archivo.log
-
-# Múltiples archivos
-comando | tee archivo1.log archivo2.log
-
-# stderr también (Bash 4+)
-comando 2>&1 | tee archivo.log
-
-# Con process substitution para archivos separados
-comando > >(tee stdout.log) 2> >(tee stderr.log >&2)
+comando > >(tee stdout.log) 2> >(tee stderr.log >&2)   # tee dual en vivo
 ```
 
----
+Cada `<(...)` es un proceso con su pipe: el subshell del generador muere al consumirse. La escritora `>(...)` es asincrónica y **puede perder datos al salir el script** si el consumidor no terminó — en scripts serios preferir `wait` sobre los PIDs o tee simple.
 
-## 6. Process Substitution (`<()` y `>()`)
-
-> **Potente: trata salida/entrada de comando como archivo temporal**
-
-### 6.1 `<(comando)` - Output como Archivo de Entrada
+## `tee`: duplicar un stream
 
 ```bash
-# Comparar salida de dos comandos sin archivos temporales
-diff <(comando1) <(comando2)
-
-# Leer salida de comando en while (evita subshell)
-while IFS= read -r linea; do
-    echo "Procesado: $linea"
-done < <(comando_que_genera_salida)
-
-# Múltiples inputs simultáneos
-paste <(cmd1) <(cmd2) <(cmd3)
+comando | tee archivo.log            # stdout → pantalla + archivo
+comando | tee -a archivo.log         # append
+comando 2>&1 | tee todo.log          # ambos streams al archivo
+comando | tee f1 f2                  # a dos archivos
+comando | tee >/dev/null             # "espejo que se descarta": ejecuta el pipeline con side-effect
 ```
 
-### 6.2 `>(comando)` - Input como Archivo de Salida
+`tee` escribe en stdout **también**: para loguear sin duplicar en terminal, `| tee archivo > /dev/null`.
+
+## `read`: la builtin de lectura
 
 ```bash
-# Enviar stdout a un comando y stderr a otro
-comando > >(tee stdout.log) 2> >(tee stderr.log >&2)
-
-# Log rotativo simple
-exec > >(rotatelogs /var/log/app/%Y-%m-%d.log 86400)
+read -r linea            # SIEMPRE -r: sin él, backslash escapea (readline consume \)
+IFS= read -r linea       # además sin splitting: linea conserva espacios completos
+read -p "Nombre: " n     # prompt a STDERR (no se captura en la variable)
+read -s -p "Clave: " c   # sin eco (ojo: queda en memoria del proceso, ps, swap)
+read -n 1 -p "S/n: " y   # retorna tras 1 carácter (sin Enter)
+read -N 10 buf           # 10 caracteres EXACTOS (ignora delimitadores)
+read -t 10 resp          # timeout en segundos (rc>128 si expiró)
+read -d '' arr           # delimitador NUL (junto a find -print0)
+read -a campos           # split en ARRAY según IFS
+read -u 3 x              # leer del fd 3 (verificado)
+read -e                  # readline: flechas/historial (solo stdin interactiva)
 ```
 
----
-
-## 7. Redirección Avanzada y Patrones
-
-### 7.1 Swap stdout/stderr
+| Flag | Para qué | Gotcha |
+|---|---|---|
+| `-r` | No interpretar `\` | **Ponélo siempre** — sin él `C:\path` se vuelve `C:path` |
+| `-p` | Prompt | Va a stderr; no lo captures con `$( )` |
+| `-s` | Sin eco | Para claves; usa `read -r -s -p` junto |
+| `-n N` | N caracteres | No espera Enter |
+| `-N N` | N caracteres exactos | A diferencia de `-n`, ignora IFS/delimitadores |
+| `-t S` | Timeout | rc>128 al expirar; útil con `||` |
+| `-d C` | Delimitador | `''` = NUL; default `\n` |
+| `-a arr` | Array por splitting | pierde el campo vacío final |
+| `-u FD` | Descriptor custom | p.ej. de process substitution |
 
 ```bash
-# Intercambiar: 3=stdout, 1=stderr, 2=stdout
-comando 3>&1 1>&2 2>&3 3>&-
-
-# Uso: capturar stderr en variable, stdout a pantalla
-error=$(comando 3>&1 1>&2 2>&3 3>&-)
+# Lectura "a prueba de todo" de stdin:
+while IFS= read -r -d '' linea; do procesar "$linea"; done     # terminada por NUL o EOF
+# Selección con timeout:
+if read -r -t 5 -n 1 -s -p "¿Continuar? [s] " respuesta && [[ $respuesta == s ]]; then
+    continuar
+fi
 ```
 
-### 7.2 Silenciar Selectivamente
+Los detalles de `read` en bucles (última línea sin `\n`, subshells de pipe) en [[Bash Scripting - Control de Flujo]].
+
+## `printf` vs `echo`: por qué printf gana
+
+`echo` es un builtin **con semántica no-estándar**: `-e`, `-n`, `-E` y el manejo de `\` dependen del shell y del `xpg_echo`. `printf` es el estándar POSIX con formato C.
 
 ```bash
-# Solo errores
-comando >/dev/null
+# Verificado: idéntico resultado en los dos casos límite
+echo -n "a"; echo -n "b"; echo        # → ab  (bash builtin; en dash: -n literal)
+printf '%s' "a"; printf '%s\n' "b"    # → ab  (portable siempre)
 
-# Solo salida normal
-comando 2>/dev/null
-
-# Nada (ambos)
-comando >/dev/null 2>&1
-comando &>/dev/null
+printf '%s\n' "$var"          # imprimir valor literal — LA forma segura
+printf '[%s]\n' "${arr[@]}"   # 1 línea por elemento
+printf '%-20s %5d\n' "nombre" 42      # padding izq/der
+printf '%05d\n' 42                    # → 00042
+printf '%b\n' 'tab\there'             # interpretar escapes como echo -e
+printf 'sin newline'                  # printf NO agrega \n: control total
+printf '%s\n' ""                      # ← para imprimir línea vacía sin problemas
+echo                                 # idéntico, pero por costumbre
 ```
 
-### 7.3 Logging Estructurado
+> [!warning] `echo` con variables que empiezan por `-` o contienen `\`
+> `echo "$usuario_input"` con input `-n hola` imprime sin newline; con `\t` decide según el shell. `printf '%s\n' "$entrada"` es inmune — siempre. Regla: **`printf` para datos, `echo` solo para literal hardcodeado**.
+
+## Dispositivos especiales `/dev`
+
+| Dispositivo | Comportamiento |
+|---|---|
+| `/dev/null` | Descarta todo lo escrito; lectura = EOF inmediato (exit 0) |
+| `/dev/zero` | Lectura infinita de bytes `\0` |
+| `/dev/random` | Entropía del sistema; puede **bloquearse** (históricamente) |
+| `/dev/urandom` | Entropía sin bloqueo — para claves/uuids usá este |
+| `/dev/stdin` `/dev/stdout` `/dev/stderr` | Symlinks al fd 0/1/2 (compatibilidad con herramientas que exigen rutas) |
+| `/dev/fd/N` | Cualquier descriptor por nombre |
+| `/dev/tcp/HOST/PORT` | Bash lo interpreta como **socket TCP** (si compiled con net redirections) |
+| `/dev/udp/HOST/PORT` | Idem UDP |
 
 ```bash
-# Setup logging al inicio del script
-setup_logging() {
-    local log_file="${1:-/tmp/script_$(date +%s).log}"
-    exec 3>&1                    # FD 3 = stdout original
-    exec 4>&2                    # FD 4 = stderr original
-    exec 1> >(tee -a "$log_file")   # stdout → tee → log + FD3
-    exec 2> >(tee -a "$log_file" >&2) # stderr → tee → log + FD4
-}
+cmd >/dev/null 2>&1        # descartar ambos
+cmd 2>/dev/null            # silenciar solo errores
+[[ -s /dev/stdin ]]        # "¿stdin tiene datos?" (comparado con test -s)
+head -c 32 /dev/urandom | base64 | tr -d '\n'   # token aleatorio
 
-# Restaurar
-restore_logging() {
-    exec 1>&3 3>&-   # Restaurar stdout, cerrar FD3
-    exec 2>&4 4>&-   # Restaurar stderr, cerrar FD4
-}
-
-trap restore_logging EXIT
-setup_logging "/var/log/mi_script.log"
+# /dev/tcp para smoke-tests sin curl/nc:
+if exec 3<>/dev/tcp/localhost/8080 2>/dev/null; then
+    echo "puerto abierto"; exec 3>&-   # importante cerrar
+fi
 ```
 
----
+> [!warning] `/dev/tcp` no es un archivo
+> Es magia del builtin de redirección de bash. No existe en `ls`, no funciona si bash fue compilado sin soporte, y solo TCP/UDP. Para producción usá `curl`, `nc` o `ss` — ver [[Comandos Básicos de Sistema y Red en Linux]].
 
-## 8. Lectura/Escritura de Archivos Eficiente
-
-### 8.1 `mapfile` / `readarray` (Bash 4+)
+## FIFOs (named pipes) y coprocesos
 
 ```bash
-# Leer archivo completo a array (rápido)
-mapfile -t lineas < archivo.txt
-# -t: quita newline final
+# FIFO: archivo que conecta procesos sin relación padre-hijo
+mkfifo /tmp/canal
+producer > /tmp/canal &          # el escritor bloquea hasta que haya lector
+while IFS= read -r msg < /tmp/canal; do echo "recibido: $msg"; done
+rm /tmp/canal
 
-# Leer N líneas
-mapfile -t -n 10 lineas < archivo.txt
-
-# Desde comando
-mapfile -t salida < <(comando)
-
-# Callback por línea (Bash 4.4+)
-mapfile -t -C 'procesar_linea' -c 1 < archivo.txt
+# coproc (bash 4+): coproceso con canal bidireccional
+coproc CALC { awk '{print $1 * 2}'; }
+echo 21 >&"${CALC[1]}"           # escribir a su stdin
+read -u "${CALC[0]}" respuesta   # leer su stdout
+echo "doble de 21 = $respuesta"
+wait "$CALC_PID"
 ```
 
-### 8.2 Lectura Binaria / Raw
+`coproc` expone `${NAME[0]}` (lectura) y `${NAME[1]}` (escritura); es la forma builtin de mantener un proceso vivo hablando (parsers, servidores de test). Para ICP serio entre procesos independientes: FIFOs, sockets Unix (`socat`), o BD — ver también [[Bash Scripting - Procesos y Señales]].
+
+## Buffering: el fantasma de los pipes interactivos
+
+Los procesos en un pipe bufferizan stdout cuando **no** es un TTY (fully buffered ≈ 4-64KB). Síntoma: `comando_largo | less` no muestra nada hasta el final, o un log en vivo "no avanza". Solución: `stdbuf` (coreutils), que fuerza el modo con `LD_PRELOAD`:
 
 ```bash
-# Leer N bytes exactos
-read -r -n 100 -d '' datos < archivo.bin
-
-# Leer con timeout
-read -r -t 5 -n 1 char
-```
-
-### 8.3 Escritura Atómica (Evitar archivos parciales)
-
-```bash
-escribir_atomico() {
-    local archivo="$1" contenido="$2"
-    local temp="${archivo}.tmp.$$"
-    
-    printf '%s' "$contenido" > "$temp" && mv "$temp" "$archivo"
-    # mv es atómico en mismo filesystem
-}
-```
-
----
-
-## 9. Pipes y FIFOs (Named Pipes)
-
-### 9.1 Pipes Anónimos (Estándar)
-
-```bash
-# Pipeline simple
-comando1 | comando2 | comando3
-
-# Pipe falla si cualquier comando falla (con pipefail)
-set -o pipefail
-comando1 | comando2  # $? = exit code del último que falló
-```
-
-### 9.2 Named Pipes (FIFOs) - Comunicación Inter-Procesos
-
-```bash
-# Crear FIFO
-mkfifo /tmp/mi_fifo
-
-# Proceso escritor (bloquea hasta que haya lector)
-echo "datos" > /tmp/mi_fifo &
-
-# Proceso lector
-read linea < /tmp/mi_fifo
-echo "Recibido: $linea"
-
-# Limpiar
-rm /tmp/mi_fifo
-```
-
----
-
-## 10. `/dev/` Dispositivos Especiales
-
-| Dispositivo | Uso |
-|-------------|-----|
-| `/dev/null` | Descarta todo (agujero negro) |
-| `/dev/zero` | Produce bytes nulos (`\0`) infinitos |
-| `/dev/random` | Entropía bloqueante (criptográfico) |
-| `/dev/urandom` | Entropía no bloqueante (recomendado) |
-| `/dev/stdin` | Referencia a FD 0 |
-| `/dev/stdout` | Referencia a FD 1 |
-| `/dev/stderr` | Referencia a FD 2 |
-| `/dev/fd/N` | Referencia a descriptor N |
-| `/dev/tcp/HOST/PORT` | Socket TCP (Bash built-in) |
-| `/dev/udp/HOST/PORT` | Socket UDP (Bash built-in) |
-
-```bash
-# Ejemplos
-dd if=/dev/zero of=archivo.bin bs=1M count=100  # Archivo 100MB ceros
-head -c 32 /dev/urandom | base64  # Random string 32 bytes
-exec 3<>/dev/tcp/google.com/80 && echo -e "GET / HTTP/1.0\n\n" >&3 && cat <&3  # HTTP raw
-```
-
----
-
-## 11. Buffering y `stdbuf` / `unbuffer`
-
-```bash
-# Forzar unbuffered (útil para pipes interactivos)
-stdbuf -oL -eL comando  # Line-buffered stdout/stderr
-stdbuf -o0 -e0 comando  # Unbuffered
-
-# Con expect/unbuffer (para programas que detectan TTY)
+stdbuf -oL -eL comando | tee log.txt    # line-buffered ambos
+stdbuf -o0 comando | menos              # sin buffer (lento, para debugging)
+# Para binarios Go/static que ignoran stdbuf: unbuffer (expect) simula un TTY:
 unbuffer comando | tee log.txt
 ```
 
----
+Bash mismo escribe stdout casi sin buffer en scripts, así que el problema casi siempre es del comando externo.
 
-## 12. Referencias Cruzadas
+## Patrones avanzados
 
-- [Fundamentos Básicos](./Bash%20Scripting%20-%20Fundamentos%20B%C3%A1sicos.md) - Plantilla base
-- [Procesos y Señales](./Bash%20Scripting%20-%20Procesos%20y%20Se%C3%B1ales.md) - Background jobs, `disown`, `nohup`
-- [Control de Flujo](./Bash%20Scripting%20-%20Control%20de%20Flujo.md) - `while read` patterns
-- [Debugging y Buenas Prácticas](./Bash%20Scripting%20-%20Debugging,%20Buenas%20Pr%C3%A1cticas%20y%20ShellCheck.md)
+### Logging dual (todo a log + stderr original)
 
----
+```bash
+setup_logging() {
+    exec 3>&1 4>&2                                   # backups
+    exec 1> >(tee -a "$LOG_FILE")                    # stdout → log (+ backup vía tee... no: ver nota)
+    exec 2> >(tee -a "$LOG_FILE" >&2)                # stderr → log + stderr original
+}
+```
 
-*Etiquetas: #bash #io #redireccion #file-descriptors #here-doc #here-string #tee #process-substitution #fifo #dev-null*
+> [!info] Tradeoff de `tee` con process substitution
+> `>(tee ...)` corre en proceso **asincrónico**: al salir el script puede perder las últimas líneas si tee no drenó. Para logs exactos usá `exec >>"$LOG_FILE"` (append simple) y mandá a terminal solo con `tee` puntual, o `wait` a los PIDs de tee antes de salir.
+
+### Swap de streams para capturar solo errores
+
+```bash
+errores=$(comando 2>&1 >/dev/null)     # stdout va al terminal, stderr queda en la variable
+```
+
+### Escritura atómica (evitar archivos a medias)
+
+```bash
+escribir_atomico() {
+    local destino="$1"; shift
+    local tmp="${destino}.tmp.$$"
+    printf '%s\n' "$@" > "$tmp" && mv "$tmp" "$destino"   # mv es atómico en el mismo fs
+}
+```
+
+## Errores comunes
+
+1. **`2>&1 > archivo` en vez de `> archivo 2>&1`** — el stderr se pierde en la terminal (verificado). Mnemotecnia: *primero el archivo, después `2>&1`*.
+2. **`echo` para imprimir valores de usuario** — inputs con `-n`/`-e`/`\` cambian el output. `printf '%s\n'`.
+3. **`read` sin `-r`** — backslashes corrompidos. Siempre `IFS= read -r`.
+4. **`read -p` capturado con `$( )`** — el prompt va a stderr y no se captura; el resultado es vacío.
+5. **Confundir `tee` con redirect** — `comando | tee archivo > /dev/null` es el log sin eco; `comando | tee archivo` duplica.
+6. **Here-doc sin comillas con contenido que contiene `$`** — expansión no deseada. Delimitador `'EOF'` para literales.
+7. **Asignar `read` en la misma línea de condición sin `||`** — `while read -r l` pierde la última línea sin newline (verificado en Control de Flujo).
+8. **Olvidar cerrar `exec 3<>/dev/tcp/...`** — descriptors colgados mantienen sockets abiertos.
+
+## Rendimiento
+
+- `cat archivo | cmd` = 2 procesos extra. `cmd < archivo` es equivalente y más rápido (SC2002).
+- `$(cat f)` para todo un archivo = fork + splitting. Usá `mapfile -t arr < f` (builtin, cero forks) — ver [[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]].
+- Redirecciones builtins (`>`, `<<<`, `<<`) no crean procesos; los process substitutions `<(...)` sí (uno por uso).
+- `printf` es builtin; `echo | tr` para transformar un string es un fork innecesario → parameter expansion.
+
+## Cheatsheet
+
+| Quiero | Forma |
+|---|---|
+| stdout a archivo | `> archivo` · append `>> archivo` |
+| stderr a archivo | `2> archivo` |
+| Ambos al archivo | `> archivo 2>&1` · `&> archivo` |
+| Silenciar todo | `>/dev/null 2>&1` · `&>/dev/null` |
+| Silenciar errores | `2>/dev/null` |
+| stderr por stdout (pipe) | `2>&1 \|` · `\|&` |
+| Forzar con noclobber | `>\| archivo` |
+| Entrada desde archivo | `< archivo` |
+| String como stdin | `<<< "str"` |
+| Multilínea literal | `<< 'EOF'` |
+| Redirigir todo el script | `exec >>log 2>&1` |
+| FD custom | `exec 3> f` · `echo x >&3` · `read -u 3` |
+| Guardar/restore stdout | `exec 3>&1; ...; exec 1>&3 3>&-` |
+| Salida de cmd como archivo | `diff <(a) <(b)` |
+| Duplicar en vivo | `cmd \| tee f` |
+| Leer línea segura | `while IFS= read -r l; do ...; done < f` |
+| NUL-delimited | `read -d ''` con `find -print0` |
+| Print exacto | `printf '%s\n' "$var"` |
+
+## Relacionadas
+
+- [[Bash Scripting - Fundamentos Básicos]] — quoting y expansión (los pasos que interactúan con el splitting de aquí)
+- [[Bash Scripting - Control de Flujo]] — `while read`, process substitution en bucles
+- [[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]] — `mapfile`, here-strings para parsing
+- [[Bash Scripting - Procesos y Señales]] — quién es el dueño de los fds (fork/herencia) y FIFOs en detalle
+- [[Bash Scripting - Patrones Comunes y Plantillas]] — logging con trap + exec en plantillas reales
+- [[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]] — SC2002 (`cat |`) y redirecciones en debugging
+- [[Comandos Básicos de Sistema y Red en Linux]] — `ss`, `curl`, `nc` para cuando `/dev/tcp` no basta

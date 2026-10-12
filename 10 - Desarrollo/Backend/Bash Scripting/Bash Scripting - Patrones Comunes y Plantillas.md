@@ -1,768 +1,490 @@
 ---
-title: "Bash Scripting - Patrones Comunes y Plantillas"
+aliases: ["Bash Patrones", "Bash Plantillas", "Script Skeleton Bash", "Idiomas y Recetas Bash"]
 tags:
-  - lang/bash
-  - concept/patterns
-  - concept/templates
-  - level/intermedio
-  - type/pattern
-  - area/scripting
-created: 2024-01-15
-updated: 2024-09-25
-status: active
+  - dev/backend/bash
+tipo: concepto
+estado: terminado
+creado: 2024-01-15
+actualizado: 2026-10-11
+relacionado:
+  - "[[Bash Scripting - Fundamentos Básicos]]"
+  - "[[Bash Scripting - Argumentos y Opciones]]"
+  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
+  - "[[Bash Scripting - Procesos y Señales]]"
+  - "[[Bash Scripting - Funciones y Scope]]"
+  - "[[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]"
+  - "[[Cron Jobs y Programación de Tareas]]"
+  - "[[Comandos Básicos de Sistema y Red en Linux]]"
+fuente: "https://www.gnu.org/software/bash/manual/bash.html"
 ---
 
 # Bash Scripting - Patrones Comunes y Plantillas
 
-> **Objetivo**: Catálogo de patrones reutilizables, plantillas base, y soluciones a problemas frecuentes.
+Colección de los patrones que separan un script de fin de semana de un script que corre en producción: esqueleto completo, temporales seguros, logs, idempotencia, paralelismo con `xargs`, reintentos, locks y las restricciones de correr bajo cron. Cada patrón es copiable y resuelto — los fundamentos de cada pieza están en las notas hermanas.
 
----
-
-## 1. Plantilla Base Profesional (Copiar-Pegar)
+## Esqueleto profesional (la plantilla maestra)
 
 ```bash
 #!/usr/bin/env bash
-# -*- mode: shell-script -*-
-# Descripción: [Una línea describiendo qué hace]
-# Autor: [Nombre] <[email]>
-# Versión: 1.0.0
-# Licencia: [MIT/Apache-2.0/GPL-3.0]
-
+# mi-script — una línea describiendo qué hace
+# Uso: mi-script [OPCIONES] <entrada>
 set -euo pipefail
 IFS=$'\n\t'
 
-# --- Constantes ---
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly VERSION="1.0.0"
-
-# Colores (auto-detecta terminal)
-if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-    readonly C_RESET=$'\e[0m' C_RED=$'\e[31m' C_GREEN=$'\e[32m'
-    readonly C_YELLOW=$'\e[33m' C_BLUE=$'\e[34m' C_CYAN=$'\e[36m'
-else
-    readonly C_RESET="" C_RED="" C_GREEN="" C_YELLOW="" C_BLUE="" C_CYAN=""
-fi
-
-# --- Logging ---
-log()   { printf '%b%s%b\n' "$C_BLUE"   "$*" "$C_RESET"; }
-ok()    { printf '%b%s%b\n' "$C_GREEN"  "$*" "$C_RESET"; }
-warn()  { printf '%b%s%b\n' "$C_YELLOW" "$*" "$C_RESET" >&2; }
-err()   { printf '%b%s%b\n' "$C_RED"    "$*" "$C_RESET" >&2; }
-die()   { err "$*"; exit 1; }
-debug() { [[ "${DEBUG:-}" == "1" ]] && printf '%b[DEBUG]%b %s\n' "$C_CYAN" "$C_RESET" "$*" >&2; }
+LOG_FILE="${LOG_FILE:-/var/log/${SCRIPT_NAME%.sh}.log}"
 
 # --- Utilidades ---
+die()  { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+log()  { printf '[%s] %s\n' "$(date '+%F %T')" "$*" | tee -a "$LOG_FILE" >&2; }
+
 usage() {
     cat <<EOF
-Uso: $SCRIPT_NAME [OPCIONES] <argumento_requerido> [args...]
+Uso: $SCRIPT_NAME [OPCIONES] <entrada>
 
-Descripción breve de qué hace el script.
+Descripción. Códigos: 0 ok · 1 error · 2 uso inválido.
 
 Opciones:
-  -h, --help       Mostrar esta ayuda y salir
-  -v, --verbose    Modo verboso (más output)
-  -q, --quiet      Modo silencioso (solo errores)
-  -V, --version    Mostrar versión y salir
-  --dry-run        Simular sin ejecutar cambios reales
-  --config FILE    Archivo de configuración (default: ~/.config/$SCRIPT_NAME.conf)
-
-Argumentos:
-  argumento_requerido   Descripción del argumento principal
-
-Variables de entorno:
-  DEBUG=1          Activar debug logging
-  NO_COLOR=1       Desactivar colores
-
-Ejemplos:
-  $SCRIPT_NAME archivo.txt
-  $SCRIPT_NAME -v --config /etc/miapp.conf entrada.dat
-  DEBUG=1 $SCRIPT_NAME dato
+  -h, --help      Ayuda
+  -V, --version   Versión
+  -n, --dry-run   Simular sin ejecutar
 EOF
 }
 
-# --- Configuración por Defecto ---
-VERBOSE=false
-QUIET=false
-DRY_RUN=false
-CONFIG_FILE="${HOME}/.config/${SCRIPT_NAME}.conf"
-
-# Cargar config si existe
-[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
-
-# --- Parseo de Argumentos ---
-parse_args() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            -h|--help) usage; exit 0 ;;
-            -v|--verbose) VERBOSE=true; shift ;;
-            -q|--quiet) QUIET=true; shift ;;
-            -V|--version) echo "$VERSION"; exit 0 ;;
-            --dry-run) DRY_RUN=true; shift ;;
-            --config) CONFIG_FILE="$2"; shift 2 ;;
-            --) shift; break ;;
-            -*) die "Opción desconocida: $1" ;;
-            *) break ;;
-        esac
-    done
-    
-    # Args posicionales restantes en $@
-    [[ $# -ge 1 ]] || { usage; die "Falta argumento requerido"; }
-}
-
-# --- Limpieza ---
+# --- Limpieza (rc preservado) ---
 cleanup() {
     local rc=$?
     [[ -n "${TMP_DIR:-}" && -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
-    exit $rc
+    exit "$rc"
 }
 trap cleanup EXIT
+trap 'exit 130' INT      # Ctrl+C → sale vía EXIT trap con rc correcto
+trap 'exit 143' TERM
 
-# --- Lógica Principal ---
-main() {
-    parse_args "$@"
-    
-    # Validaciones
-    command -v jq >/dev/null || die "Requerido: jq"
-    
-    log "Iniciando $SCRIPT_NAME v$VERSION"
-    debug "Args: $*"
-    
-    # Tu lógica aquí
-    procesar_entrada "$@"
-    
-    ok "Completado exitosamente"
-}
-
-# --- Funciones de Negocio ---
-procesar_entrada() {
-    local input="$1"
-    # ...
-}
-
-# --- Punto de Entrada ---
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
-```
-
----
-
-## 2. Patrones de Parsing CLI
-
-### 2.1 Subcomandos (Git-style)
-
-```bash
-cmd_init()    { log "Inicializando..."; }
-cmd_build()   { log "Construyendo..."; }
-cmd_deploy()  { log "Desplegando..."; }
-cmd_clean()   { log "Limpiando..."; }
-
-main() {
-    local subcmd="${1:-help}"
-    shift || true
-    
-    case $subcmd in
-        init)    cmd_init "$@" ;;
-        build)   cmd_build "$@" ;;
-        deploy)  cmd_deploy "$@" ;;
-        clean)   cmd_clean "$@" ;;
-        help|--help|-h) usage ;;
-        *) die "Subcomando desconocido: $subcmd. Use 'help'." ;;
-    esac
-}
-```
-
-### 2.2 Config File + ENV + CLI (Precedencia)
-
-```bash
-# 1. Defaults
-PORT=8080
-HOST="localhost"
-DEBUG=false
-
-# 2. Config file
-[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
-
-# 3. Environment variables
-PORT="${MYAPP_PORT:-$PORT}"
-HOST="${MYAPP_HOST:-$HOST}"
-DEBUG="${MYAPP_DEBUG:-$DEBUG}"
-
-# 4. CLI (máxima precedencia)
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --port) PORT="$2"; shift 2 ;;
-        --host) HOST="$2"; shift 2 ;;
-        --debug) DEBUG=true; shift ;;
-    esac
-done
-```
-
----
-
-## 3. Patrones de Procesamiento de Archivos
-
-### 3.1 Leer Archivo Línea a Línea (Robusto)
-
-```bash
-procesar_lineas() {
-    local archivo="$1"
-    local linea
-    
-    while IFS= read -r linea; do
-        [[ -z "$linea" ]] && continue  # Saltar vacías
-        [[ "$linea" =~ ^# ]] && continue  # Saltar comentarios
-        
-        procesar_linea "$linea"
-    done < "$archivo"
-}
-```
-
-### 3.2 Leer CSV Simple
-
-```bash
-leer_csv() {
-    local archivo="$1"
-    local IFS=","
-    local -a headers
-    local -a valores
-    
-    # Leer headers
-    IFS= read -r -a headers < "$archivo"
-    
-    # Procesar filas
-    while IFS= read -r -a valores; do
-        (( ${#valores[@]} != ${#headers[@]} )) && continue
-        
-        declare -A fila
-        for i in "${!headers[@]}"; do
-            fila["${headers[i]}"]="${valores[i]}"
-        done
-        
-        procesar_fila fila
-    done < <(tail -n +2 "$archivo")
-}
-```
-
-### 3.3 Procesar Archivos en Paralelo
-
-```bash
-procesar_archivos_paralelo() {
-    local max_jobs=4
-    local -a pids=()
-    
-    for archivo in "$@"; do
-        # Control de concurrencia
-        while (( ${#pids[@]} >= max_jobs )); do
-            for i in "${!pids[@]}"; do
-                if ! kill -0 "${pids[i]}" 2>/dev/null; then
-                    wait "${pids[i]}" 2>/dev/null
-                    unset 'pids[i]'
-                fi
-            done
-            pids=("${pids[@]}")
-            sleep 0.1
-        done
-        
-        procesar_archivo "$archivo" &
-        pids+=($!)
-    done
-    
-    # Esperar todos
-    for pid in "${pids[@]}"; do wait "$pid"; done
-}
-```
-
----
-
-## 4. Patrones de Red y API
-
-### 4.1 HTTP Client Robusto
-
-```bash
-http_get() {
-    local url="$1"
-    local output="${2:-}"
-    local max_retries=3
-    local retry=0
-    
-    while (( retry < max_retries )); do
-        if [[ -n "$output" ]]; then
-            curl -fsSL \
-                --connect-timeout 5 \
-                --max-time 30 \
-                --retry 0 \
-                -o "$output" \
-                "$url" && return 0
-        else
-            curl -fsSL \
-                --connect-timeout 5 \
-                --max-time 30 \
-                --retry 0 \
-                "$url" && return 0
-        fi
-        ((retry++))
-        sleep $(( 2 ** retry ))
-    done
-    return 1
-}
-
-http_post_json() {
-    local url="$1"
-    local json="$2"
-    curl -fsSL -X POST \
-        -H "Content-Type: application/json" \
-        -d "$json" \
-        "$url"
-}
-```
-
-### 4.2 API con Autenticación
-
-```bash
-api_call() {
-    local method="$1"
-    local endpoint="$2"
-    local data="${3:-}"
-    
-    local auth_header="Authorization: Bearer ${API_TOKEN:?Falta API_TOKEN}"
-    local headers=(-H "$auth_header" -H "Accept: application/json")
-    
-    [[ -n "$data" ]] && headers+=(-H "Content-Type: application/json")
-    
-    curl -fsSL -X "$method" \
-        "${headers[@]}" \
-        ${data:+-d "$data"} \
-        "${API_BASE_URL}${endpoint}"
-}
-```
-
----
-
-## 5. Patrones de Sistema
-
-### 5.1 Lock Exclusivo (Single Instance)
-
-```bash
-# Al inicio de main()
-obtener_lock() {
-    local lock_file="/var/lock/${SCRIPT_NAME}.lock"
-    exec {lock_fd}>"$lock_file" || die "No se pudo abrir lock"
-    flock -n "$lock_fd" || die "Otra instancia ejecutándose (PID: $(cat "$lock_file" 2>/dev/null))"
-    echo $$ > "$lock_file"
-}
-obtener_lock
-```
-
-### 5.2 PID File para Daemons
-
-```bash
-escribir_pid() {
-    local pid_file="/var/run/${SCRIPT_NAME}.pid"
-    echo $$ > "$pid_file"
-}
-
-leer_pid() {
-    local pid_file="/var/run/${SCRIPT_NAME}.pid"
-    [[ -f "$pid_file" ]] && cat "$pid_file"
-}
-
-matar_proceso_anterior() {
-    local old_pid=$(leer_pid)
-    if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
-        log "Matando proceso anterior: $old_pid"
-        kill -TERM "$old_pid"
-        sleep 2
-        kill -0 "$old_pid" 2>/dev/null && kill -KILL "$old_pid"
-    fi
-}
-```
-
-### 5.3 Rotación de Logs Simple
-
-```bash
-rotar_log() {
-    local log_file="$1"
-    local max_size="${2:-10M}"
-    local max_files="${3:-5}"
-    
-    [[ -f "$log_file" ]] || return 0
-    
-    local size=$(stat -c%s "$log_file" 2>/dev/null || stat -f%z "$log_file")
-    local max_bytes
-    case $max_size in
-        *K) max_bytes=$(( ${max_size%K} * 1024 )) ;;
-        *M) max_bytes=$(( ${max_size%M} * 1024 * 1024 )) ;;
-        *G) max_bytes=$(( ${max_size%G} * 1024 * 1024 * 1024 )) ;;
-        *) max_bytes=$max_size ;;
-    esac
-    
-    if (( size > max_bytes )); then
-        for ((i=max_files-1; i>=1; i--)); do
-            [[ -f "${log_file}.$i" ]] && mv "${log_file}.$i" "${log_file}.$((i+1))"
-        done
-        mv "$log_file" "${log_file}.1"
-        touch "$log_file"
-    fi
-}
-```
-
----
-
-## 6. Patrones de Datos
-
-### 6.1 Cache Simple con TTL
-
-```bash
-declare -A CACHE
-declare -A CACHE_TTL
-
-cache_get() {
-    local key="$1"
-    local ttl="${2:-300}"  # 5 min default
-    local now=$(date +%s)
-    
-    if [[ -v CACHE[$key] ]] && (( now - CACHE_TTL[$key] < ttl )); then
-        echo "${CACHE[$key]}"
-        return 0
-    fi
-    return 1
-}
-
-cache_set() {
-    local key="$1" value="$2"
-    CACHE[$key]="$value"
-    CACHE_TTL[$key]=$(date +%s)
-}
-
-# Uso
-if ! resultado=$(cache_get "clave_api"); then
-    resultado=$(curl -s "https://api.ejemplo.com/dato")
-    cache_set "clave_api" "$resultado"
-fi
-```
-
-### 6.2 Contador Atómico (Archivo)
-
-```bash
-incrementar_contador() {
-    local file="$1"
-    local lock_file="${file}.lock"
-    
-    exec 9>"$lock_file"
-    flock -x 9
-    
-    local count=0
-    [[ -f "$file" ]] && count=$(cat "$file")
-    count=$((count + 1))
-    echo "$count" > "$file"
-    
-    flock -u 9
-    exec 9>&-
-    echo "$count"
-}
-```
-
----
-
-## 7. Patrones de UI/UX en Terminal
-
-### 7.1 Spinner / Progress Indicator
-
-```bash
-spinner() {
-    local pid=$1
-    local delay=0.1
-    local spinstr='|/-\'
-    local msg="${2:-Procesando...}"
-    
-    tput civis  # Ocultar cursor
-    while kill -0 "$pid" 2>/dev/null; do
-        local temp=${spinstr#?}
-        printf " [%c] %s\r" "$spinstr" "$msg"
-        spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-    done
-    printf " [✓] %s\n" "$msg"
-    tput cnorm  # Restaurar cursor
-}
-
-# Uso
-proceso_largo &
-spinner $! "Descargando datos..."
-```
-
-### 7.2 Barra de Progreso
-
-```bash
-progress_bar() {
-    local current=$1 total=$2 width=50
-    local percent=$(( current * 100 / total ))
-    local filled=$(( current * width / total ))
-    local empty=$(( width - filled ))
-    
-    printf "\r["
-    printf "%${filled}s" | tr ' ' '█'
-    printf "%${empty}s" | tr ' ' '░'
-    printf "] %3d%%" "$percent"
-    
-    (( current == total )) && echo
-}
-
-# Uso
-for i in {1..100}; do
-    progress_bar $i 100
-    sleep 0.05
-done
-```
-
-### 7.3 Confirmación Interactiva
-
-```bash
-confirmar() {
-    local prompt="${1:-¿Continuar?}"
-    local default="${2:-N}"
-    local yn
-    
-    [[ $default == [Yy]* ]] && prompt+=" [S/n] " || prompt+=" [s/N] "
-    
-    while true; do
-        read -rp "$prompt" yn
-        yn=${yn:-$default}
-        case $yn in
-            [SsYy]*) return 0 ;;
-            [Nn]*) return 1 ;;
-            *) echo "Responda sí o no." ;;
+# --- Argumentos ---
+parse_args() {
+    DRY_RUN=0
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)   usage; exit 0 ;;
+            -V|--version) echo "$VERSION"; exit 0 ;;
+            -n|--dry-run) DRY_RUN=1; shift ;;
+            --) shift; break ;;
+            -*) usage_error "opción desconocida: $1" ;;
+            *) break ;;
         esac
     done
+    [[ $# -ge 1 ]] || usage_error "falta <entrada>"
+    INPUT="$1"
+}
+usage_error() { printf '[ERROR] %s\n\n' "$*" >&2; usage >&2; exit 2; }
+
+# --- Lógica ---
+main() {
+    parse_args "$@"
+    [[ -f "$INPUT" ]] || die "no existe: $INPUT"
+    command -v jq >/dev/null || die "requiere: jq"
+    log "iniciando $SCRIPT_NAME v$VERSION (dry_run=$DRY_RUN)"
+    # ... trabajo ...
+    log "completado"
 }
 
-# Uso
-confirmar "¿Borrar archivos temporales?" && limpiar_temp
+main "$@"
 ```
 
-### 7.4 Selector de Menú
+Las decisiones del esqueleto, una por una: shebang con `env` (portabilidad) · strict mode (ver [[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]) · `IFS` reforzado · constantes `readonly` · `die`/`log` a stderr · `usage` accesible por `-h` **antes** de cualquier validación · traps que preservan `rc=$?` · `main "$@"` al final. La guardia `if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi` solo si el script también se sourceará (tests) — ver [[Bash Scripting - Funciones y Scope]].
+
+## Temporales seguros: `mktemp` + `trap`
+
+**Nunca** `tmp="/tmp/mi_script_$$"` ni peor `/tmp/mi.tmp` (symlink attack, colisiones, race conditions):
 
 ```bash
-menu_seleccionar() {
-    local prompt="$1"
-    shift
-    local opciones=("$@")
-    local seleccion
-    
-    echo "$prompt"
-    select seleccion in "${opciones[@]}" "Cancelar"; do
-        [[ -n "$seleccion" ]] || continue
-        [[ "$seleccion" == "Cancelar" ]] && return 1
-        echo "$seleccion"
-        return 0
-    done
-}
+tmp_file=$(mktemp)                 # → /tmp/tmp.Xa1b2C (nombre aleatorio, permisos 600)
+tmp_dir=$(mktemp -d)               # directorio
+mktemp -t "miapp.XXXXXX"           # con template (X obligatorias; -t usa TMPDIR)
+mktemp /var/tmp/miapp.XXXXXX       # en un fs específico
 
-# Uso
-opcion=$(menu_seleccionar "Elige entorno:" "desarrollo" "staging" "producción")
+# Patrón correcto: registrar y limpiar SIEMPRE
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT      # el trap garantiza la limpieza aunque falle
+
+# Escritura atómica sobre el destino
+printf '%s\n' "$contenido" > "$TMP_DIR/out" && mv "$TMP_DIR/out" "$destino"
 ```
 
----
+`mktemp` crea con `0600` y nombre no adivinable — la combinación `0600 + aleatorio` elimina la carrera "otro usuario lee/escribe tu temporal". `mv` dentro del mismo filesystem es **atómico**: el destino nunca se ve a medias.
 
-## 8. Patrones de Manejo de Errores
-
-### 8.1 Reintento con Backoff
+## Idempotencia: operaciones que pueden repetirse
 
 ```bash
-reintentar() {
-    local max_intentos=${1:-3}
-    local delay_base=${2:-1}
-    local max_delay=${3:-30}
-    shift 3
-    
-    local intento=0
-    while (( intento < max_intentos )); do
-        if "$@"; then
-            return 0
-        fi
-        ((intento++))
-        if (( intento < max_intentos )); then
-            local delay=$(( delay_base * 2 ** (intento - 1) ))
-            (( delay > max_delay )) && delay=$max_delay
-            # Jitter ±25%
-            local jitter=$(( delay / 4 ))
-            delay=$(( delay + RANDOM % (2 * jitter + 1) - jitter ))
-            (( delay < 1 )) && delay=1
-            warn "Intento $intento falló. Reintentando en ${delay}s..."
-            sleep "$delay"
-        fi
+# "Crear directorio si no existe" — mkdir solo falla si el destino NO es directorio
+mkdir -p "$destino_dir"
+
+# "Asegurar línea en archivo" (grep -qxF: exacta, sin regex, quiet)
+grep -qxF 'export EDITOR=vim' ~/.bashrc || echo 'export EDITOR=vim' >> ~/.bashrc
+
+# "Estado conocido" — los comandos de management ya son idempotentes:
+systemctl is-active --quiet svc || systemctl start svc     # solo arranca si no corre
+[[ -L "$link" ]] || ln -s "$real" "$link"                  # symlink solo si falta
+
+# "Procesar solo lo pendiente" — marcador de estado
+state_file="$TMP_DIR/ultimo_procesado"
+[[ -f "$state_file" ]] && last=$(cat "$state_file") || last=0
+for item in $(seq $((last + 1)) "$total"); do
+    procesar "$item"; echo "$item" > "$state_file"
+done
+```
+
+Patrón general: **preguntar el estado antes de actuar** (`mkdir -p`, `|| append`, `is-active ||`) o **marcar el progreso** para retomar. Verificado en `mkdir -p`: segundo `mkdir -p` existente sale con rc 0 sin error.
+
+## Procesamiento de archivos a prueba de todo
+
+```bash
+# EL patrón: find -print0 + read -d '' — sobrevive a espacios, comillas, \n y \ en nombres
+while IFS= read -r -d '' archivo; do
+    printf 'procesando: %s\n' "$archivo"
+done < <(find . -type f -name '*.txt' -print0)
+
+# Batch con xargs -0 (paralelizable, sin subshell del while)
+find . -type f -name '*.txt' -print0 | xargs -0 -n 10 rm -f --
+
+# Lectura de líneas robusta (verificado contra última línea sin \n)
+while IFS= read -r linea || [[ -n "$linea" ]]; do
+    [[ "$linea" =~ ^#|^[[:space:]]*$ ]] && continue     # comentarios y vacías
+    procesar "$linea"
+done < "$archivo"
+
+# Lotes grandes: mapfile en vez de 10k reads (Bash 4+)
+mapfile -t -d '' -t archivos < <(find . -print0)
+```
+
+> [!warning] El `--` en `rm`/`mv`/`cp`
+> `find ... -exec rm -f {} \;` con un archivo llamado `-rf` borra el directorio actual. La forma segura: `xargs -0 rm -f --` — el `--` corta el parsing de flags. Patrón de seguridad complementario en [[Bash Scripting - Fundamentos Básicos]].
+
+## `xargs`: batching y paralelismo
+
+`xargs` convierte stdin en argumentos de otro comando. Verificado todo lo siguiente:
+
+```bash
+printf 'a b\nc\n' | xargs -0 -n1 echo "ARG:"   # → ARG: a b / ARG: c (con -0: "a b" es UN argumento)
+
+seq 1 6 | xargs -P3 -I{} bash -c 'echo "job {} on pid $BASHPID"'
+# → corre hasta 3 en paralelo, cada job en un PID distinto (verificado)
+
+printf '/no/existe\n' | xargs cat   # → rc=123 (cualquier hijo falló con 1-125 → xargs 123)
+: | xargs -r echo "no corre"        # → -r: no ejecuta nada con stdin vacío (GNU)
+
+find . -name '*.log' -print0 | xargs -0 -n 50 -P 4 gzip -9   # lote de 50, 4 en paralelo
+```
+
+| Flag | Efecto |
+|---|---|
+| `-0` | Entrada NUL-delimited (el match obligatorio de `find -print0`) |
+| `-n N` | Máximo N argumentos por invocación |
+| `-P N` | Hasta N procesos en paralelo |
+| `-I{}` | Un argumento por línea, `{}` como placeholder (implica `-L1`) |
+| `-r` | No ejecutar si stdin vacío (GNU; sin él, ejecuta el comando **sin args**) |
+| `-L N` | N líneas por invocación |
+| `--` | Fin de flags para xargs; lo que sigue es el comando |
+
+Códigos de salida de `xargs`: `123` = algún hijo devolvió 1-125 · `124` = el hijo salió con 255 · `125` = xargs fue señalado · `126` = comando no ejecutable · `127` = comando no encontrado.
+
+> [!info] `xargs -P` vs `wait` a mano
+> `xargs -P4` es la forma más simple de paralelismo: controla concurrencia, hace batching y propaga rc. El patrón manual con `cmd & pid=$!` + `wait` (ver en esta nota "Worker pool") solo se justifica cuando necesitás el PID de cada job, lógica de reintento por job, o streams de salida entrelazados controlados.
+
+## Retry con backoff exponencial + jitter
+
+```bash
+reintentar() {   # reintentar <intentos> <base_s> <max_s> -- <comando...>
+    local max=${1:-3} base=${2:-1} max_delay=${3:-60}; shift 3
+    [[ "$1" == "--" ]] && shift
+    local intento=0 delay
+    while (( intento < max )); do
+        if "$@"; then return 0; fi
+        (( intento += 1 ))
+        (( intento >= max )) && break
+        delay=$(( base * 2 ** (intento - 1) ))
+        (( delay > max_delay )) && delay=$max_delay
+        local jitter=$(( delay / 4 ))
+        delay=$(( delay + RANDOM % (2 * jitter + 1) - jitter ))   # jitter ±25%
+        (( delay < 1 )) && delay=1
+        printf '[WARN] intento %d/%d falló; reintentando en %ds\n' "$intento" "$max" "$delay" >&2
+        sleep "$delay"
     done
-    err "Falló tras $max_intentos intentos"
+    printf '[ERROR] falló tras %d intentos\n' "$max" >&2
     return 1
 }
 
-# Uso
-reintentar 3 2 30 curl -fsSL -o archivo.zip "https://ejemplo.com/archivo.zip"
+# Uso:
+reintentar 5 2 60 -- curl -fsSL --connect-timeout 5 -o "$TMP_DIR/datos.json" "$URL"
 ```
 
-### 8.2 Circuit Breaker Simple
+El **jitter** (variación aleatoria del delay) no es cosmético: sin él, N clientes reintentando al mismo tiempo sincronizan y revientan el servidor al recovery (*thundering herd*). Para HTTP, `curl --retry 3 --retry-delay 2 --retry-connrefused` cubre el caso simple.
+
+## Logging
 
 ```bash
-declare -A CB_STATE
-declare -A CB_FAILURES
-declare -A CB_LAST_FAIL
+# Nivel configurable + timestamp + stderr (componible)
+LOG_LEVEL="${LOG_LEVEL:-info}"
+declare -A _lvl=([debug]=0 [info]=1 [warn]=2 [error]=3)
 
-circuit_breaker() {
-    local name="$1"
-    shift
-    local threshold=5
-    local timeout=60
-    
-    local now=$(date +%s)
-    local failures=${CB_FAILURES[$name]:-0}
-    local last_fail=${CB_LAST_FAIL[$name]:-0}
-    local state=${CB_STATE[$name]:-closed}
-    
-    # Reset si pasó timeout
-    if (( now - last_fail > timeout )); then
-        CB_FAILURES[$name]=0
-        CB_STATE[$name]=closed
-        state=closed
-    fi
-    
-    if [[ $state == "open" ]]; then
-        err "Circuit breaker OPEN para $name"
-        return 1
-    fi
-    
-    if "$@"; then
-        CB_FAILURES[$name]=0
-        CB_STATE[$name]=closed
-        return 0
-    else
-        CB_FAILURES[$name]=$((failures + 1))
-        CB_LAST_FAIL[$name]=$now
-        if (( CB_FAILURES[$name] >= threshold )); then
-            CB_STATE[$name]=open
-            warn "Circuit breaker OPENED para $name tras $threshold fallos"
-        fi
-        return 1
-    fi
+_log() {
+    local nivel="$1"; shift
+    (( ${_lvl[$nivel]} >= ${_lvl[$LOG_LEVEL]} )) || return 0
+    printf '%s [%s] %s\n' "$(date '+%FT%T')" "${nivel^^}" "$*" >&2
+}
+debug() { _log debug "$@"; }
+info()  { _log info  "$@"; }
+warn()  { _log warn  "$@"; }
+error() { _log error "$@"; }
+die()   { error "$@"; exit 1; }
+
+info "arrancando"                    # → 2026-10-11T12:00:00 [INFO] arrancando
+DEBUG=1 _log ...                     # o por env: LOG_LEVEL=debug ./script.sh
+```
+
+Rotación simple propia (para logs que escribís desde el script) y delegada (para logs de servicios: logrotate del sistema):
+
+```bash
+rotar_si_grande() {   # rotar_si_grande <archivo> <max_bytes> <copias>
+    local f=$1 max=${2:-10485760} keep=${3:-3} size
+    [[ -f "$f" ]] || return 0
+    size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")   # GNU || BSD
+    (( size > max )) || return 0
+    for (( i=keep-1; i>=1; i-- )); do
+        [[ -f "$f.$i" ]] && mv "$f.$i" "$f.$((i+1))"
+    done
+    mv "$f" "$f.1"; : > "$f"
 }
 ```
 
----
-
-## 9. Snippets Útiles (One-Liners)
+## Locks: instancias únicas
 
 ```bash
-# Timestamp ISO 8601
-date -u +'%Y-%m-%dT%H:%M:%SZ'
+# flock (util-linux) — el estándar: bloqueo advisory sobre un fd, se libera SOLO al morir
+obtener_lock() {   # retorna 0 si obtuvo el lock, 1 si ya hay instancia
+    exec {LOCK_FD}>"${XDG_RUNTIME_DIR:-/tmp}/${SCRIPT_NAME}.lock" || return 1
+    flock -n "$LOCK_FD" || return 1
+    printf '%s\n' "$$" >&"$LOCK_FD"    # registrar PID para diagnóstico
+}
 
-# UUID v4
-cat /proc/sys/kernel/random/uuid  # Linux
-# python3 -c "import uuid; print(uuid.uuid4())"  # Portable
+# Uso en main:
+if ! obtener_lock; then die "otra instancia ejecutándose"; fi
 
-# Hash de archivo
-sha256sum archivo | cut -d' ' -f1
-
-# Tamaño legible
-du -sh directorio
-ls -lh archivo
-
-# IPs locales
-ip -br addr show | awk '$2=="UP"{print $3}' | cut -d/ -f1
-
-# Puertos en uso
-ss -tulpn | grep LISTEN
-
-# Procesos por usuario
-ps -u "$USER" -o pid,cmd
-
-# Matar procesos por patrón
-pkill -f "patrón_comando"
-
-# Espacio en disco
-df -h / | awk 'NR==2{print $5 " usado de " $2}'
-
-# Memoria
-free -h | awk 'NR==2{print $3 "/" $2}'
-
-# CPU load
-uptime | awk -F'load average:' '{print $2}'
-
-# JSON pretty print
-jq . archivo.json
-cat archivo.json | jq .
-
-# YAML a JSON
-python3 -c "import yaml, json, sys; print(json.dumps(yaml.safe_load(sys.stdin)))"
-
-# Base64 encode/decode
-echo "texto" | base64
-echo "dGV4dG8=" | base64 -d
-
-# URL encode/decode
-python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "texto con espacios"
-python3 -c "import urllib.parse, sys; print(urllib.parse.unquote(sys.argv[1]))" "texto%20con%20espacios"
+# Sección crítica entre procesos:
+(
+    flock -x 200
+    contador=$(( $(cat /tmp/contador 2>/dev/null || echo 0) + 1 ))
+    echo "$contador" > /tmp/contador
+) 200>/tmp/contador.lock
 ```
 
----
+Por qué `flock` y no el `mkdir` mítico: `flock` **se libera automáticamente** si el proceso muere (el kernel cierra el fd); los lock files de `mkdir`/`touch` quedan huérfanos tras un crash y bloquean el arranque siguiente. Fallback portable: `mkdir` atómico + trap que haga `rmdir` (ver el semáforo en la versión histórica de abajo).
 
-## 10. Estructura de Proyecto Recomendada
+> [!tip] PID files honestos
+> Un PID file solo es válido si verificás que el PID sigue vivo **y** que es el mismo proceso: `kill -0 "$pid" 2>/dev/null` puede dar positivo por un PID reciclado. `flock` elimina toda esta clase de bugs — ver [[Bash Scripting - Procesos y Señales]] para la mecánica.
+
+## Worker pool a mano (cuando `xargs -P` no basta)
+
+```bash
+MAX_JOBS=4; pids=()
+lanzar() {   # lanzar <funcion> <args...> — respeta el cupo
+    while (( ${#pids[@]} >= MAX_JOBS )); do
+        local i
+        for i in "${!pids[@]}"; do
+            if ! kill -0 "${pids[i]}" 2>/dev/null; then
+                wait "${pids[i]}" || failed+=("$i")    # reaping + captura de rc
+                unset 'pids[i]'
+            fi
+        done
+        pids=("${pids[@]}")   # reindexar
+        sleep 0.1
+    done
+    "$@" & pids+=("$!")
+}
+
+for item in "${items[@]}"; do lanzar procesar_item "$item"; done
+for pid in "${pids[@]}"; do wait "$pid"; done
+```
+
+Variante moderna y más limpia: `wait -n` (bash 4.3+) — esperar al primero que termine en vez del polling con `kill -0`:
+
+```bash
+active=0
+for item in "${items[@]}"; do
+    (( active >= MAX_JOBS )) && { wait -n; (( active -= 1 )); }
+    "$item_job" "$item" &; (( active += 1 ))
+done
+wait
+```
+
+## Patrones de UI en terminal
+
+```bash
+# Confirmación con default
+confirmar() {
+    local r
+    read -r -p "${1:-¿Continuar?} [s/N] " r
+    [[ "$r" == [sS] ]]
+}
+
+# Spinner mientras corre un job
+spinner() {   # spinner <pid> <mensaje>
+    local pid=$1 msg="${2:-Procesando}" c='|/-\\' i=0
+    tput civis
+    while kill -0 "$pid" 2>/dev/null; do
+        printf '\r [%c] %s' "${c:i++%4:1}" "$msg"; sleep 0.1
+    done
+    tput cnorm; printf '\r [✓] %s\n' "$msg"
+}
+curl -sO "$URL" & spinner $! "Descargando"
+
+# Barra de progreso
+progress() {   # progress <actual> <total>
+    local pct=$(( $1 * 100 / $2 )) filled=$(( $1 * 40 / $2 ))
+    printf '\r[%-40s] %3d%%' "$(printf '%*s' "$filled" '' | tr ' ' '#')" "$pct"
+    (( $1 == $2 )) && echo
+}
+```
+
+## Precedencia de configuración y dry-run
+
+```bash
+# defaults → archivo → env → CLI (detalle en Argumentos y Opciones)
+PORT="${PORT:-8080}"
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/app.conf" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/app.conf"
+PORT="${APP_PORT:-$PORT}"
+# ... luego parse_args que pisa todo
+
+# Dry-run: centralizar toda ejecución destructiva en una función
+ejecutar() {   # ejecutar <comando...>
+    if (( DRY_RUN )); then printf '[DRY] %s\n' "$*" >&2; return 0; fi
+    "$@"
+}
+ejecutar rm -f "$archivo_viejo"
+ejecutar mv "$tmp" "$destino"
+```
+
+Toda acción destructiva **pasa por `ejecutar`** — el dry-run deja de ser un afterthought y se prueba el flujo completo sin riesgo.
+
+## HTTP robusto
+
+```bash
+http_get() {   # http_get <url> [destino]
+    curl -fsSL --connect-timeout 5 --max-time 60 \
+         ${2:+-o "$2"} "$1"
+}
+# -f: falla en HTTP ≥ 400 (sin él, un 500 devuelve la página de error con rc=0)
+# -sS: silencioso pero muestra errores reales · -L: seguir redirects
+
+api_call() {
+    curl -fsSL --connect-timeout 5 \
+         -H "Authorization: Bearer ${API_TOKEN:?Falta API_TOKEN}" \
+         -H 'Accept: application/json' \
+         -H 'Content-Type: application/json' \
+         -d "$json" "$URL"
+}
+```
+
+El patrón de smoke-test de puerto sin dependencias (bash builtin): `exec 3<>/dev/tcp/host/port` — ver [[Bash Scripting - Entrada-Salida y Redirección]].
+
+## Cron-friendly: scripts sin terminal
+
+Los scripts bajo [[Cron Jobs y Programación de Tareas]] corren con un entorno mínimo y sin terminal. Checklist:
+
+```bash
+#!/usr/bin/env bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"   # 1. PATH fijo
+export LC_ALL=C                                   # 2. locale estable (sort/grep/date)
+set -euo pipefail                                 # 3. strict mode
+cd /                                              # 4. cwd conocido (cron arranca en $HOME)
+
+LOG=/var/log/mi-script.log
+{
+    echo "=== $(date -u +'%FT%TZ') inicio ==="
+    /usr/local/bin/paso1.sh                        # 5. rutas ABSOLUTAS (el PATH de cron es mínimo)
+    /usr/bin/flock /var/lock/mi-script.lock /usr/local/bin/paso2.sh
+} >> "$LOG" 2>&1                                  # 6. TODO redirigido: cron mailtea stdout/stderr basura
+```
+
+Errores clásicos de cron que este patrón resuelve: comando "no encontrado" (PATH de cron = `/usr/bin:/bin`) · `~` no expandida (cron no pasa por el shell de login) · variables de entorno vacías · mails de cron con warnings que nadie lee (redirigir todo) · ejecuciones solapadas (flock).
+
+## One-liners de utilidad
+
+```bash
+date -u +'%Y-%m-%dT%H:%M:%SZ'                  # timestamp ISO-8601 UTC
+cat /proc/sys/kernel/random/uuid               # UUID v4
+sha256sum archivo | cut -d' ' -f1              # hash
+ip -br addr show | awk '$2=="UP"{print $3}'    # IPs activas
+ss -tulpn | grep LISTEN                        # puertos en escucha
+df -h / | awk 'NR==2{print $5" usado de "$2}'
+du -sh -- * | sort -h | tail                   # directores más pesados
+jq -r '.items[] | select(.activo) | .id' f.json
+find . -type f -empty                          # archivos vacíos
+find . -type f -mtime +30 -delete              # (>30 días) — probar primero sin -delete
+grep -rn 'patrón' --include='*.sh' .           # búsqueda recursiva filtrada
+```
+
+Detalle de cada uno en [[Comandos Básicos de Sistema y Red en Linux]].
+
+## Estructura de proyecto y Makefile
 
 ```
 mi-proyecto/
-├── bin/
-│   └── mi-script          # Script principal (ejecutable)
-├── lib/
-│   ├── common.sh          # Funciones compartidas
-│   ├── logging.sh         # Logging functions
-│   ├── http.sh            # HTTP client
-│   └── config.sh          # Config parsing
-├── config/
-│   └── default.conf       # Configuración por defecto
-├── test/
-│   ├── test_mi_script.bats
-│   └── fixtures/
-├── docs/
-│   └── README.md
-├── .shellcheckrc          # Configuración ShellCheck
-├── .gitignore
-├── Makefile               # Comandos comunes
-└── README.md
+├── bin/mi-script           # ejecutable principal
+├── lib/{common,logging}.sh # bibliotecas sourceadas (con guarda _LOADED)
+├── test/                   # bats + fixtures
+├── .shellcheckrc           # disables globales documentados
+└── Makefile
 ```
-
-### Makefile Estándar
 
 ```makefile
 SHELL := /usr/bin/env bash
-SCRIPTS := $(wildcard bin/*.sh)
-
-.PHONY: all lint test install clean
-
+.PHONY: all lint test
 all: lint test
-
-lint:
-	shellcheck $(SCRIPTS) lib/*.sh
-
-test:
-	bats test/
-
-install:
-	install -m 755 bin/mi-script /usr/local/bin/mi-script
-
-clean:
-	rm -rf /tmp/mi-script-*
+lint:  ; shellcheck bin/* lib/*.sh
+test:  ; bats test/
 ```
 
----
+## Errores comunes
 
-## 11. Referencias Cruzadas
+1. **`tmp="/tmp/x.$$"`** — predecible y con race. `mktemp` siempre.
+2. **Cleanup sin `rc=$?`** — el script reporta el rc del `rm` en vez del error real.
+3. **`find | while read`** con `read` sin `-d ''` — filenames con espacios partidos en dos. `-print0` + `read -d ''`.
+4. **`xargs` sin `-r` en GNU** — con stdin vacío ejecuta el comando una vez igual (borra/encribe de más).
+5. **`xargs` sin `-0`** — vuelve a partir por espacios todo lo que `find -print0` juntó.
+6. **Cron sin PATH/redirecciones** — "command not found" y mails basura. Sección cron de arriba.
+7. **Locks con `mkdir` sin cleanup** — lock huérfano tras crash bloquea el próximo arranque. `flock`.
+8. **Paralelismo sin cupo** — `for ...; do cmd & done` en 50k archivos = fork bomb. `xargs -P` o worker pool.
+9. **Retry sin jitter** — synchronized stampede al recovery del servicio.
 
-- [Fundamentos Básicos](./Bash%20Scripting%20-%20Fundamentos%20B%C3%A1sicos.md) - Plantilla base
-- [Argumentos y Opciones](./Bash%20Scripting%20-%20Argumentos%20y%20Opciones.md) - Parsing CLI
-- [Entrada-Salida y Redirección](./Bash%20Scripting%20-%20Entrada-Salida%20y%20Redirecci%C3%B3n.md) - Patrones de archivos
-- [Procesos y Señales](./Bash%20Scripting%20-%20Procesos%20y%20Se%C3%B1ales.md) - Locks, daemons
-- [Debugging y Buenas Prácticas](./Bash%20Scripting%20-%20Debugging,%20Buenas%20Pr%C3%A1cticas%20y%20ShellCheck.md)
+## Cheatsheet
 
----
+| Patrón | Forma |
+|---|---|
+| Temporal seguro | `d=$(mktemp -d); trap 'rm -rf "$d"' EXIT` |
+| Atomic write | `> "$tmp" && mv "$tmp" "$destino"` |
+| Idempotente | `mkdir -p` · `grep -qxF x f \|\| echo x >> f` |
+| Archivos raros | `find . -print0 \| xargs -0 -n10 cmd --` |
+| Línea robusta | `while IFS= read -r l \|\| [[ -n $l ]]; do ...; done < f` |
+| Paralelo simple | `seq 1 N \| xargs -P4 -I{} cmd {}` |
+| Paralelo fino | worker pool con `wait -n` |
+| Retry | `reintentar 5 2 60 -- cmd` (backoff ×2 + jitter) |
+| Lock único | `exec {fd}>lock; flock -n "$fd" \|\| die` |
+| Dry-run | wrapper `ejecutar()` en toda acción destructiva |
+| Logging | nivel + timestamp + stderr vía `_log` |
+| Cron | PATH fijo, rutas absolutas, `>> log 2>&1`, flock |
 
-*Etiquetas: #bash #patrones #plantillas #templates #cli #http #daemon #lock #cache #spinner #progress #retry #circuit-breaker #makefile*
+## Relacionadas
+
+- [[Bash Scripting - Fundamentos Básicos]] — la plantilla mínima y el quoting que sostiene todo
+- [[Bash Scripting - Argumentos y Opciones]] — `parse_args`/`usage` del esqueleto en detalle
+- [[Bash Scripting - Entrada-Salida y Redirección]] — redirecciones de log, here-docs en templates
+- [[Bash Scripting - Procesos y Señales]] — traps EXIT/TERM, `wait -n`, flock vs PID files
+- [[Bash Scripting - Funciones y Scope]] — librerías sourceadas con guardas
+- [[Bash Scripting - Control de Flujo]] — `case` dispatcher y bucles de archivos
+- [[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]] — linting y testing de estos patrones
+- [[Bash Scripting - Aritmética y Números Aleatorios]] — jitter, backoff, contadores
+- [[Cron Jobs y Programación de Tareas]] — el entorno hostil donde corren estos scripts
+- [[Comandos Básicos de Sistema y Red en Linux]] — los comandos que componen los one-liners
