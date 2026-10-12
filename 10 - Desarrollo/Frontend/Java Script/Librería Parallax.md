@@ -1,38 +1,71 @@
 ---
+aliases: ["Parallax", "parallax.js", "Efecto parallax"]
 tags:
-  - programacion/js
-Creado: 2025-01-25
-Relacionado:
-  - "[[JAVASCRIPT]]"
+  - dev/frontend/js
+tipo: concepto
+estado: terminado
+creado: 2025-01-25
+actualizado: 2026-10-11
+relacionado:
+  - "[[Librería GSAP]]"
+  - "[[Html]]"
+  - "[[Archivos SVG]]"
+fuente: "https://github.com/wagerfield/parallax"
 ---
-----------
-# Parallax
-Parallax es un efecto donde el fondo va a estar en un movimiento diferente a nuestro contenido, donde el resultado será un ligero efecto de profundidad para lograr observar partes que antes no se lograban ver provocando un ligero estilo de 3D.
 
-Para lograr este tipo de efecto tenemos que acomodar los elementos en varias capas las cuales se moverán de forma independiente en sentido vertical u horizontal donde suelen ser controladas por el usuario al desplazarse por la web o puede hacerlo de forma automática.
+# Librería Parallax
 
-Es bueno usar este efecto en casos donde se requiera una inmersión total del usuario a una experiencia atrapante y divertida como contar una historia, promocionar un juego, etc.
+El **parallax** es un efecto en el que el fondo se mueve a una velocidad diferente al contenido. El resultado es una ligera sensación de **profundidad** (un sutil estilo 3D) que revela partes de la escena que con un plano fijo no se percibirían.
 
-Este efecto es algo largo de implementar de forma manual y para no tener que hacerlo se creo un proyecto llamado [Paralax.js](https://github.com/wagerfield/parallax?tab=readme-ov-file#11-installation) el cual nos permitirá recrear este tipo de efecto de una forma mucho mas efectiva, rápida y fácil.
+Para lograrlo se acomodan los elementos en varias **capas** que se mueven de forma independiente (en sentido vertical u horizontal), generalmente controladas por el desplazamiento del usuario por la página, aunque también pueden moverse de forma automática (por tiempo o mouse).
+
+> [!info] ¿Cuándo usarlo?
+> Es ideal cuando se busca **inmersión**: contar una historia, promocionar un juego o producto, o dar carácter a una landing. Con moderación enriquece; en exceso dificulta la lectura.
+
+Implementarlo a mano es largo (hay que calcular offsets en cada evento de scroll/mousemove), por eso usamos **[parallax.js](https://github.com/wagerfield/parallax)**, que recrea el efecto de forma mucho más rápida y sencilla.
 
 ## Instalación
-Puede que sea en algunas ocasiones ser necesaria la instalación de este recurso, nosotros usamos otra alternativa la cual nos permite implementarlo mediante el llamado a un script en nuestro **HTML** de la siguiente forma:
 
-```HTML
+No siempre hace falta instalar nada: podemos incluirlo mediante un `<script>` en nuestro [[Html|HTML]]:
+
+```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/parallax/3.1.0/parallax.min.js"></script>
 ```
 
-En el caso de querer instalarlo podemos hacerlo por medio de **npm** de la siguiente forma:
+O instalarlo por npm cuando trabajemos con un proyecto y bundler:
 
 ```bash
 npm i -s parallax-js
 ```
 
 ## Uso
- 1. Lo primero que debemos hacer es en nuestro **HTML** crear los elementos que queremos que se muevan y asignarles un `id="scene`.
- 2. Luego tenemos que agregar a nuestros elementos una clase la cual nos permite ajustar la profundidad de los elementos y es  `data-depth="0.2"`. Como se explica vamos a controlar la profundidad de los elementos.
- 3. Por ultimo tenemos que ejecutar el script y para esto vamos a usar:
-```js
-var scene document.getElementById('scene');
-var parallaxInstance = new Parallax(scene);
+
+1. En el HTML creamos el contenedor de las capas y le asignamos un `id`, por ejemplo `id="scene"`:
+
+```html
+<div id="scene">
+  <img data-depth="0.2" src="fondo.png" alt="" />
+  <img data-depth="1.0" src="personaje.png" alt="" />
+</div>
 ```
+
+2. A cada elemento interno le agregamos el atributo `data-depth`, que controla la **profundidad** (y por tanto cuánto se moverá respecto al puntero/scroll): valores bajos (`0.1`–`0.3`) para fondos lejanos, valores altos (`1`+) para primeros planos.
+
+3. Finalmente inicializamos la instancia apuntando al elemento contenedor:
+
+```js
+const scene = document.getElementById('scene');
+const parallaxInstance = new Parallax(scene);
+```
+
+> [!warning] Error típico de sintaxis
+> La línea correcta lleva el signo `=`: `const scene = document.getElementById('scene');`. Sin él, JS lanza `SyntaxError: Unexpected identifier`. También verifica que el `id` del HTML y el del `getElementById` coincidan **exactamente**.
+
+> [!tip] Instancia por ID o por elemento
+> `new Parallax()` acepta tanto el elemento (`document.getElementById('scene')`) como el selector como string (`'#scene'`). Al destruir una instancia (por ejemplo al desmontar un componente) usa `parallaxInstance.destroy()` para liberar los listeners de eventos.
+
+## Relacionadas
+
+- [[Librería GSAP]] — animaciones y scroll con GSAP/ScrollTrigger
+- [[Html]] — estructura de la escena con capas
+- [[Archivos SVG]] — buenas candidatas para las capas del parallax
