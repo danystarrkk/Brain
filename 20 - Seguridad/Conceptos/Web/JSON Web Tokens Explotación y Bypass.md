@@ -1,23 +1,45 @@
 ---
 aliases: ["JWT", "JSON Web Tokens"]
-tags: ["hacking/explotacion", "hacking/web", "herramientas/burpsuite"]
-estado: 🟢 Terminado
+tags:
+  - sec/web
+  - sec/web/auth
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Gestión de Autenticación]]"
+  - "[[Inyección NoSQL]]"
+  - "[[Path Traversal]]"
+  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
+  - "[[Session Puzzling Session Fixation y Session Variable Overloading]]"
+fuente: "https://portswigger.net/web-security/jwt"
 ---
+
 # JSON Web Tokens: Explotación y Bypass
 
-Los **JSON Web Tokens** (**JWT**) son un tipo de token utilizado en la **autenticación** y **autorización** de usuarios en aplicaciones web. JWT es un estándar abierto (**RFC 7519**) que define un formato compacto y seguro para transmitir información entre diferentes partes de forma confiable.
+Los **JSON Web Tokens** (**JWT**) son un formato compacto de tokens firmados para **autenticación y autorización** (estándar abierto **RFC 7519**, con JWS RFC 7515 y JWK RFC 7517). Permiten transmitir claims entre partes de forma confiable **sin estado en el servidor**. Esa misma naturaleza — *el token es autocontenido y el servidor solo verifica la firma* — es lo que convierte cada error de implementación (algoritmo mal confiado, clave expuesta, claim no validada) en bypass de autenticación o escalada de privilegios.
 
 > [!info] Estructura de un JWT
 > Un JWT se compone de tres partes separadas por puntos (`.`):
 > 1.  **Header (Cabecera)**: Contiene metadatos sobre el token, como el tipo de token (`typ`) y el algoritmo de firma (`alg`).
 > 2.  **Payload (Carga útil)**: Contiene las "claims" o afirmaciones sobre una entidad (normalmente el usuario) y metadatos adicionales.
 > 3.  **Signature (Firma)**: Se utiliza para verificar que el remitente del JWT es quien dice ser y para asegurar que el mensaje no ha sido alterado.
+>
+> Cada parte es **base64url** (no está cifrada): `eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ3aWVuZXIifQ.<firma>`. Cualquiera puede decodificar header y payload; la firma solo garantiza **integridad**, nunca confidencialidad.
 
-En lo que respecta a la fase de enumeración y explotación de un JWT, esto se produce cuando un atacante es capaz de obtener información sobre los JWT que se utilizan en la aplicación, lo que podría permitir al atacante explotar las debilidades en la autenticación y autorización de la aplicación.
+## Mecánica: cómo se firma y se verifica
 
-La enumeración de los JWT se produce cuando un atacante utiliza técnicas de fuerza bruta o cierta ingeniería inversa para obtener información sobre los JWT utilizados por la aplicación web. Por ejemplo, el atacante podría intentar adivinar los valores de los JWT mediante la construcción de **tokens falsos**, tratando de validar en todo momento si la aplicación web los acepta o no. Si el atacante tiene éxito en la enumeración de un JWT válido, podría obtener información confidencial, como nombres de usuario, contraseñas, roles de usuario y otros datos de autenticación y autorización.
+| Algoritmo (`alg`) | Tipo | Clave de firma | Clave de verificación | Dónde se rompe típicamente |
+|---|---|---|---|---|
+| `HS256/384/512` | HMAC (simétrico) | secreto compartido | **mismo secreto** | secreto débil → crack; si el server usa la pública como secreto → confusión |
+| `RS256/384/512` | RSA (asimétrico) | clave **privada** del server | clave **pública** del server | `alg:none`; jwk/jku inyectado; kid traversal |
+| `ES256/384/512` | ECDSA | clave privada | clave pública | mismas familias que RS |
+| `none` | sin firma | — | — | server que acepta tokens sin verificar |
 
-La explotación de los JWT se produce cuando un atacante utiliza la información obtenida de la enumeración del JWT para explotar debilidades en la aplicación. Por ejemplo, si la aplicación web utiliza JWT para la autenticación, pero no valida adecuadamente la **firma** del JWT, un atacante podría falsificar el token y acceder a la aplicación web como si fuera un usuario legítimo.
+Firma (JWS): `signature = HMAC/RSAlgo(base64url(header) + "." + base64url(payload), clave)`. **Cualquier cambio en payload invalida la firma**… salvo que el server no la verifique o la verifique con la clave equivocada.
+
+Claims registradas importantes: `iss` (emisor), `sub` (sujeto/usuario), `aud` (audiencia), `exp` (expiración), `nbf` (no válido antes de), `iat` (emitido en), `jti` (id único). Claims custom: `role`, `admin`, `isAdmin`, etc.
 
 > [!warning] Riesgos de una mala implementación de JWT
 > Las vulnerabilidades en JWT a menudo surgen de una implementación incorrecta de la validación de la firma, la gestión de claves o la confianza excesiva en los datos proporcionados por el cliente. Esto puede llevar a:
@@ -25,17 +47,30 @@ La explotación de los JWT se produce cuando un atacante utiliza la información
 > *   **Escalada de privilegios**: Un usuario con privilegios bajos puede obtener privilegios de administrador.
 > *   **Falsificación de identidad**: Suplantación de otros usuarios.
 
-Para prevenir la enumeración y explotación de los JWT, es importante utilizar prácticas seguras de desarrollo web, como la validación adecuada de las solicitudes de entrada, la gestión segura de las claves de firma JWT y la limitación del tiempo de expiración de los JWT.
+En lo que respecta a la fase de **enumeración**, el atacante observa el token (header al decodificar, endpoint `jwks.json`, tamaño/algoritmo de la firma) y prueba tokens falsificados contra la aplicación para validar hipótesis (¿acepta `none`? ¿la clave es `secret1`? ¿verifica `exp`?). La **explotación** usa esas señales para alterar claims (`sub`, `role`, `exp`) y obtener sesiones con privilegios elevados.
 
 > [!tip] Mejores prácticas de seguridad para JWT
-> *   **Validación estricta de la firma**: Siempre verificar la firma del JWT utilizando la clave secreta o pública correcta.
-> *   **Algoritmos robustos**: Utilizar algoritmos de firma fuertes como `HS256` o `RS256` y evitar `none`.
-> *   **Gestión segura de claves**: Proteger las claves de firma (secretos simétricos o claves privadas asimétricas) y rotarlas regularmente.
-> *   **Expiración de tokens**: Establecer tiempos de expiración cortos para los tokens y revocar tokens comprometidos.
-> *   **Validación de claims**: Validar todas las claims relevantes (ej. `iss`, `aud`, `exp`, `nbf`) para asegurar la validez del token.
-> *   **No almacenar información sensible**: Evitar incluir datos altamente sensibles en el payload del JWT, ya que solo está codificado en Base64, no cifrado.
+> *   **Validación estricta de la firma**: Siempre verificar la firma con la clave correcta; nunca confiar en el header para elegir el algoritmo.
+> *   **Allowlist de algoritmos**: Solo los que la app emite (p. ej. `['RS256']`), nunca `none`.
+> *   **Gestión segura de claves**: Proteger secretos/privadas, **rotar regularmente**, usar JWKS con `kid` validado.
+> *   **Expiración corta y revocación**: `exp` corto + refresh tokens; lista de revocación o `jti` cacheado para logout.
+> *   **Validar todas las claims**: `iss`, `aud`, `exp`, `nbf` — no solo la firma.
+> *   **No almacenar información sensible**: el payload es solo base64, no cifrado.
 
-## PortSwigger Labs: Bypass de Autenticación JWT
+## Catálogo de ataques
+
+| Ataque | Vector | Señal | Payload clave |
+|---|---|---|---|
+| Claim tampering sin verificar | server ignora firma | editar `sub`/`role` y sigue válido | `sub: administrator` con firma vieja |
+| `alg: none` | header `alg` controlado | RS256 → none, sin signature | `{"alg":"none"}` (+ variantes `None`, `NONE`, `nOnE`) |
+| Firma débil | secreto HS* crackeable | JWT corto, secreto default | hashcat `-m 16500` |
+| Confusión de algoritmo | RS256→HS256 con clave pública como HMAC | `jwks.json` expuesto | firmar HS256 con la PEM pública |
+| `jwk` injection | token embebe su clave pública | header `jwk` no visto antes | JWK propio en el header |
+| `jku`/`x5u` injection | server descarga JWKS de URL | header `jku` controlable | URL a servidor atacante |
+| `kid` path traversal | `kid` → ruta de archivo | kid = `../../../../dev/null` | firma con contenido conocido del archivo |
+| Validación incompleta | no `exp`/`iss`/`aud` | token viejo o de otro issuer aceptado | replay con `exp` pasado |
+
+## Labs PortSwigger: Bypass de Autenticación JWT
 
 ### Lab: JWT authentication bypass via unverified signature
 
@@ -79,7 +114,7 @@ Comenzamos entrando y capturando la petición con ayuda de Burp Suite:
 Podemos observar que en el primer apartado tenemos el tipo de algoritmo implementado `RS256`. Lo que vamos a hacer es cambiarlo a `none` (ninguno), y luego quitamos el tercer apartado, que es la firma. Por último, modificamos los datos para ingresar como administrador. Como nos describe la máquina que acepta JWT sin algoritmo, podemos intentarlo:
 
 > [!info] Vulnerabilidad `alg: none`
-> Esta vulnerabilidad ocurre cuando el servidor no verifica el algoritmo especificado en el encabezado del JWT y, si se establece en `none`, simplemente omite la verificación de la firma. Un atacante puede crear un JWT con `alg: none`, modificar el payload a su gusto y el servidor lo aceptará como válido sin verificar ninguna firma.
+> Esta vulnerabilidad ocurre cuando el servidor no verifica el algoritmo especificado en el encabezado del JWT y, si se establece en `none`, simplemente omite la verificación de la firma. Un atacante puede crear un JWT con `alg: none`, modificar el payload a su gusto y el servidor lo aceptará como válido sin verificar ninguna firma. Variantes para evadir filtros: `None`, `NONE`, `nOnE`, y el punto final (`eyJ...none.`) según la librería.
 
 ![[Pasted image 20260223165405.png]]
 
@@ -87,7 +122,7 @@ Podemos usar ese JWT resultante a ver si funciona:
 
 ![[Pasted image 20260223165710.png]]
 
-Ya podemos eliminar el usuario `carlos` para completar el laboratorio:
+Ya podemos eliminar al usuario `carlos` para completar el laboratorio:
 
 ![[Pasted image 20260223165743.png]]
 
@@ -108,7 +143,7 @@ Lo que vamos a hacer es usar la herramienta Hashcat para intentar descubrir la c
 -   Almacenamos primero todo el JWT en un archivo llamado `jwt`.
 -   Usamos Hashcat: `hashcat -a 0 -m 16500 jwt jwt.secrets.list`
 > [!info] Hashcat y JWT
-> El modo `-m 16500` en Hashcat está específicamente diseñado para crackear JWT con algoritmos `HS256`, `HS384` y `HS512`. El tipo de ataque `-a 0` indica un ataque de diccionario. La clave secreta (`secret1` en este caso) es crucial para la firma simétrica.
+> El modo `-m 16500` en Hashcat está específicamente diseñado para crackear JWT con algoritmos `HS256`, `HS384` y `HS512`. El tipo de ataque `-a 0` indica un ataque de diccionario (`-a 3` para fuerza bruta, `-a 6/7` híbridos con mask: `hashcat -a 6 -m 16500 jwt wordlist?d?d?d?d`). La clave secreta (`secret1` en este caso) es crucial para la firma simétrica.
 
 ![[Pasted image 20260223171240.png]]
 
@@ -159,7 +194,7 @@ Con esto se generó una nueva firma y, por lo tanto, un JWT válido. Vamos a cop
 
 ![[Pasted image 20260223173247.png]]
 
-Solo queda eliminar el usuario `carlos` para completar el laboratorio.
+Solo queda eliminar al usuario `carlos` para completar el laboratorio.
 
 ### Lab: JWT authentication bypass via jwk header injection
 
@@ -213,7 +248,7 @@ Vamos a usar el JWT y veamos qué sucede:
 
 ![[Pasted image 20260223181103.png]]
 
-Ya es cuestión de eliminar el usuario `carlos` para terminar con el lab:
+Ya es cuestión de eliminar al usuario `carlos` para terminar con el lab:
 
 ![[Pasted image 20260223181139.png]]
 
@@ -244,7 +279,7 @@ Ahora volvemos a hacer uso de la extensión JWT Editor y generamos una clave asi
 
 ![[Pasted image 20260223191308.png]]
 
-Ya con la clave, vamos a darle clic derecho y seleccionamos la opción que vemos en pantalla:
+Ya con la clave, vamos a darle clic derecho y seleccionar la opción que vemos en pantalla:
 
 ![[Pasted image 20260223191408.png]]
 
@@ -256,7 +291,7 @@ Tenemos un `kid` (Key ID), el cual vamos a copiar para ponerlo en nuestro JWT:
 
 ![[Pasted image 20260223191739.png]]
 
-Ya con esto, vamos a cambiar el valor de `wiener` a `administrator` y procedemos a firmar este JWT para poder proceder:
+Ya con esto, vamos a cambiar el valor de `wiener` a `administrator` y proceder a firmar este JWT para poder proceder:
 
 ![[Pasted image 20260223191859.png]]
 
@@ -274,7 +309,7 @@ En este laboratorio, vamos a abusar del parámetro `kid` (Key ID), teniendo en c
 
 ![[Pasted image 20260223192846.png]]
 
-En sí, lo que sucede es que las claves públicas con las cuales se realizará la verificación del token se encuentran almacenadas dentro de un directorio del sistema. Aquí entra el problema: podríamos efectuar un `path traversal` para salirnos del contexto del directorio actual y, aunque no podríamos directamente leer archivos internos del sistema, podríamos hacer cosas.
+En sí, lo que sucede es que las claves públicas con las cuales se realizará la verificación del token se encuentran almacenadas dentro de un directorio del sistema. Aquí entra el problema: podríamos efectuar un `[[Path Traversal|path traversal]]` para salirnos del contexto del directorio actual y, aunque no podríamos directamente leer archivos internos del sistema, podríamos hacer cosas.
 
 Comenzamos capturando el JWT:
 
@@ -313,7 +348,7 @@ Ya firmado, vamos a copiar el token y a ver si funciona:
 
 ![[Pasted image 20260223194811.png]]
 
-Ya es cuestión de eliminar el usuario `carlos` para terminar:
+Ya es cuestión de eliminar al usuario `carlos` para terminar:
 
 ![[Pasted image 20260223194848.png]]
 
@@ -381,7 +416,7 @@ En este punto, lo que vamos a hacer es firmar el JWT con la clave simétrica y l
 
 ![[Pasted image 20260223203526.png]]
 
-Como podemos observar, solo es cuestión de eliminar el usuario `carlos` para terminar:
+Como podemos observar, solo es cuestión de eliminar al usuario `carlos` para terminar:
 
 ![[Pasted image 20260223203558.png]]
 
@@ -395,7 +430,7 @@ Comenzamos capturando el JWT:
 
 Lo que vemos de primera es que el token está firmado por `RS256`, siendo un algoritmo asimétrico, y no tenemos acceso a la clave pública.
 
-Ahora lo que sucede es que si tenemos ya una firma digital válida, podemos aprovecharnos de esto. Con ayuda de la herramienta que nos comparten, esta herramienta genera valores de `n` supuestamente válidos, los cuales de nuestro lado debemos validar. El objetivo es encontrar uno válido para, mediante este, aprovecharnos para obtener la clave pública y, posteriormente, vamos a poder generar la confusión de algoritmos igual que lo vimos anteriormente.
+Ahora lo que sucede es que si tenemos ya una firma digital válida, podemos aprovecharnos de esto. Con ayuda de la herramienta que nos comparten, esta herramienta genera valores de `n` supuestamente válidos, los cuales de nuestro lado debemos validar. El objetivo es encontrar uno valido para, mediante este, aprovecharnos para obtener la clave pública y, posteriormente, vamos a poder generar la confusión de algoritmos igual que lo vimos anteriormente.
 
 Para la herramienta, copiamos dos tokens válidos de dos sesiones distintas y procedemos a ejecutarla de la siguiente manera:
 
@@ -408,7 +443,7 @@ Ya tenemos los dos JWT válidos, por lo tanto, vamos a ejecutar la herramienta:
 La herramienta nos devuelve 2 cosas: el valor de `n` y genera automáticamente un JWT el cual tenemos que probar a ver si es válido. Si este es válido, tendremos el valor correspondiente de `n` a usar para firmar un JWT malicioso.
 
 > [!info] Ataque de Confusión de Algoritmos sin Clave Pública Expuesta
-> Cuando la clave pública no está expuesta, se puede intentar reconstruir el módulo público (`n`) de la clave RSA a partir de dos JWT válidos firmados con `RS256`. Herramientas especializadas pueden inferir `n` a partir de las firmas. Una vez obtenido `n`, este valor se puede usar como la clave secreta para firmar un nuevo JWT con `HS256`, explotando la confusión de algoritmos.
+> Cuando la clave pública no está expuesta, se puede intentar reconstruir el módulo público (`n`) de la clave RSA a partir de dos JWT válidos firmados con `RS256` (ataque de Bleichenbacher sobre firmas mal implementadas, estilo `jwt-key-confusion` tools). Una vez obtenido `n`, este valor se puede usar como la clave secreta para firmar un nuevo JWT con `HS256`, explotando la confusión de algoritmos.
 
 Vemos si es válido:
 ![[Pasted image 20260223211021.png]]
@@ -433,4 +468,107 @@ Como vemos, es válido y podemos eliminar al usuario `carlos` para terminar.
 
 ![[Pasted image 20260223211443.png]]
 
-Algo a dejar claro es que el algoritmo no crackea el JWT, sino que a partir de los tokens que se proporcionan y de forma modular intenta generar valores de `n` válidos.
+## Detección y reconocimiento
+
+| Señal | Qué probar |
+|---|---|
+| `alg: none` en header aceptado | token sin firma con claims alteradas |
+| `jwks.json` / `jku` accesible | confusión RS→HS, jku injection |
+| HS256 + secreto de longitud corta | crack con hashcat 16500 |
+| `kid` dinámico | traversal (`../../../../dev/null`) y SQLi (`kid=x'--`) |
+| `exp` ausente o muy largo | replay de tokens viejos |
+| Cookie/header alternativo | robar token de otro contexto (HTTP vs HTTPS) |
+
+Herramientas: **Burp JWT Editor** (generar keys, embedded JWK, sign), `jwt_tool` (triage automatizado de todos los ataques), `hashcat -m 16500`, `john` con formato JWT, `c-jwt-cracker`.
+
+## Defensas
+
+**1. Allowlist de algoritmo + verificación estricta** (Node.js `jsonwebtoken`):
+
+```js
+const jwt = require('jsonwebtoken');
+
+// VERIFICAR: algoritmo fijo y allowlist — nunca inferir desde el token
+const payload = jwt.verify(token, process.env.JWT_PUBLIC_KEY, {
+  algorithms: ['RS256'],          // jamás 'none' ni lista dinámica
+  issuer: 'mi-app',
+  audience: 'mi-app-web',
+  maxAge: '5m',                   // exp corto
+});
+// además validar a mano las claims de negocio:
+if (payload.role !== 'user') reject();
+```
+
+```python
+# Python (PyJWT) — mismo principio
+import jwt
+payload = jwt.decode(token, key, algorithms=["RS256"], audience="mi-app", issuer="mi-app")
+```
+
+**2. Nunca confiar en el header para elegir clave/algoritmo**: seleccionar la clave por `kid` **validado contra un mapa interno** (o regex `^[\w-]{1,32}$` + lookup en JWKS local), y rechazar tokens con `jwk`/`jku`/`x5u` del cliente si no se usan deliberadamente con allowlist de hosts.
+
+**3. Gestión y rotación de claves**:
+
+```js
+// Rotación: JWKS con kid y verificación por clave actual + anterior
+const JWKS = jose.createLocalJWKS(fs.readFileSync('jwks.json')); // public keys
+const { payload } = await jose.jwtVerify(token, JWKS, {
+  algorithms: ['RS256'], issuer: 'mi-app',
+  clockTolerance: 30,   // margen por desfase de reloj, no horas
+});
+// rotar: emitir clave nueva con kid nuevo; mantener la anterior para verificación
+//         durante la ventana de vida de los tokens vigentes; revocar por jti si hace falta
+```
+
+- Secretos HS*: mínimo 256 bits de entropía, en vault/env, **rotados**; cada rotación invalida tokens viejos (por diseño).
+- Privadas RS*: solo en el emisor; el verificador solo necesita la pública.
+
+**4. Expiración + revocación**: `exp` ≤ minutos; refresh tokens con rotación; `jti` en denylist para logout; evitar datos sensibles en el payload (es solo base64 — cifrar si debe ser confidencial).
+
+**5. Endurecer transporte**: `HttpOnly; Secure; SameSite` para cookies JWT; no meter JWT en URLs/`localStorage` si hay alternativa (XSS los roba).
+
+## Errores comunes
+
+**Atacante:**
+1. Decodificar el JWT en base64 y creer que está "cifrado" — es legible siempre.
+2. Probar solo `none` minúscula exacta (variantes de case y el punto final).
+3. Firmar HS256 con la PEM **completa** cuando el server espera solo el `n`/clave raw (en el lab sin key expuesta se usa el módulo `n`, no el PEM).
+4. Olvidar `Content-Type`/cookie correcta al replay el token alterado.
+5. No verificar localmente con `jwt decode` qué claims quedaron tras editar.
+
+**Defensor:**
+1. `jwt.verify(token, secret)` sin `algorithms` → el header elige el algoritmo (confusión).
+2. Confiar en `role`/`admin` del payload sin revalidar contra BD (token = dato viejo).
+3. Secretos por defecto (`secret`, `changeme`, `your-256-bit-secret`) en librerías y plantillas.
+4. Tokens sin `exp`, o `exp` de 30 días "para no molestar al usuario".
+5. Aceptar `kid` como ruta de archivo sin sanitizar (traversal a `/dev/null`).
+
+## Cheatsheet
+
+| Paso | Acción |
+|---|---|
+| Decodificar | base64url de header/payload (jwt.io o Burp JWT Editor) |
+| `alg:none` | poner `none`, vaciar firma (variantes `None/NONE/nOnE`, trailing dot) |
+| Crack HS* | `hashcat -a 0 -m 16500 jwt.wordlist` |
+| Confusión RS→HS | usar clave pública (o `n`) como secreto HS256 |
+| jwk inyectada | `Attack → Embedded JWK` en JWT Editor |
+| jku | alojar JWKS en servidor propio, header `jku`→tu URL |
+| kid traversal | `kid=../../../../dev/null`, firma con byte nulo |
+| Claims | `sub/role/admin/exp/iss/aud` — editar y re-firmar |
+| Defensa | `algorithms:['RS256']` + iss/aud + exp corto + kid allowlist |
+
+## Referencias
+
+- PortSwigger Web Security Academy — JWT: https://portswigger.net/web-security/jwt
+- RFC 7519 (JWT), RFC 7515 (JWS), RFC 7517 (JWK)
+- Auth0 — JWT Handbook: https://auth0.com/resources/ebooks/jwt-handbook
+- HackTricks — JWT: https://book.hacktricks.wiki/en/pentesting-web/jwt-python-rb.html
+- Hashcat example hashes (mode 16500): https://hashcat.net/wiki/doku.php?id=example_hashes
+
+## Relacionadas
+
+- [[Gestión de Autenticación]] — el mapa completo de mecanismos y fallos de autenticación donde vive el JWT
+- [[Inyección NoSQL]] — bypass de login previo a la emisión del token
+- [[Path Traversal]] — el mismo vector aplicado al `kid` del JWT
+- [[Vulnerabilidades OAuth en PortSwigger Labs]] — tokens de otro ecosistema con fallos de validación análogos
+- [[Session Puzzling Session Fixation y Session Variable Overloading]] — alternativas de gestión de sesión y sus fallos

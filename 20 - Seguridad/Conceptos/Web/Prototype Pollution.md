@@ -1,8 +1,19 @@
 ---
-aliases: ["Ataque Prototype Pollution"]
+aliases: ["Ataque Prototype Pollution", "Prototype Pollution", "PP"]
 tags:
-  - hacking/web
-estado: 🟢 Terminado
+  - sec/web
+  - sec/web/js
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Cross-Site Scripting XSS]]"
+  - "[[Ataque de Asignación Masiva]]"
+  - "[[OS Command Injection]]"
+  - "[[Server-Side Template Injection (SSTI)]]"
+  - "[[Abuso de APIs]]"
+fuente: "https://portswigger.net/web-security/prototype-pollution"
 ---
 
 # Ataque Prototype Pollution
@@ -36,6 +47,63 @@ console.log(example.hacked); // Podemos usar la propiedad hacked ya que la hered
 > La modificación de `Object.prototype` afecta a *todos* los objetos en la aplicación que no tengan una propiedad con el mismo nombre definida directamente. Esto puede llevar a comportamientos inesperados o a la ejecución de código malicioso en cualquier parte de la aplicación que acceda a la propiedad contaminada.
 
 El problema real de esto es cuando nosotros podemos inyectar desde fuera, mediante peticiones POST o cualquier otra vulnerabilidad, propiedades con las cuales modificamos o alteramos la manera en la cual el flujo o contexto real de un prototipo se comporta, o creamos nuevos.
+
+## Mecánica: la cadena de prototipos
+
+Cada objeto JS tiene un `[[Prototype]]` interno (no la propiedad `prototype`, que solo existe en funciones). El acceso a una propiedad hace **lookup en cadena**: objeto propio → prototipo del objeto → … → `Object.prototype` → `null`. `__proto__` es un *accesor* heredado de `Object.prototype` que get/setea ese enlace.
+
+| Término | Significado | Ejemplo |
+|---|---|---|
+| `obj.foo` | lookup en cadena; si no existe, busca en `Object.prototype.foo` | `{}.toString` → heredado |
+| `Object.prototype.hacked = 1` | contamina **todos** los objetos sin `hacked` propio | el gadget clásico |
+| `obj.__proto__` | accesor a `Object.prototype` (en un objeto literal) | setter→ modificar el prototipo |
+| `obj.constructor.prototype` | ruta alternativa: `Object.prototype` vía constructor | vector `constructor.prototype` |
+| `Object.create(null)` / `Object.freeze(Object.prototype)` | objeto sin prototipo / prototipo inmutable | defensa |
+
+**Cuándo se contamina**: la vulnerabilidad no está en JS, sino en rutinas de **merge/clon/assign recursivo** que copian claves de un JSON de usuario a un objeto destino sin bloquear claves especiales:
+
+```js
+// el patrón vulnerable (merge recursivo estilo lodash < 4.17.11, jQuery.extend, hoek…)
+function merge(target, source) {
+  for (const key in source) {
+    if (typeof source[key] === 'object') merge(target[key] = target[key] || {}, source[key]);
+    else target[key] = source[key];
+  }
+  return target;
+}
+merge({}, JSON.parse('{"__proto__":{"polluted":true}}'));
+// JSON.parse NO usa el setter __proto__… pero el merge con for..in + asignación
+// recorre `__proto__` como clave y termina haciendo Object.prototype.polluted = true
+```
+
+### Vectores de inyección (JSON)
+
+| Vector | Payload | Cuándo |
+|---|---|---|
+| `__proto__` | `{"__proto__":{"x":1}}` | merge recursivo clásico |
+| `constructor.prototype` | `{"constructor":{"prototype":{"x":1}}}` | filtros que bloquean `__proto__` |
+| Notación de corchetes (cliente) | `?__proto__[x]=1` o `?__proto__.x=1` | parsers que convierten `qs` a objetos (cliente: libs de config) |
+| Claves anidadas profundas | `{"a":{"__proto__":{"x":1}}}` | merges profundos |
+
+> [!warning] JSON.parse vs asignación
+> `JSON.parse('{"__proto__":{}}')` **no** contamina por sí mismo (crea una propiedad propia literal). La contaminación ocurre cuando una rutina posterior recorre las claves y **asigna** (`target[key] = …`, `Object.assign` con claves peligrosas, `for..in` + copy). Por eso la defensa es doble: merge seguro (allowlist de claves) **y** prototipo congelado.
+
+### Gadget chains: de la contaminación al impacto
+
+Contaminar no es explotar: hace falta un **gadget** — código existente que lea la propiedad contaminada y haga algo peligroso:
+
+| Contexto | Gadget (propiedad) | Impacto |
+|---|---|---|
+| Cliente (scripts propios) | `transport_url`, cualquier config leída con `obj.prop` sin hasOwnProperty | XSS vía `script.src = data:,alert(1)` |
+| Cliente (librerías) | `hitCallback` (Google Analytics), `src`, `onerror` de clones | XSS / ejecución |
+| Cliente | `setTimeout(merged.callback)` con string | ejecución de código |
+| Servidor (Node) | `shell` + `input` de `child_process.execSync` | RCE |
+| Servidor (Node) | `execArgv` de `child_process.fork` (`--eval`) | RCE |
+| Servidor | `status`/`statusCode` de objetos de error | cambio de estado HTTP (detección) |
+| Servidor | `json spaces` (Express `JSON.stringify`) | oráculo de detección |
+| Servidor (libs) | `outputFunctionName` (Pug/EJS), `env` de child_process | RCE vía template engines |
+
+La detección server-side sin reflejo usa **propiedades-gadget observables**: enviar `{"json spaces":10}` y mirar si la respuesta JSON se indenta, o `{"status":405}` + forzar un error y observar el código devuelto.
 
 ## Lab: Client-side prototype pollution via browser APIs
 
@@ -480,3 +548,90 @@ Excelente, veamos el contenido:
 Pasemos esto al laboratorio y terminemos.
 
 ![[Pasted image 20260226233302.png]]
+
+## Herramientas de detección
+
+| Herramienta | Uso |
+|---|---|
+| **pp-finder** (npp) | snippet en consola: define getters en `Object.prototype` para detectar qué propiedades consume la página (ver lab third-party libraries) |
+| **pollution-detector** / **scanjs** | análisis estático de JS en busca de merges recursivos |
+| **Detect-It-Easy / retire.js** | detectar versiones de librerías con PP conocida (lodash <4.17.11, hoek, jquery <3.4, node-extend…) |
+| **Snyk / npm audit** | CVEs de dependencias con gadgets (pug, ejs, nested-object-assign) |
+| Payload de sondeo | `?__proto__[polluted]=yes` / `constructor[prototype][polluted]=yes` + `console.log({}.polluted)` o respuesta indentada |
+
+## Defensas
+
+**1. Congelar el prototipo** (arranque de la app, cliente y servidor):
+
+```js
+// Node.js / browser
+if (Object.freeze) Object.freeze(Object.prototype);
+// alternativa runtime moderna: null prototype en objetos de config
+const cfg = Object.create(null);
+```
+
+> [!warning] `freeze` rompe libs que mutan el prototipo
+> Algunas librerías antiguas añaden métodos al prototipo en runtime y fallarán con `Object.freeze`. Prueba la suite completa tras activarlo; es la mitigación más efectiva y la más probada en producción (adoptada por defecto en entornos como Meteor y propuesta para Node).
+
+**2. Merge seguro con allowlist de claves**:
+
+```js
+const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
+function safeMerge(target, source) {
+  for (const [k, v] of Object.entries(source)) {
+    if (FORBIDDEN.has(k)) continue;                       // nunca copiar claves especiales
+    if (v && typeof v === 'object' && !Array.isArray(v))
+      safeMerge(target[k] = target[k] ?? {}, v);
+    else target[k] = v;
+  }
+  return target;
+}
+// mejor aún: Object.hasOwn(source, k) + Object.defineProperty con __proto__ como clave simple
+```
+
+**3. Estructuras sin prototipo** para datos de usuario: `new Map()` en vez de `{}`, `Object.create(null)`, o `JSON.parse` con reviver que descarte claves prohibidas.
+
+**4. Validación por schema** (Joi/Zod) de todo JSON entrante: `allowUnknown:false` + profundidad máxima + claves que casen `/^[a-zA-Z0-9_]{1,64}$/` — mata `__proto__` y `constructor` por sintaxis.
+
+**5. Actualizar librerías** con gadgets conocidos y revisar `npm audit`; en servidor, minimizar superficie: no pasar merges de usuario a objetos de opciones de `child_process`/template engines.
+
+## Errores comunes
+
+**Atacante:**
+1. Probar solo `__proto__[x]` y no la notación de punto (`__proto__.x`) ni `constructor[prototype]` (filtros de corchetes).
+2. Contaminar y dar por hecho el impacto: siempre demostrar el **gadget** (¿qué propiedad consume el código?).
+3. Olvidar que en Node el JSON de `body-parser` llega como objeto plano — la contaminación ocurre en el **merge posterior**, no al parsear.
+4. En cliente, ignorar que el navegador cachea scripts: la contaminación debe hacerse **antes** de que el gadget se ejecute (recarga con el parámetro en URL).
+
+**Defensor:**
+1. Filtrar solo la cadena literal `__proto__` (bypass: `constructor.prototype`, profundidad, notación distinta).
+2. Sanitizar una sola pasada (bypass: `__pro__proto__to` → queda `__proto__`).
+3. Confiar en que "JSON.parse no contamina" sin revisar los merges posteriores.
+4. Dejar `eval`/`setTimeout(string)`/`execArgv` como parte del código normal — son los gadgets que convierten PP en RCE/XSS.
+
+## Cheatsheet
+
+| Paso | Acción |
+|---|---|
+| Sondeo cliente | `?__proto__[foo]=bar` → `console.log({}.foo)` |
+| Sondeo alternativo | `__proto__.foo`, `constructor[prototype][foo]` |
+| Sondeo servidor | `{"json spaces":10}` (indentación) o `{"status":405}` + error |
+| Gadget cliente | `transport_url = data:,alert(1)` → XSS |
+| Gadget servidor | `execArgv: ['--eval','payload']` o `shell: 'vim'` + `input` |
+| Vector filtrado | `__pro__proto__to` (una sola pasada de filtro) |
+| Defensa | `Object.freeze(Object.prototype)` + merge con allowlist + schema |
+
+## Referencias
+
+- PortSwigger Web Security Academy — Prototype pollution: https://portswigger.net/web-security/prototype-pollution
+- BlackHat talk "Server-Side Prototype Pollution" (Hoegland/Stein): https://www.blackhat.com/docs/us-17/thursday/us-17-Munoz-A-Journey-From-Prototype-Pollution-To-Code-Execution.pdf
+- PayloadsAllTheThings — Prototype Pollution: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Prototype%20Pollution
+- Node.js security working group — prototype pollution: https://github.com/nodejs/security-wg/blob/master/membership/PP-briefing.md
+
+## Relacionadas
+
+- [[Cross-Site Scripting XSS]] — el impacto cliente más común de los gadgets de PP
+- [[Ataque de Asignación Masiva]] — la misma raíz: claves de usuario que asignan estructura
+- [[OS Command Injection]] — el impacto servidor más grave (gadgets execArgv/shell)
+- [[Server-Side Template Injection (SSTI)]] — vía alternativa a RCE con plantillas (outputFunctionName)
+- [[Abuso de APIs]] — superficies JSON donde viven los merges recursivos

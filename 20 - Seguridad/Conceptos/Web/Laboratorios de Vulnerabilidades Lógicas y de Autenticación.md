@@ -1,13 +1,47 @@
 ---
 aliases: [Laboratorios de Ciberseguridad Ofensiva, Vulnerabilidades Lógicas, Bypass de Autenticación]
 tags:
-  - hacking/web
-  - hacking/explotacion
-  - herramientas/burpsuite
+  - sec/web
+  - sec/web/logic
   - hacking/laboratorios
-estado: 🟢 Terminado
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Labs - Control de Acceso]]"
+  - "[[Gestión de Autenticación]]"
+  - "[[Insecure Direct Object References IDOR]]"
+  - "[[Ataque de Oráculo de Relleno]]"
+  - "[[HTTP Host header attacks]]"
+fuente: "https://portswigger.net/web-security/logic-flaws"
 ---
+
 # Laboratorios de Vulnerabilidades Lógicas y de Autenticación
+
+Catálogo de walkthroughs de los labs de **lógica de negocio** y **autenticación** de PortSwigger Academy. Las vulnerabilidades lógicas son fallos en el **flujo que el negocio modeló**: precios, descuentos, secuencias de pasos, estados, parsing de datos. No hay "sintaxis" que romper — hay que **pensar como el negocio** y encontrar el caso que el programador no consideró.
+
+> [!info] Metodología para lógica de negocio
+> 1. **Modelar el flujo legítimo**: ¿qué pasos, en qué orden, con qué validaciones supuestas (precio, cantidad, rol, paso previo)?
+> 2. **Variar un eje a la vez**: precio (`0`, `-1`, negativo), cantidad, cupón, orden de pasos, rol, dominio de email, longitud.
+> 3. **Mirar el "estado total"**: no solo el request — el efecto agregado (varias cupones, varias tarjetas, overflow del saldo).
+> 4. **Forzar estados implícitos**: omitir un paso, repetirlo, ejecutarlo en paralelo, o ejecutar el paso N sin N-1.
+> 5. **Probar excepciones**: input malformado (comillas, UTF-7, truncado), tipos raros, valores al límite de columnas (255 chars).
+> 6. **Automatizar**: Intruder/macros de Burp cuando el ataque es iterativo (ver Lab: Infinite money logic flaw).
+
+| Patrón | Labs (secciones) | Esencia |
+|---|---|---|
+| Confianza en cliente | Excessive trust in client-side controls | precio enviado por el cliente |
+| Aritmética de negocio | High-level logic vulnerability, Low-level logic flaw | cantidades negativas, integer overflow |
+| Controles inconsistentes | Inconsistent security controls, Inconsistent handling of exceptional input | dominio de email + truncado |
+| Reglas mal enforceadas | Flawed enforcement of business rules | apilamiento de cupones |
+| Endpoints duales | Weak isolation on dual-use endpoint | parámetro de rol en cambio de password |
+| Flujo | Insufficient workflow validation, Authentication bypass via flawed state machine | saltarse pasos, estado por defecto |
+| Dinero infinito | Infinite money logic flaw | descuento aplicado a cashback |
+| Oráculos | Authentication bypass via encryption oracle | padding oracle → token robado |
+| Parsing de correo | Bypassing access controls using email address parsing discrepancies | RFC 2047 encoded-words |
+
+Los labs de **control de acceso** (IDOR, roles, headers) están en [[Labs - Control de Acceso]]; los de credenciales/2FA/reset en [[Gestión de Autenticación]].
 
 ### Lab: Excessive trust in client-side controls
 
@@ -529,3 +563,96 @@ Podemos completar el laboratorio:
 ![[{891AB5FA-BFAE-4410-9026-5847C0342334}.png]]
 
 Lab Terminado.
+
+## Patrones de explotación (resumen por clase)
+
+| Clase | Payload/estrategia típica | Oráculo de éxito |
+|---|---|---|
+| Precio por cliente | modificar `price` en add-to-cart | item a $1/$0 |
+| Cantidad negativa | `quantity=-1` + otro item positivo | total bajando/drifting a 0 |
+| Integer overflow | subir saldo 99 en 99 hasta wrap-around | saldo negativo/comprable |
+| Cupón stacking | alternar `SESSION-XXX` en requests seguidas | precio 0 |
+| Workflow bypass | replay `order-confirmation` sin pagar | compra confirmada sin cargo |
+| State machine | login → omitir role-selector | rol admin por defecto |
+| Rol dual-use | borrar `current-password`, cambiar `role` | sesión admin |
+| Truncado de email | 255 chars + `@evil.com` + `@corporate.com` | cuenta privilegiada |
+| Email parsing | `=?utf-7?...?=` (RFC 2047) con dominio doble | activación privilegiada |
+| Encryption oracle | cribar/eliminar bloques CBC en cookie | contenido arbitrario descifrado |
+| Descuento→cashback | cupón en tarjeta de regalo + canjear | saldo infinito |
+
+## Defensas (lado servidor, siempre)
+
+**1. El cliente nunca manda**: precios, descuentos y roles se recalculan en el servidor:
+
+```js
+// VULNERABLE: aceptar precio del cliente
+const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
+// SEGURO: precio resuelto desde la BD, cantidades validadas
+const total = await cart.reduce(async (sP, i) => {
+  const s = await sP;
+  const prod = await Product.findById(i.id);          // fuente de verdad
+  if (!(Number.isInteger(i.qty) && i.qty > 0 && i.qty <= 99)) throw new Error('qty');
+  return s + prod.priceCents * i.qty;
+}, Promise.resolve(0));
+// cupones: aplicar UNA VEZ, con estado server-side (no "último cupón")
+```
+
+**2. Máquinas de estados explícitas**: transiciones validadas, sin defaults inseguros:
+
+```python
+# Cada paso exige el anterior; el rol solo se asigna en su paso, con valor validado
+VALID_ROLES = {'customer', 'admin'}
+if session.get('stage') != 'role-selected':
+    return redirect('/role-selector')          # no asumir admin por omisión
+role = request.form.get('role')
+if role not in VALID_ROLES:
+    return 400
+```
+
+**3. Validar rangos y signos** de toda cantidad monetaria/numérica (`> 0`, límites), usar tipos que no desborden (BigInt/DECIMAL en BD) y **revalidar el estado final** (total ≥ 0, saldo coherente).
+
+**4. Parsing canónico de emails/dominios**: validar con librería RFC-5322 estricta, comparar el **dominio normalizado** (punycode, sin encoded-words), y revalidar privilegios tras cada cambio de perfil (ver también [[HTTP Host header attacks]] para password reset poisoning).
+
+**5. Separación de endpoints**: los endpoints "duales" (usuario vs admin) deben autorizar por rol servidor-side, no por presencia/ausencia de parámetros.
+
+## Errores comunes
+
+**Atacante:**
+1. Probar solo valores extremos evidentes y no la **aritmética compuesta** (negativo + positivo, varias transacciones).
+2. Ignorar el efecto de **orden**: repetir/omitir pasos en flujos de pago/reset.
+3. Automatizar sin entender el flujo: primero 2-3 requests manuales que prueben la teoría.
+4. Olvidar los oráculos sutiles (longitud de respuesta, mensajes "insufficient funds" vs error).
+
+**Defensor:**
+1. Validar precio solo al renderizar el formulario (client-side) y confiar en el body del POST.
+2. Aceptar cualquier `role`/`stage` presente en la sesión/cookie sin transición validada.
+3. Asignar privilegios por dominio de correo sin revalidar tras cambios de perfil.
+4. Usar enteros de 32 bits para saldos/precios "por simplicidad".
+
+## Cheatsheet
+
+| Eje | Siempre probar |
+|---|---|
+| Precio | `0`, `0.01`, negativo, float largo, sin `price` |
+| Cantidad | `-1`, `0`, `99`, `2147483647` |
+| Cupón | repetir, alternar dos, apilar, vacío |
+| Flujo | replay del último paso, omitir intermedios, paralelizar |
+| Rol | cambiar en body/cookie/JWT, borrar `current-password` |
+| Email | dominio corporativo, `@evil@corporate`, truncado 255, encoded-words |
+| Saldo | overflow, cashback negativo, race con canjes |
+| Oracle | manipular bloques de 16 bytes, medir errores de padding |
+
+## Referencias
+
+- PortSwigger — Business logic vulnerabilities: https://portswigger.net/web-security/logic-flaws
+- OWASP — OWASP Top 10 (Broken Access Control / business logic): https://owasp.org/Top10/
+- Splitting the Email Atom (PortSwigger Research): https://portswigger.net/research/splitting-the-email-atom
+
+## Relacionadas
+
+- [[Labs - Control de Acceso]] — la otra mitad de la autorización: IDs, roles y headers
+- [[Gestión de Autenticación]] — reset de password, 2FA bypass, steady-state
+- [[Ataque de Oráculo de Relleno]] — el ataque criptográfico detrás del encryption oracle
+- [[Insecure Direct Object References IDOR]] — objetos, no flujos
+- [[Condiciones de Carrera]] — cuando el "orden" de requests es el bug
+- [[Ataque de Asignación Masiva]] — campos extra en el body que cambian el flujo
