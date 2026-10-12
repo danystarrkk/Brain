@@ -1,314 +1,267 @@
-# Steghide - Uso Avanzado
-
-> **Herramienta**: Esteganografía CLI madura (C, 2003-presente). Embebe datos cifrados (AES-256/Rijndael-256) en JPEG, BMP, WAV, AU con passphrase.
-> **Proyecto**: http://steghide.sourceforge.net/ | `apt install steghide`
-
+---
+aliases:
+  - Steghide
+  - Steghide Flags
+  - Ocultar Datos con Steghide
+tags:
+  - sec/stego
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Stegseek - Guía Rápida]]"
+  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
+  - "[[Estegoanálisis - Detección y ContraMedidas]]"
+  - "[[Zsteg - Análisis LSB PNG]]"
+fuente: "http://steghide.sourceforge.net/documentation/"
 ---
 
-## Conceptos Clave
+# Steghide — Uso Avanzado
 
-| Concepto | Detalle |
-|----------|---------|
-| **Formato propietario** | Magic bytes `steghide` + header con metadatos cifrados |
-| **Cifrado por defecto** | Rijndael-256 (AES-256) en modo CBC con IV aleatorio |
-| **Compresión** | zlib (nivel 1-9) antes de cifrar + ocultar |
-| **Integridad** | Checksum SHA-1 del payload original (opcional `-N`) |
-| **Capacidad real** | ~10-15% del tamaño cover (JPEG), más en BMP/WAV |
+**steghide** es la herramienta CLI de esteganografía más usada en CTF y auditorías: embebe un archivo cifrado (AES-256/Rijndael por defecto) dentro de una **cover JPEG, BMP, WAV o AU** protegido por una passphrase. Proyecto C maduro (2003), `apt install steghide`.
 
----
+> [!info] Cómo funciona por dentro (por qué se ve igual y qué deja de rastro)
+> 1. Comprime el payload con **zlib** (nivel `-z`).
+> 2. Lo cifra con **Rijndael-256 en CBC** y IV aleatorio (o Serpent/Twofish si se pide).
+> 3. Deriva una clave de la passphrase con un esquema basado en **SHA-1** y escribe los datos en los **componentes de baja frecuencia de los coeficientes DCT** de la cover (no en píxeles crudos: por eso sobrevive ligeramente mejor que el LSB plano y **no funciona en PNG**, que es sin pérdidas y no tiene DCT).
+> 4. Guarda un estándar de datos con nombre del archivo, algoritmo, compresión y **checksum SHA-1** del payload (salvo `-N`).
+>
+> Ese primer byte/estructura con la cadena `steghide` es justamente la **firma** que usan los detectores: ver [[Estegoanálisis - Detección y ContraMedidas]] §3.
 
-## Instalación y Verificación
+## Instalación y verificación
 
 ```bash
-# Debian/Ubuntu/Kali
-sudo apt update && sudo apt install steghide
-
-# Arch
-sudo pacman -S steghide
-
-# Verificar
-steghide --version
-# steghide 0.5.1
-
-# Ver algoritmos soportados
+sudo apt update && sudo apt install steghide      # Debian/Ubuntu/Kali
+sudo pacman -S steghide                            # Arch
+steghide --version                                 # steghide 0.5.1
 steghide --help | grep -A 20 "encryption algorithms"
 ```
 
----
+## Tabla completa de flags
 
-## Capacidad Estimada por Cover
+| Flag | Comando | Significado |
+|---|---|---|
+| `-cf, --coverfile FILE` | embed | Archivo portador (obligatorio en embed) |
+| `-ef, --embedfile FILE` | embed | Archivo a ocultar (obligatorio en embed) |
+| `-sf, --stegofile FILE` | extract/info | Archivo estego a analizar (obligatorio) |
+| `-xf, --extractfile FILE` | extract | Ruta de salida del payload (defecto: nombre original guardado) |
+| `-p, --passphrase STR` | embed/extract | Passphrase en claro; **si se omite, se pide en modo interactivo** |
+| `-K, --keyfile FILE` | embed/extract | Usa un keyfile binario de 32 bytes en lugar de passphrase |
+| `-z, --compress N` | embed | Compresión zlib 0–9 (defecto **9**; `0` = sin comprimir) |
+| `-e, --encrypt ALGO` | embed | `rijndael-256` (defecto), `rijndael-128`, `des`, `twofish-256`, `serpent-256`, `cast-128`… |
+| `-N, --dontembedname` | embed | No guarda el nombre original del payload (ahorra bytes, rompe el checksum) |
+| `-f, --force` | embed/extract | Sobrescribe archivos existentes sin avisar |
+| `-q, --quiet` | todos | Salida silenciosa (scripts) |
+| `-v, --verbose` | todos | Salida detallada |
+| `-h, --help` / `-V` | todos | Ayuda / versión |
+
+## Los tres subcomandos
+
+### 1. `info` — diagnóstico sin extraer
 
 ```bash
-# Ver capacidad exacta sin modificar
-steghide info cover.jpg
-# "steghide 0.5.1 - 800x600 JPEG image
-#  capacity: 12.3 KB (12,648 bytes)"
-
-# Fórmula aproximada JPEG:
-# Capacidad ≈ (Ancho × Alto × 3 canales × 0.5 bits/LSB) / 8 × 0.7 (overhead)
-# 800×600 ≈ 108 KB teórico → ~12 KB real
+steghide info sospechoso.jpg
+# Si NO hay datos ocultos: "steghide 0.5.1 - input file ... does not have embedded data"
+#   → no es steghide (probá zsteg/binwalk/strings)
+# Si SÍ hay: pide passphrase y, con la correcta, muestra:
+#   embedded file: "secreto.txt" (1024 bytes)
+#   embedded bits: 8192 (1.0 KB)
+#   encryption: rijndael-256   compression: 9
 ```
 
----
+> [!tip] Señal de estego sin conocer la passphrase
+> Que `info` **pida passphrase** ya confirma datos embebidos: con archivos limpios no la pide. Guardá esa señal antes de correr `stegseek` (ver [[Stegseek - Guía Rápida]]).
 
-## Embedding (Ocultar Datos) - Guía Completa
-
-### Sintaxis Completa
+### 2. `embed` — ocultar
 
 ```bash
-steghide embed -cf <cover> -ef <embed_file> [OPCIONES]
-
-# Opciones principales:
-# -cf, --coverfile       Archivo portador (requerido)
-# -ef, --embedfile       Archivo a ocultar (requerido)
-# -p, --passphrase       Passphrase (si omitido, pide interactivamente)
-# -z, --compress 1-9     Nivel compresión zlib (default: 9, 0 = sin compresión)
-# -e, --encrypt ALGO     Algoritmo: rijndael-256, serpent-256, twofish-256, etc.
-# -K, --key FILE         Usar archivo clave binaria (32 bytes) en vez de passphrase
-# -N, --dontembedname    No guardar nombre archivo original (ahorra ~bytes, menos integridad)
-# -f, --force            Sobrescribir cover original (sin backup)
-# -q, --quiet            Modo silencioso
+steghide embed -cf <cover> -ef <payload> [OPCIONES]
 ```
 
-### Ejemplos Progresivos
+| Escenario | Comando |
+|---|---|
+| Interactivo (no deja passphrase en historial) | `steghide embed -cf foto.jpg -ef secreto.txt` |
+| Automatizado | `steghide embed -cf foto.jpg -ef secreto.txt -p "$STEGHIDE_PASS" -q` |
+| Máxima capacidad (payload ya comprimido/cifrado) | `steghide embed -cf cover.bmp -ef payload.enc -z 0 -N -f` |
+| Keyfile en vez de passphrase | `openssl rand -hex 32 > key.bin` · `steghide embed -cf cover.jpg -ef p.enc -K key.bin -q` |
+| Algoritmo alternativo | `steghide embed -cf cover.jpg -ef p.enc -p "$PASS" -e serpent-256` |
 
-#### 1. Básico (interactivo)
-```bash
-steghide embed -cf foto.jpg -ef secreto.txt
-# Enter passphrase: ********
-# Re-Enter passphrase: ********
-# embedding "secreto.txt" in "foto.jpg"... done
-```
-
-#### 2. Automatizado (scripts)
-```bash
-# Passphrase por variable de entorno (más seguro que CLI)
-export STEGHIDE_PASS="MiPassFuerte2024!"
-steghide embed -cf foto.jpg -ef secreto.txt -p "$STEGHIDE_PASS" -q
-unset STEGHIDE_PASS
-```
-
-#### 3. Máxima capacidad (sin checksum, sin compresión)
-```bash
-steghide embed -cf cover.bmp -ef payload.bin -p "pass" -z 0 -N -f
-# -z 0: sin compresión (payload ya comprimido/cifrado)
-# -N: no guarda nombre archivo (pierde integridad, gana ~50 bytes)
-# -f: sobrescribe cover original
-```
-
-#### 4. Clave binaria (keyfile) en vez de passphrase
-```bash
-# Generar clave 32 bytes (256 bits)
-openssl rand -hex 32 > key.bin
-# O desde passphrase: echo -n "mipass" | sha256sum | cut -d' ' -f1 | xxd -r -p > key.bin
-
-steghide embed -cf cover.jpg -ef payload.enc -K key.bin -q
-```
-
-#### 5. Algoritmo alternativo (Serpent/Twofish)
-```bash
-steghide embed -cf cover.jpg -ef payload.enc -p "pass" -e serpent-256
-# Ver todos: steghide --help | grep -A 30 "encryption algorithms"
-```
-
----
-
-## Extraction (Extraer Datos)
-
-### Sintaxis
+### 3. `extract` — extraer
 
 ```bash
-steghide extract -sf <stego_file> [OPCIONES]
+steghide extract -sf <stego> [-xf salida] (-p PASS | -K key.bin) [-f] [-q]
 
-# Opciones:
-# -sf, --stegofile       Archivo con datos ocultos
-# -xf, --extractfile     Archivo salida (default: nombre original guardado)
-# -p, --passphrase       Passphrase
-# -K, --key FILE         Archivo clave binaria
-# -f, --force            Sobrescribir salida si existe
-# -q, --quiet            Silencioso
-```
-
-### Ejemplos
-
-```bash
-# 1. Interactivo
-steghide extract -sf stego.jpg
-# Enter passphrase: ********
-# wrote extracted data to "secreto.txt".
-
-# 2. Automatizado con salida personalizada
-steghide extract -sf stego.jpg -xf payload_dec.enc -p "$PASS" -f -q
-
-# 3. Con keyfile
+# Ejemplos
+steghide extract -sf stego.jpg                      # interactivo
+steghide extract -sf stego.jpg -xf payload.enc -p "$PASS" -f -q
 steghide extract -sf stego.jpg -K key.bin -q
 ```
 
----
+Mensajes típicos:
 
-## Info / Análisis sin Extraer
+| Salida | Significado | Acción |
+|---|---|---|
+| `wrote extracted data to "secreto.txt".` | Éxito | `file` + `strings` + recursión |
+| `could not extract ... wrong passphrase?` | Passphrase incorrecta | `stegseek --crack` |
+| `steghide: could not open ...` | Ruta/permisos | Revisar path |
+| `unsupported file format` | PNG/GIF/MP3/… | Convertir o usar otra técnica |
+| `passphrase is too short` | Política de longitud | Passphrase ≥ 12 caracteres |
+| `cover file too small` | Payload > capacidad | Ver cálculo siguiente |
+| `checksum mismatch` | Payload corrupto o `-N` | Re-embeber sin `-N` |
 
-```bash
-# Info básica (requiere passphrase si hay datos)
-steghide info stego.jpg
-# "steghide 0.5.1 - 800x600 JPEG image
-#  embedded file: "secreto.txt" (1024 bytes)
-#  encryption: rijndael-256
-#  compression: 9"
-
-# Info SIN passphrase (solo detecta si hay datos steghide)
-steghide info stego.jpg 2>&1 | head -5
-# Si NO pide passphrase → no hay datos steghide o cover vacía
-```
-
----
-
-## Verificar Integridad del Cover
+## Capacidad: cuánto cabe
 
 ```bash
-# Comparar cover original vs stego (deben ser visualmente idénticos)
-# 1. Hash perceptual (diferencia visual)
-compare -metric AE cover.jpg stego.jpg diff.png 2>&1
-# 0 = idénticos visualmente
-
-# 2. Diferencia pixel a pixel (ImageMagick)
-convert cover.jpg stego.jpg -compose difference -composite -evaluate pow 2 -scale 1x1! txt:-
-# Valor cercano a 0 = imperceptible
-
-# 3. Tamaño archivo
-ls -lh cover.jpg stego.jpg
-# Diferencia ≈ tamaño payload + overhead (~100-500 bytes)
+steghide info cover.jpg     # capacity: 12.3 KB (12,648 bytes)  ← valor real, sin modificar
 ```
 
----
+**Estimación teórica** (LSB-like sobre componentes de baja frecuencia):
 
-## Flujos de Trabajo Comunes
+```
+capacidad ≈ (ancho × alto × 3 canales × 0,5 bits) / 8 × ~0,7 (overhead)
+800×600 → 72.000 B teóricos → ~12 KB reales tras cifrado+zlib
+```
 
-### Flujo 1: Exfiltración Segura (Red Team)
+| Cover | Capacidad relativa | Comentario |
+|---|---|---|
+| JPEG pequeño (< 50 KB) | Poca (1–5 KB) | Fotos con mucha compresión |
+| JPEG 800×600+ | 10–40 KB | Suficiente para texto/archivos pequeños |
+| BMP (sin comprimir) | **≈ 12,5% del archivo** | Cover ideal: GB de capacidad |
+| WAV 44,1 kHz estéreo | Alto (≈ 1 bit/muestra × canales) | Audio sin comprimir |
+| PNG / GIF / MP3 | **0 — no soportado** | steghide no los acepta |
+
+> [!warning] La capacidad es del portador, no del payload cifrado
+> El payload pasa por zlib **y luego** por AES: los datos ya cifrados **no comprimen**. Si embeddes un `.enc`, `-z 9` no ayuda casi nada; si embeddes texto plano, la compresión puede multiplicar la capacidad por 3–5×.
+
+## Modos de passphrase
+
+| Modo | Comando | Ventaja | Riesgo |
+|---|---|---|---|
+| **Interactivo** | omitir `-p` | No deja rastro en `history`/`ps` | Incomodo en scripts |
+| **Flag `-p`** | `-p "MiPass123!"` | Automático | **Aparece en `ps` e historial** |
+| **Variable de entorno** | `-p "$PASS"` | No hardcodea; se limpia con `unset` | Visible en `/proc/<pid>/environ` si hay root |
+| **Keyfile `-K`** | `-K key.bin` (32 bytes) | 256 bits de entropía real, imposible de crackear | Pérdida del archivo = pérdida del payload |
+
+```bash
+# Flujo recomendado en scripts
+export STEGHIDE_PASS="$(openssl rand -base64 32)"
+steghide embed -cf foto.jpg -ef payload.enc -p "$STEGHIDE_PASS" -q
+unset STEGHIDE_PASS
+```
+
+## Spoofing de extensión y poliglotas
+
+steghide valida el **formato real**, no la extensión: puedes guardar el estego con una extensión engañosa y añadir material encima/debajo:
+
+```bash
+# 1) Estego con extensión cambiada
+steghide embed -cf foto.jpg -ef payload.enc -p "$PASS" -q
+mv foto.jpg nota.txt                # el archivo sigue siendo JPEG válido internamente
+
+# 2) Añadir una ZIP al final (polyglot JPEG+ZIP: sigue abriéndose como imagen)
+cat foto.jpg anexos.zip > reporte.jpg
+unzip -l reporte.jpg                # también es un ZIP válido
+
+# 3) Extensión falsa del payload guardado (el nombre real queda dentro del estándar
+#    salvo que uses -N, que evita guardar el nombre original)
+```
+
+Detección del truco (lado analista): `file reporte.jpg`, `binwalk reporte.jpg`, `unzip -l` y `steghide info` ignorando la extensión.
+
+## Verificación de integridad visual
+
+```bash
+ls -lh cover.jpg stego.jpg                       # delta ≈ payload + overhead
+compare -metric AE cover.jpg stego.jpg diff.png  # 0 píxeles distintos = imperceptible
+convert cover.jpg stego.jpg -compose difference -composite \
+        -evaluate pow 2 -scale 1x1! txt:-        # valor cercano a 0 = OK
+```
+
+## Flujos de trabajo
+
+### Exfiltración en laboratorio (red team)
+
 ```bash
 #!/bin/bash
-# exfil.sh - Preparar payload y ocultar en cover legítima
-
-PAYLOAD="datos_sensibles.tar.gz"
-COVER="foto_perfil_equipo.jpg"        # Cover legítima del servidor web
-STEGO="foto_perfil_equipo_v2.jpg"     # Nombre plausible
-PASS="$(openssl rand -base64 32)"     # Passphrase fuerte aleatoria
-
-# 1. Cifrar payload
+# exfil.sh — preparar payload y ocultarlo en una cover legítima
+PAYLOAD="datos_sensibles.tar.gz"; COVER="foto_equipo.jpg"; PASS="$(openssl rand -base64 32)"
 tar -czf - "$PAYLOAD" | openssl enc -aes-256-cbc -pbkdf2 -k "$PASS" -out payload.enc
-
-# 2. Embed
-steghide embed -cf "$COVER" -ef payload.enc -p "$PASS" -z 9 -f
-
-# 3. Limpiar rastros
-shred -u payload.enc
-# Subir stego.jpg al servidor (reemplaza original)
-
-# 4. Guardar passphrase en vault/gestor seguro
-echo "$PASS" | gpg --encrypt -r "analista@equipo" > pass.gpg
+steghide embed -cf "$COVER" -ef payload.enc -p "$PASS" -z 9 -f -q
+shred -u payload.enc                                 # limpiar el intermedio
+echo "$PASS" | gpg --encrypt -r "analista@equipo" > pass.gpg   # passphrase fuera de línea
 ```
 
-### Flujo 2: CTF - Preparar Challenge
+### Escaneo defensivo de un directorio
+
 ```bash
-#!/bin/bash
-# create_challenge.sh
-
-FLAG="flag{st3gh1d3_m4st3r_2024}"
-COVER="meme.jpg"
-OUT="challenge.jpg"
-
-echo "$FLAG" > flag.txt
-openssl enc -aes-256-cbc -pbkdf2 -k "pista_en_descripcion" -in flag.txt -out flag.enc
-steghide embed -cf "$COVER" -ef flag.enc -p "pista_en_descripcion" -z 9 -f -q
-rm flag.txt flag.enc
-
-echo "Challenge listo: $OUT"
-echo "Pista: La passphrase está en la descripción del reto"
-```
-
-### Flujo 3: Verificación Rápida (Blue Team)
-```bash
-#!/bin/bash
-# scan_steghide.sh - Escanear directorio buscando steghide
-
 for f in *.jpg *.jpeg *.bmp *.wav *.au; do
-    if steghide info "$f" 2>/dev/null | grep -q "embedded file"; then
-        echo "[!] Steghide detectado: $f"
-        steghide info "$f" 2>/dev/null | grep -E "embedded file|encryption|compression"
-    fi
+  steghide info "$f" 2>/dev/null | grep -q "embedded" && \
+    echo "[!] steghide detectado: $f" && steghide info "$f" 2>&1 | grep -E "embedded|encryption|compression"
 done
 ```
 
----
-
-## OPSEC y Buenas Prácticas
-
-| Práctica | Por qué |
-|----------|---------|
-| **Cover única por operación** | Evita análisis diferencial (comparar covers) |
-| **Cover con alta entropía** | Fotos RAW, ruido natural, no capturas de pantalla |
-| **Passphrase > 20 chars, aleatoria** | Resiste stegseek/rockyou |
-| **Cifrar ANTES (AES-256)** | Defensa en profundidad |
-| **Comprimir payload (zlib 9)** | Reduce tamaño, aumenta capacidad efectiva |
-| **Limpiar metadata EXIF** | `exiftool -all= cover.jpg` antes de embed |
-| **Verificar extracción ANTES de enviar** | Evita corrupción silenciosa |
-| **No reutilizar cover original pública** | Análisis forense detecta modificación |
-
----
-
-## Detección (Blue Team)
+### Preparar un challenge CTF
 
 ```bash
-# 1. steghide info (rápido)
-steghide info sospechoso.jpg 2>&1 | grep -q "embedded" && echo "STEGHIDE DETECTADO"
-
-# 2. stegdetect (JPEG)
-stegdetect sospechoso.jpg
-# "sospechoso.jpg : steghide(??)"
-
-# 3. Firmas hex (magic bytes steghide)
-xxd sospechoso.jpg | grep -i "steghide"
-# Busca en últimos bytes del archivo
-
-# 4. Entropía anómala
-ent sospechoso.jpg
-# Entropía > 7.9 en áreas planas = sospechoso
+echo "flag{st3gh1d3_m4st3r}" > flag.txt
+openssl enc -aes-256-cbc -pbkdf2 -k "pista_en_descripcion" -in flag.txt -out flag.enc
+steghide embed -cf meme.jpg -ef flag.enc -p "pista_en_descripcion" -z 9 -f -q
+# pista en la descripción del reto; si es débil → el equipo resolverá con stegseek
 ```
 
----
+## Detección (blue team)
 
-## Troubleshooting
+```bash
+steghide info sospechoso.jpg 2>&1 | grep -q embedded && echo "STEGHIDE DETECTADO"   # pide pass ⇒ hay datos
+stegdetect sospechoso.jpg                                                          # "steghide(??)"
+xxd sospechoso.jpg | grep -i steghide                                              # firma a offset variable
+ent sospechoso.jpg                                                                 # entropía alta en zonas planas
+```
 
-| Error | Causa | Solución |
-|-------|-------|----------|
-| "could not open cover file" | Ruta incorrecta / permisos | Verificar path, `chmod 644` |
-| "passphrase is too short" | < 12 chars (policy) | Usar passphrase > 12 chars |
-| "cover file too small" | Payload > capacidad | Cover mayor o payload menor |
-| "wrong passphrase" | Passphrase incorrecta | stegseek + wordlist |
-| "checksum mismatch" | Datos corruptos / -N usado | Re-embedding sin -N |
-| "unsupported format" | PNG, GIF, MP3, etc. | Convertir a JPEG/BMP/WAV |
+Contra-medidas del defensor: re-codificar imágenes en la ingesta (destruye el estego) o exigir formatos re-encoded; ver [[Estegoanálisis - Detección y ContraMedidas]] §6.2.
 
----
+## Errores comunes
 
-## Alternativas Modernas
+1. **Intentar `steghide` sobre PNG**: formatos soportados = JPEG, BMP, WAV, AU. Para PNG → [[Zsteg - Análisis LSB PNG]].
+2. **Esperar que `-z 9` ayude con payloads cifrados**: AES no comprime; comprime **antes** de cifrar.
+3. **Confundir `info` sin passphrase con "no hay datos"**: si pide passphrase, **hay** datos.
+4. **Usar `-N` por ahorro de bytes** y perder la capacidad de saber el nombre/tipo del payload.
+5. **Passphrase corta o de diccionario**: `stegseek` la rompe en segundos (ver [[Stegseek - Guía Rápida]]).
+6. **Sobrescribir la cover sin `-f`** y abortar a mitad de operación: steghide puede dejar el archivo a medias.
+7. **No verificar la extracción tras embed**: siempre hacer `steghide info` + `extract` de prueba.
 
-| Herramienta | Ventaja vs steghide |
-|-------------|---------------------|
-| **openstego** | Plugins múltiples algoritmos, GUI, Java |
-| **stegonline** | Web, LSB visual, sin instalar |
-| **stegcloak** | Texto (Unicode zero-width), no binario |
-| **deepsteg** | Adversarial learning, indetectable estadísticamente |
-| **Custom Python** | Control total, sin firmas conocidas |
+## Alternativas modernas
 
----
+| Herramienta | Ventaja frente a steghide | Formatos |
+|---|---|---|
+| **openstego** | Múltiples algoritmos + GUI (Java) | PNG, JPEG |
+| **stegonline** | Web, LSB interactivo, sin instalar | PNG, JPEG |
+| **stegcloak** | Texto (zero-width Unicode) | texto |
+| **outguess / f5** | DCT con preservación estadística | JPEG |
+| **Script Python propio** | Sin firma de herramienta conocida | cualquiera |
+
+## Cheatsheet
+
+```bash
+steghide info FILE                       # ¿hay datos? (pide passphrase)
+steghide embed -cf cover.jpg -ef data -p "$PASS" -z 9 -f -q
+steghide extract -sf stego.jpg -xf out -p "$PASS" -f -q
+steghide extract -sf stego.jpg -K key.bin -q
+stegseek --crack stego.jpg rockyou.txt   # passphrase olvidada/débil
+xxd stego.jpg | grep -i steghide         # firma
+```
 
 ## Referencias
 
+- Manual oficial: <http://steghide.sourceforge.net/documentation/>
+- Hetzl, S. — *Steghide: A Steganography Program* (2003)
 - `man steghide`
-- http://steghide.sourceforge.net/documentation/
-- Source: https://github.com/StefanoDeVuono/steghide (fork mantenido)
-- Paper: "Steghide - A Steganography Program" - Hetzl (2003)
+- Stegseek (cracking): <https://github.com/RickdeJager/stegseek>
 
----
+## Relacionadas
 
-*Etiquetas: #steghide #embedding #extraction #aes256 #rijndael #opsec #redteam #ctf*
+- [[Stegseek - Guía Rápida]] — cracking de passphrases
+- [[Esteganografía - Conceptos, Herramientas y Práctica]] — flujos completos y taxonomy
+- [[Estegoanálisis - Detección y ContraMedidas]] — cómo detectan steghide
+- [[Zsteg - Análisis LSB PNG]] — cuando el formato es PNG

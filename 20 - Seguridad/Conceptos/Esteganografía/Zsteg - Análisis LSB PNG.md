@@ -1,320 +1,304 @@
-# Zsteg - Análisis LSB en PNG/BMP
-
-> **Herramienta**: Detector y extractor de esteganografía LSB (Ruby, rápido, automatizado). Especializado en **PNG** y **BMP** sin pérdidas.
-> **Repo**: https://github.com/zed-0xff/zsteg | `gem install zsteg`
-
 ---
+aliases:
+  - Zsteg
+  - zsteg
+  - Análisis LSB PNG
+  - Extracción LSB
+tags:
+  - sec/stego
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
+  - "[[Estegoanálisis - Detección y ContraMedidas]]"
+  - "[[Steghide - Uso Avanzado]]"
+  - "[[Stegseek - Guía Rápida]]"
+fuente: "https://github.com/zed-0xff/zsteg"
+---
+
+# Zsteg — Análisis LSB en PNG/BMP
+
+**zsteg** (Ruby, `gem install zsteg`) es el detector y extractor de esteganografía **LSB** por excelencia para **PNG y BMP**: prueba automáticamente decenas de combinaciones de canal, bit-plane, orden de recorrido y método, y reporta los candidatos que contienen texto o firmas de archivos. Es la primera herramienta que se corre ante cualquier imagen sin pérdidas en un CTF.
+
+> [!info] Qué es exactamente la LSB y por qué se puede extraer sin passphrase
+> Cada canal de un píxel PNG de 8 bits (`R G B [A]`) tiene 8 bits de información; el **bit menos significativo (LSB)** aporta 1/255 de intensidad — invisible a simple vista. Si alguien ocultó un mensaje, lo escribió reemplazando esas LSB por los bits del payload, recorriendo los píxeles en algún **orden** (filas `xy`, columnas `yx` o PRNG con semilla). zsteg no "descifra": **lee exactamente esos bits en el mismo orden** y devuelve los bytes. Por eso:
+> - Funciona solo en formatos **sin pérdidas** (PNG/BMP): JPEG destruiría las LSB.
+> - No hace falta passphrase **si no la usaron**; si el payload estaba cifrado, obtendrás basura → recurrir a [[Steghide - Uso Avanzado]]/[[Stegseek - Guía Rápida]] o a otro esquema.
 
 ## Instalación
 
 ```bash
-# RubyGems (requiere Ruby >= 2.5)
-gem install zsteg
-
-# Verificar
-zsteg --version
-# zsteg 0.2.7
-
-# Si error permisos: gem install --user-install zsteg
-# Añadir ~/.gem/ruby/X.X.0/bin al PATH
+gem install zsteg                # requiere Ruby >= 2.5
+zsteg --version                  # zsteg 0.2.7
+# sin permisos:
+gem install --user-install zsteg
+# añadir ~/.gem/ruby/X.X.0/bin al PATH
 ```
 
----
+## Mecánica: los cuatro ejes de un ataque LSB
 
-## Qué Detecta (Auto-mágico)
+Todo método LSB queda definido por cuatro coordenadas; zsteg recorre el producto cartesiano:
 
-| Método | Descripción | Formato |
-|--------|-------------|---------|
-| **LSB RGB** | Bit menos significativo en R, G, B (orden xy, yx, rand) | PNG, BMP |
-| **LSB RGBA** | Incluye canal Alpha | PNG |
-| **LSB por bit-plano** | Bits 1-4 (b1, b2, b3, b4) | PNG, BMP |
-| **Canales individuales** | Solo R, solo G, solo B, solo A | PNG |
-| **Orden de recorrido** | xy (filas), yx (columnas), random (semilla) | PNG, BMP |
-| **XOR / Aditivo** | Payload XOR con patrón / suma modular | PNG |
-| **Metadata chunks** | tEXt, zTXt, iTXt, comentarios | PNG |
+| Eje | Valores | Significado |
+|---|---|---|
+| **Bits** | `b1`…`b4`, `b1-4`, `lsb`, `msb` | Qué bit-planes se leen (1 = LSB real) |
+| **Canal** | `rgb`, `rgba`, `r`, `g`, `b`, `a`, `gray` | Dónde se mira |
+| **Método** | `lsb`, `msb`, `lsbry`, `xor`, `add`, `sub` | Cómo se combinan los bits (directo, aleatorio, XOR con patrón, suma/resta modular) |
+| **Orden** | `xy`, `yx`, `rand`, `rand:SEED` | Recorrido de los píxeles (filas, columnas, PRNG con semilla) |
 
----
+Con eso se entiende la salida: `b1,rgb,lsb,xy` = *"leyó el bit 1 de los canales R,G,B recorriendo en filas"*.
 
-## Uso Básico
-
-```bash
-# Análisis COMPLETO automático (recomendado inicio)
-zsteg imagen.png
-
-# Salida típica:
-# b1,rgb,lsb,xy       .. text: "flag{lsb_easy}"
-# b1,rgba,lsb,xy      .. text: "flag{lsb_easy}"
-# b2,rgb,lsb,xy       .. file: data
-# metadata,comment    .. text: "Comentario EXIF"
-```
-
----
-
-## Opciones Principales
+## Tabla de flags
 
 | Flag | Descripción |
-|------|-------------|
-| `-a, --all` | Probar TODOS los métodos (lento, exhaustivo) |
-| `-b, --bits BITS` | Qué bits probar: `1`, `1,2`, `1-4`, `lsb` (default: 1) |
-| `-o, --order ORDER` | Orden: `xy`, `yx`, `rand`, `rand:N` (semilla) |
-| `-c, --channel CH` | Canal: `rgb`, `rgba`, `r`, `g`, `b`, `a`, `gray` |
-| `-m, --method MÉTODO` | `lsb`, `msb`, `lsbry`, `xor`, `add`, `sub` |
-| `-E, --extract PATRÓN` | Extraer payload binario (ver sintaxis abajo) |
-| `-v, --verbose` | Más detalles |
+|---|---|
+| *(sin flags)* | Análisis rápido de los métodos por defecto — 90% de los casos CTF |
+| `-a, --all` | Prueba **todos** los métodos (lento en imágenes grandes) |
+| `-b, --bits LIST` | Bits a probar: `1`, `1,2`, `1-4`, `lsb` (defecto `1`) |
+| `-o, --order ORD` | `xy`, `yx`, `rand`, `rand:N` (semilla) |
+| `-c, --channel CH` | `rgb`, `rgba`, `r`, `g`, `b`, `a`, `gray` |
+| `-m, --method M` | `lsb`, `msb`, `lsbry`, `xor`, `add`, `sub` |
+| `-E, --extract SPEC` | Extraer el payload binario de una combinación concreta |
+| `-v, --verbose` | Más detalle |
 | `-q, --quiet` | Solo resultados positivos |
-| `--png` | Forzar modo PNG |
-| `--bmp` | Forzar modo BMP |
+| `--png` / `--bmp` | Forzar el analizador de formato |
 
----
-
-## Sintaxis de Extracción (`-E`)
+### Sintaxis de `-E`
 
 ```
 zsteg -E "BITS,CANAL,MÉTODO,ORDEN" imagen.png > salida.bin
-
-BITS:     b1, b2, b3, b4, b1-4, lsb, msb
-CANAL:    rgb, rgba, r, g, b, a, gray, all
-MÉTODO:   lsb, msb, lsbry, xor, add, sub
-ORDEN:    xy, yx, rand, rand:SEMILLA
-```
-
-### Ejemplos Extracción
-
-```bash
-# 1. LSB bit 1, RGB, orden xy (más común)
-zsteg -E "b1,rgb,lsb,xy" imagen.png > payload.bin
-
-# 2. LSB bit 1-2, RGBA, orden yx
-zsteg -E "b1-2,rgba,lsb,yx" imagen.png > payload.bin
-
-# 3. Bit 3 solo canal Blue, random seed 12345
+# ejemplos:
+zsteg -E "b1,rgb,lsb,xy"      imagen.png > payload.bin   # el más común
+zsteg -E "b1-2,rgba,lsb,yx"   imagen.png > payload.bin
 zsteg -E "b3,b,lsb,rand:12345" imagen.png > payload.bin
-
-# 4. XOR con patrón (común en CTF)
-zsteg -E "b1,rgb,xor,xy" imagen.png > payload.bin
+zsteg -E "b1,rgb,xor,xy"      imagen.png > payload.bin   # XOR con patrón (CTF)
+zsteg -E "metadata,zTXt"      imagen.png                 # chunk de texto PNG
 ```
 
----
+## Interpretar la salida
 
-## Flujo de Trabajo CTF Típico
+```
+$ zsteg imagen.png
+b1,rgb,lsb,xy    .. text: "flag{lsb_easy}"      ← texto legible: hallazgo directo
+b1,rgba,lsb,xy   .. text: "flag{lsb_easy}"      ← mismo payload con canal alfa
+b2,rgb,lsb,xy    .. file: data                  ← payload binario: extraer y analizar
+metadata,tEXt    .. text: "Author: CTF Player"  ← metadato PNG
+```
+
+| Resultado | Qué significa | Acción |
+|---|---|---|
+| `text: "..."` con flag/URL | Payload en claro | Copiar; si es binario raro, extraer igual |
+| `file: data` | Cabecera de archivo (ZIP/PNG/ELF/PDF…) | `-E` → `file` → `binwalk` recursivo |
+| `text: basura` (caracteres no imprimibles) | Payload **cifrado** u otro orden/método | Probar `-a`, otros bits, seeds |
+| Solo aparece con `-a` | Método no estándar (xor/add/rand) | Iterar sobre esas combinaciones |
+| Nada con `b1` pero sí con `b1-2` | Embedding de 2 bits/canal | Usar `b1-2` en `-E` |
+| `metadata,*` | Chunk PNG con texto | Extraer; a veces la flag está ahí sin LSB |
+
+> [!warning] Falsos positivos de zsteg
+> Con `-a` aparecerán decenas de líneas `text:` basura: cualquier secuencia de bits "parece" texto. **Filtra por legibilidad** (`grep -aE 'flag|ctf|http|[a-z]{8,}'`) y valida con `file` antes de dar nada por hallazgo. El orden correcto es: extraer → inspeccionar → descartar con evidencia.
+
+## Cadena CTF típica (zsteg → flag)
 
 ```bash
-#!/bin/bash
-# zsteg_ctf.sh - Pipeline automatizado
+# 1) Identificación
+file a.png
+# PNG image data, 800 x 600, 8-bit/color RGB, non-interlaced
 
-IMG="$1"
-OUTDIR="zsteg_out_$(basename "$IMG" .png)"
-mkdir -p "$OUTDIR"
+# 2) Análisis rápido
+zsteg a.png
+# b1,rgb,lsb,xy  .. text: "flag{st3g0_1s_fun_123}"
 
-echo "[+] Análisis rápido..."
-zsteg "$IMG" | tee "$OUTDIR/quick.txt"
+# 3) Extracción (o copy directo si el text ya es la flag)
+zsteg -E "b1,rgb,lsb,xy" a.png > out.bin
+cat out.bin                     # flag{...}
 
-echo "[+] Análisis exhaustivo (-a)..."
-zsteg -a "$IMG" 2>/dev/null | tee "$OUTDIR/full.txt"
+# ── Variante: payload binario ──
+zsteg -E "b1,rgb,lsb,xy" a.png > out.bin
+file out.bin                    # ZIP archive data …
+unzip out.bin -d extraido/      # o: binwalk -e out.bin
+strings -n 6 extraido/* | grep -i flag
 
-echo "[+] Extrayendo candidatos..."
-# Extraer todos los hallazgos de texto
-zsteg "$IMG" 2>/dev/null | grep "text:" | while read line; do
-    method=$(echo "$line" | awk '{print $1}')
-    echo "  Extrayendo: $method"
-    zsteg -E "$method" "$IMG" > "$OUTDIR/${method}.bin" 2>/dev/null
-    file "$OUTDIR/${method}.bin"
-    strings "$OUTDIR/${method}.bin" | head -5
-done
-
-echo "[+] Revisar $OUTDIR/"
+# ── Variante: cadena larga en base64 ──
+zsteg -E "b1,rgb,lsb,xy" a.png | grep -oE '[A-Za-z0-9+/=]{20,}' | base64 -d
 ```
 
----
+**Cadena completa típica**: `zsteg` → `-E` → `file`/`strings` → `base64 -d`/`unzip` → flag. Ver también [[Esteganografía - Conceptos, Herramientas y Práctica]] §7.
 
-## Ejemplos Prácticos por Caso
+## Casos prácticos
 
-### Caso 1: LSB Básico (CTF Principiante)
+### Caso 1 — LSB básico (principiante)
+
 ```bash
 $ zsteg facil.png
-b1,rgb,lsb,xy       .. text: "flag{easy_lsb_123}"
-
-$ zsteg -E "b1,rgb,lsb,xy" facil.png
+b1,rgb,lsb,xy  .. text: "flag{easy_lsb_123}"
+$ zsteg -E "b1,rgb,lsb,xy" facil.png ; echo
 flag{easy_lsb_123}
 ```
 
-### Caso 2: LSB en Canal Alpha (RGBA)
+### Caso 2 — Canal Alpha
+
 ```bash
 $ zsteg -a canal_alpha.png
-b1,rgba,lsb,xy      .. text: "flag{alpha_channel}"
-b1,rgb,lsb,xy       .. file: data (basura)
-
+b1,rgba,lsb,xy  .. text: "flag{alpha_channel}"
 $ zsteg -E "b1,rgba,lsb,xy" canal_alpha.png
 flag{alpha_channel}
 ```
 
-### Caso 3: Bits Superiores (b2, b3, b4)
-```bash
-# Payload grande usa 2 bits por canal
-$ zsteg -b 1,2 -a imagen.png
-b1,rgb,lsb,xy       .. file: data
-b2,rgb,lsb,xy       .. file: data
-b1-2,rgb,lsb,xy     .. text: "flag{two_bits_per_channel}"
+### Caso 3 — Dos bits por canal
 
-$ zsteg -E "b1-2,rgb,lsb,xy" imagen.png > payload.bin
+```bash
+$ zsteg -b 1,2 -a imagen.png
+b1-2,rgb,lsb,xy  .. text: "flag{two_bits_per_channel}"
+$ zsteg -E "b1-2,rgb,lsb,xy" imagen.png
+flag{two_bits_per_channel}
 ```
 
-### Caso 4: Orden Aleatorio con Semilla (Randomizado)
+### Caso 4 — Orden aleatorio con semilla
+
 ```bash
-# Si el embedding usó PRNG con semilla conocida
-$ zsteg -E "b1,rgb,lsb,rand:1337" imagen.png > payload.bin
-# Probar semillas comunes: 0, 1, 123, 1337, 31337, 13371337, timestamp
+# Si el embebido usó un PRNG con semilla conocida:
 for seed in 0 1 123 1337 31337 13371337 $(date +%s); do
-    zsteg -E "b1,rgb,lsb,rand:$seed" imagen.png 2>/dev/null | strings | grep -q "flag" && echo "Seed: $seed"
+    zsteg -E "b1,rgb,lsb,rand:$seed" imagen.png 2>/dev/null | strings | grep -q flag \
+        && echo "[+] Seed: $seed"
 done
 ```
 
-### Caso 5: Metadata PNG (Chunks tEXt/zTXt/iTXt)
+### Caso 5 — Metadatos PNG (tEXt/zTXt/iTXt)
+
 ```bash
 $ zsteg -a imagen.png
-metadata,tEXt       .. text: "Author: CTF Player"
-metadata,zTXt       .. text: "flag{hidden_in_ztxt}"
-metadata,iTXt       .. text: "UTF-8: bandera{unicode}"
-
-# Extraer chunk específico
-zsteg -E "metadata,zTXt" imagen.png
-# flag{hidden_in_ztxt}
+metadata,zTXt  .. text: "flag{hidden_in_ztxt}"
+$ zsteg -E "metadata,zTXt" imagen.png
+flag{hidden_in_ztxt}
+# alternativa sin LSB:
+exiftool imagen.png ; pngcheck -v imagen.png
 ```
 
-### Caso 6: Archivo Binario Embebido (no texto)
+### Caso 6 — Archivo embebido (no texto)
+
 ```bash
 $ zsteg -a sospechosa.png
-b1,rgb,lsb,xy       .. file: data
-
+b1,rgb,lsb,xy  .. file: data
 $ zsteg -E "b1,rgb,lsb,xy" sospechosa.png > extraido.bin
 $ file extraido.bin
-# extraido.bin: ZIP archive data, at least v2.0 to extract
-# o: gzip, PNG, JPEG, ELF, PDF, etc.
-
-$ binwalk -e extraido.bin
-$ unzip extraido.bin -d contenido/
+extraido.bin: ZIP archive data, at least v2.0 to extract
+$ binwalk -e extraido.bin && unzip extraido.bin -d contenido/
 ```
 
----
+## Técnicas avanzadas
 
-## Análisis Avanzado
-
-### Detectar Qué Bits Usan (Heurística)
+### Encontrar qué bits usa el embebido
 
 ```bash
-# Script: probar bits 1-4 y ver cuál da texto legible
 for bits in 1 2 3 4 "1-2" "1-3" "1-4" "2-4"; do
-    echo "=== Testing bits: $bits ==="
-    zsteg -b "$bits" -c rgb -m lsb -o xy imagen.png 2>/dev/null | grep -E "text:|file:" | head -3
+  echo "=== bits: $bits ==="
+  zsteg -b "$bits" -c rgb -m lsb -o xy imagen.png 2>/dev/null | grep -E "text:|file:" | head -3
 done
 ```
 
-### Comparar Cover Original vs Stego (Diferencial)
+### Diferencia entre cover limpia y estego
 
 ```bash
-# Si tienes cover original limpio
 zsteg cover_original.png > clean.txt
-zsteg cover_stego.png > stego.txt
-
-# Diferencia en hallazgos
-diff -u clean.txt stego.txt | grep "^+b"
-# Muestra solo nuevos hallazgos en stego
+zsteg cover_stego.png     > stego.txt
+diff -u clean.txt stego.txt | grep '^+b'     # solo los hallazgos nuevos
 ```
 
-### Extraer Payload Parcial (Offset/Length)
+### Pipeline automatizado
 
 ```bash
-# zsteg no tiene offset nativo → extraer todo y recortar
-zsteg -E "b1,rgb,lsb,xy" imagen.png > full.bin
-# Primeros 100 bytes
+#!/bin/bash
+# zsteg_ctf.sh — análisis + extracción en lote
+IMG="$1"; OUT="zsteg_out_$(basename "$IMG" .png)"; mkdir -p "$OUT"
+zsteg "$IMG"   | tee "$OUT/quick.txt"
+zsteg -a "$IMG" 2>/dev/null | tee "$OUT/full.txt"
+grep -E "text:|file:" "$OUT/full.txt" | awk '{print $1}' | while read -r m; do
+  zsteg -E "$m" "$IMG" > "$OUT/${m//,/_}.bin" 2>/dev/null
+  echo "── $m"; file "$OUT/${m//,/_}.bin"; strings -n 6 "$OUT/${m//,/_}.bin" | head -5
+done
+ls -la "$OUT/"
+```
+
+### Recortar payload (zsteg no tiene offset)
+
+```bash
+zsteg -E "b1,rgb,lsb,xy" img.png > full.bin
 head -c 100 full.bin > header.bin
-# Bytes 100-500
 dd if=full.bin of=body.bin bs=1 skip=100 count=400
 ```
 
----
-
-## Integración con Otras Herramientas
+## Integración con otras herramientas
 
 ```bash
-# 1. zsteg + binwalk (archivos embebidos)
-zsteg -E "b1,rgb,lsb,xy" img.png | binwalk -e -
-
-# 2. zsteg + strings (búsqueda rápida)
-zsteg -E "b1,rgb,lsb,xy" img.png | strings | grep -i "flag\|password\|secret"
-
-# 3. zsteg + steghide (JPEG con LSB? No, steghide es formato propio)
-# Pero puedes convertir PNG→JPEG y probar steghide
-convert img.png img.jpg && steghide info img.jpg
-
-# 4. Pipeline completo CTF
-zsteg -a img.png 2>/dev/null | \
-grep "text:" | \
-awk '{print $1}' | \
-xargs -I{} sh -c 'zsteg -E {} img.png | strings | grep -i flag'
+zsteg -E "b1,rgb,lsb,xy" img.png | binwalk -e -                 # contenedores
+zsteg -E "b1,rgb,lsb,xy" img.png | strings | grep -iE 'flag|pass|secret'
+convert img.png img.jpg && steghide info img.jpg                 # si el reto "cambia" de formato
+zsteg -a img.png 2>/dev/null | grep "text:" | awk '{print $1}' | \
+  xargs -I{} sh -c 'zsteg -E {} img.png | strings | grep -i flag'
 ```
 
----
+| Herramienta | Papel complementario |
+|---|---|
+| **stegsolve** | Bit-planes visuales, XOR, concatenación (lo que zsteg no "ve") |
+| **pngcheck** | Chunks y CRC sin intentar extracciones |
+| **steghide/stegseek** | Ruta distinta: JPEG/BMP/WAV con passphrase |
+| **Python/PIL** | Offset, canal o recorrido personalizados |
+| **stegonline** | LSB interactivo en web sin instalar |
 
 ## Limitaciones
 
 | Limitación | Detalle |
-|------------|---------|
-| **Solo PNG/BMP** | No JPEG (lossy), no WAV, no GIF animado |
-| **Solo LSB espacial** | No DCT (JPEG), no DWT (JPEG2000), no DFT |
-| **Sin passphrase** | No descifra payloads cifrados (solo extrae crudo) |
-| **Sin estegoanálisis estadístico** | No chi-square, RS, SPA (solo extracción) |
-| **Performance** | Lento en imágenes > 10MP con `-a` |
+|---|---|
+| Solo PNG/BMP | No JPEG (lossy), GIF animado, WAV, MP3 |
+| Solo LSB espacial | No DCT/DWT/DFT (ver [[Estegoanálisis - Detección y ContraMedidas]] §2.7) |
+| No descifra | Si el payload venía cifrado, devuelve bytes ilegibles |
+| No hace estegoanálisis | No calcula χ²/RS: es extractor, no detector estadístico |
+| Rendimiento | `-a` puede tardar en imágenes > 10 MP |
 
----
+## Errores comunes
 
-## Alternativas Complementarias
+1. **Ejecutar zsteg sobre JPEG** y concluir "no hay nada" → convertir no sirve (el LSB original ya se perdió); atacar con steghide/stegdetect.
+2. **Confiar en el primer `text:` con `-a`**: filtrar y validar siempre.
+3. **Olvidar `metadata`**: muchísimos CTF esconden la flag en un chunk `tEXt` y ni siquiera usan LSB.
+4. **Probar solo `b1`**: si el embebido usó 2–4 bits o canal alfa, hace falta `-a`.
+5. **No probar semillas** cuando el texto sale cifrado: `rand:1337` y compañía son frecuentes.
+6. **Dejar basura en disco**: el pipeline crea decenas de `.bin`; revisar con `file` antes de abrirlos todos.
 
-| Herramienta | Para qué |
-|-------------|----------|
-| **stegsolve** | GUI visual bit-planes, análisis manual |
-| **stegonline.com** | Web, LSB interactivo, sin instalar |
-| **pngcheck** | Chunks PNG detallados, CRC, estructura |
-| **stegdetect** | JPEG (JSteg, OutGuess, F5) |
-| **steghide** | JPEG/BMP/WAV con passphrase + cifrado |
-| **Python/PIL** | LSB custom, offset, canales específicos |
-
----
-
-## Cheatsheet Rápido
+## Cheatsheet
 
 ```bash
-# 1. Análisis rápido (90% casos)
-zsteg imagen.png
-
-# 2. Exhaustivo (si 1 falla)
-zsteg -a imagen.png
-
-# 3. Solo metadata PNG
-zsteg -E "metadata" imagen.png
-
-# 4. Extraer hallazgo específico
+zsteg imagen.png                       # 90% de los casos
+zsteg -a imagen.png                    # exhaustivo (si el rápido no rinde)
+zsteg -E "metadata" imagen.png         # solo chunks PNG
 zsteg -E "b1,rgb,lsb,xy" imagen.png > out.bin
-
-# 5. Probar semillas random comunes
-for s in 0 1 123 1337 31337; do zsteg -E "b1,rgb,lsb,rand:$s" img.png; done
-
-# 6. Verificar archivo extraído
-file out.bin && strings out.bin | head -20
+for s in 0 1 123 1337 31337; do zsteg -E "b1,rgb,lsb,rand:$s" img.png | strings | grep flag; done
+file out.bin && strings -n 6 out.bin | head -20
 ```
 
----
+**Checklist CTF**: `file` → `zsteg` → `zsteg -a` → extraer `text:`/`file:` → `file`/`strings` → recursión (`base64 -d`, `unzip`, `binwalk`) → si binario cifrado → stegsolve visual / steghide.
 
-## Casos Reales CTF (Referencia)
+## Casos de referencia
 
-| Challenge | Técnica | Comando Ganador |
-|-----------|---------|-----------------|
+| Reto | Técnica | Comando ganador |
+|---|---|---|
 | PicoCTF "So Meta" | Metadata PNG | `zsteg -E "metadata" img.png` |
-| HackTheBox "Stego" | LSB b1 RGB | `zsteg -E "b1,rgb,lsb,xy" img.png` |
+| HTB "Stego" | LSB b1 RGB | `zsteg -E "b1,rgb,lsb,xy" img.png` |
 | CTFlearn "Hidden" | LSB b1 RGBA | `zsteg -E "b1,rgba,lsb,xy" img.png` |
 | RingZer0 "Stegano" | 2 bits/canal | `zsteg -E "b1-2,rgb,lsb,xy" img.png` |
-| Custom "Random" | Seed 1337 | `zsteg -E "b1,rgb,lsb,rand:1337" img.png` |
+| Custom "Random" | Semilla 1337 | `zsteg -E "b1,rgb,lsb,rand:1337" img.png` |
 
----
+## Referencias
 
-*Etiquetas: #zsteg #lsb #png #bmp #ctf #esteganografia #ruby #extraccion #metadata*
+- Repositorio: <https://github.com/zed-0xff/zsteg>
+- RubyGems: <https://rubygems.org/gems/zsteg>
+- PNG specification (chunks): <https://www.w3.org/TR/png-3/>
+- StegOnline (LSB interactivo): <https://stegonline.georgeomura.com>
+
+## Relacionadas
+
+- [[Esteganografía - Conceptos, Herramientas y Práctica]] — teoría LSB y flujos completos
+- [[Estegoanálisis - Detección y ContraMedidas]] — χ²/RS y el resto de detección
+- [[Steghide - Uso Avanzado]] — cuando el formato es JPEG/BMP/WAV
+- [[Stegseek - Guía Rápida]] — cracking de passphrases steghide

