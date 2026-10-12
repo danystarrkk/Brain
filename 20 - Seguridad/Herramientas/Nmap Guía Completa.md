@@ -1,267 +1,483 @@
 ---
-aliases: ["Nmap", "Network Mapper", "Escaneo de Redes"]
-tags: [hacking/herramientas, hacking/reconocimiento]
-estado: 🟢 Terminado
+aliases: ["Nmap", "Network Mapper", "Escaneo de Redes", "nmap"]
+tags:
+  - tool/nmap
+tipo: herramienta
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+  - "[[Masscan]]"
+  - "[[Enumeración de Servicios y CMS]]"
+  - "[[netdiscover]]"
+  - "[[Arp Scan Herramienta de Descubrimiento]]"
+  - "[[Wireshark y Tshark]]"
+  - "[[CrackMapExec Guía de Uso]]"
+  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
+  - "[[SSLScan]]"
+  - "[[Creación de Informes en LaTeX]]"
+fuente: "https://nmap.org/book/man.html"
 ---
 
-Nmap (Network Mapper) es una herramienta de código abierto para la exploración de redes y la auditoría de seguridad. Se utiliza para descubrir hosts y servicios en una red, identificando así lo que se denomina el "mapa de la red". Nmap ofrece características avanzadas para el escaneo de puertos, la detección de sistemas operativos, la detección de versiones de servicios, la detección de vulnerabilidades y el scripting con NSE (Nmap Scripting Engine).
+# Nmap — Guía Completa
 
-> [!info] La importancia de Nmap
-> Nmap es una herramienta fundamental en el arsenal de cualquier profesional de ciberseguridad. Permite obtener una visión detallada de la infraestructura de red de un objetivo, lo cual es crucial para las fases de reconocimiento y enumeración en pruebas de penetración y auditorías de seguridad. Su flexibilidad y el potente Nmap Scripting Engine (NSE) lo hacen indispensable.
+**Nmap** (*Network Mapper*) es la herramienta de referencia para descubrir hosts, servicios y sistemas operativos en una red, y para auditar su configuración con el motor de scripts **NSE** (*Nmap Scripting Engine*, Lua). Dos décadas de desarrollo la convierten en el estándar *de facto* del reconocimiento: cualquier informe de pentest empieza con un mapa hecho con Nmap, y casi todas las demás herramientas del vault (Hydra, CrackMapExec, SMBMap, SSLScan) consumen sus resultados.
 
-## Tabla de Opciones Principales de Nmap
+> [!info] El modelo mental correcto
+> Nmap no es "un escáner de puertos": es un **motor de reconocimiento por fases**. Un escaneo típico ejecuta: (1) *host discovery* — ¿quién está vivo?; (2) *port scanning* — ¿qué puertos responde y en qué estado?; (3) *service detection* — ¿qué proceso responde y con qué versión?; (4) opcionalmente *NSE scripts* — ¿qué vulnerabilidades/malas configuraciones revela? Cada fase tiene sus propios flags y sus propios fallos; entenderlas por separado es la diferencia entre usar Nmap y solo ejecutarlo.
 
-### Opciones de Escaneo de Hosts
+## Instalación
 
-| Opción | Descripción | Ejemplo |
+| Contexto | Comando |
+|---|---|
+| **Kali Linux** | Preinstalado (`nmap --version`) |
+| Debian/Ubuntu/Parrot | `sudo apt install nmap ncat` |
+| Extras de scripts | `sudo apt install NSE` incluido; bases de datos en `/usr/share/nmap/` |
+| Windows/macOS | Instaladores oficiales en nmap.org |
+
+Los escaneos SYN/OS/ACK requieren **privilegios root** (paquetes crudos). Sin root, Nmap degrada automáticamente al TCP connect (`-sT`).
+
+## Tabla maestra: tipos de escaneo de puertos
+
+| Flag | Nombre | Mecanismo | Requiere root | Deja handshake completo | Para qué |
+|---|---|---|---|---|---|
+| `-sS` | **SYN scan** (por defecto con root) | SYN → SYN/ACK (abierto) / RST (cerrado); RST final del escáner | Sí | **No** (*half-open*) | El estándar: rápido y razonablemente discreto |
+| `-sT` | TCP connect | Completa el handshake 3 vías con `connect()` del sistema | No | Sí | Sin root; lo más logueable por el objetivo |
+| `-sU` | UDP scan | Paquetes UDP vacíos/payload por protocolo; `ICMP port unreachable` = cerrado | Sí | n/a | Imprescindible: DNS/SNMP/T DHCP/NTP/SIP no viven en TCP |
+| `-sA` | ACK scan | Paquete ACK → RST = **no filtrado**; sin respuesta/ICMP = **filtrado** | Sí | — | **No detecta puertos abiertos**: mapea reglas de firewall |
+| `-sW` | Window scan | Igual que ACK pero analiza el **campo ventana TCP** del RST | Sí | — | Distingue abierto/cerrado detrás de algunos filtros |
+| `-sN` | NULL scan | Paquete TCP **sin flags** | Sí | — | RFC 793: RST si cerrado, silencio si abierto |
+| `-sF` | FIN scan | Paquete con solo FIN | Sí | — | Igual que NULL |
+| `-sX` | Xmas scan | Flags FIN+PSH+URG ("árbol de Navidad") | Sí | — | Igual que NULL; algunos filtros los tratan distinto |
+| `-sM` | Maimon scan | FIN+ACK | Sí | — | Funciona contra algunos BSD antiguos |
+| `-sI` | Idle scan | Escaneo con zombi (spoofing con MAC de un host inactivo) | Sí | — | **Sin IP propia visible** — requiere zombi ideal (ID IP incremental) |
+| `-sY` / `-sZ` | SCTP INIT / COOKIE-ECHO | Escaneo SCTP | Sí | — | Servicios telecom (raro fuera de entornos SS7/SIGGW) |
+| `--scanflags <flags>` | Personalizado | Cualquier combinación (ej. `URGACKPSH`) | Sí | — | Evasión de firmas específicas |
+| `-sL` | List scan | Solo **resuelve** los objetivos, no envía paquetes | No | — | Sanity check de rangos y DNS antes de escanear |
+
+### Cómo interpretar los estados de puerto
+
+| Estado | Significado | Evidencia |
 |---|---|---|
-| `-sL` | List scan - solo lista los objetivos | `nmap -sL 192.168.1.0/24` |
-| `-sn` | Ping scan - solo descubre hosts activos | `nmap -sn 192.168.1.0/24` |
-| `-Pn` | Treat all hosts as online - omite el descubrimiento | `nmap -Pn 192.168.1.1` |
-| `-PS` | TCP SYN ping | `nmap -PS80,443 192.168.1.1` |
-| `-PA` | TCP ACK ping | `nmap -PA80,443 192.168.1.1` |
-| `-PU` | UDP ping | `nmap -PU53 192.168.1.1` |
-| `-PY` | SCTP INIT ping | `nmap -PY 192.168.1.1` |
-| `-PE` | ICMP echo ping | `nmap -PE 192.168.1.1` |
-| `-PP` | ICMP timestamp ping | `nmap -PP 192.168.1.1` |
-| `-PM` | ICMP netmask ping | `nmap -PM 192.168.1.1` |
-| `-PO` | IP Protocol ping | `nmap -PO 192.168.1.1` |
+| `open` | Un servicio **acepta** conexiones en ese puerto | SYN/ACK (TCP) o respuesta de aplicación (UDP) |
+| `closed` | El host responde, pero **ningún servicio** escucha | RST / ICMP unreachable |
+| `filtered` | Un firewall **no deja pasar** el probe; no hay respuesta utilizable | Sin respuesta o ICMP error |
+| `unfiltered` | El puerto responde, pero ACK no permite decidir abierto/cerrado | RST al ACK scan — se aclara con `-sS` |
+| `open\|filtered` | Abierto o filtrado (ambiguo) | Típico en UDP y en escaneos stealth |
+| `closed\|filtered` | Cerrado o filtrado | Muy raro (SCTP, algunos proxies) |
 
-> [!info] Escaneo de Hosts (`-sn`)
-> La opción `-sn` (anteriormente `-sP`) realiza un "ping scan" para determinar qué hosts están activos en una red sin realizar un escaneo de puertos completo. Esto es útil para una rápida enumeración de hosts antes de proceder con escaneos más detallados. Utiliza una combinación de solicitudes ICMP echo, paquetes TCP SYN a puertos comunes (80, 443) y paquetes TCP ACK, así como solicitudes UDP a puertos comunes (53, 161).
+> [!tip] `--reason`: por qué Nmap decidió eso
+> `nmap --reason -sS ...` muestra la evidencia exacta (`syn-ack`, `reset`, `no-response`, `conn-refused`). Es la primera opción a activar cuando un resultado no cuadra con lo esperado.
 
-> [!warning] Omisión de Descubrimiento (`-Pn`)
-> La opción `-Pn` (anteriormente `-P0`) es crucial cuando se sospecha que los hosts objetivo están detrás de un *firewall* que bloquea las solicitudes de ping (ICMP). Al usar `-Pn`, Nmap asume que todos los hosts están activos y procede directamente con el escaneo de puertos, lo que puede aumentar significativamente el tiempo de escaneo si muchos hosts no están realmente en línea.
+### Tabla: qué tipo usar en cada situación
 
-> [!info] Tipos de Ping TCP/UDP/ICMP
-> Las opciones `-PS`, `-PA`, `-PU`, `-PE`, `-PP`, `-PM`, `-PO` permiten personalizar los métodos de descubrimiento de hosts.
-> *   `-PS` (TCP SYN Ping): Envía un paquete SYN a un puerto específico. Si recibe un SYN/ACK, el host está activo.
-> *   `-PA` (TCP ACK Ping): Envía un paquete ACK. Si recibe un RST, el host está activo. Útil para atravesar *firewalls* con estado.
-> *   `-PU` (UDP Ping): Envía un paquete UDP. Si recibe un ICMP Port Unreachable, el puerto está cerrado; si no hay respuesta, el host podría estar activo.
-> *   `-PE`, `-PP`, `-PM` (ICMP Pings): Variaciones de ICMP para el descubrimiento de hosts, útiles cuando los *firewalls* permiten ciertos tipos de ICMP.
+| Situación | Escaneo recomendado |
+|---|---|
+| Uso general, red local, raíz disponible | `-sS` (o dejar el default) |
+| Sin root / Windows sin privilegios | `-sT` |
+| Fase 1 de todo pentest (nunca sobresaltarse) | `-sS --top-ports 100` |
+| Auditoría de protocolos no-TCP | `-sU --top-ports 20` |
+| Mapear firewall entre tú y el objetivo | `-sA -p 80,443,22` |
+| Escaneo silencioso extremo (lento, IDS sensible) | `-sN -T0` / idle scan `-sI` |
+| Objetivos masivos (10k+ hosts) | Ver [[Masscan]] → refinar con Nmap |
 
-### Opciones de Escaneo de Puertos
+## Host discovery — antes de tocar puertos
 
-| Opción | Descripción | Ejemplo |
+Sin indicación contraria, Nmap hace host discovery antes de escanear puertos (ping TCP SYN a 443/80/… + ICMP echo). Controlarlo explícitamente:
+
+| Flag | Mecanismo | Ejemplo / uso |
 |---|---|---|
-| `-p` | Especifica puertos o rangos | `nmap -p 80,443,22-25 192.168.1.1` |
-| `-p-` | Escanea todos los puertos (1-65535) | `nmap -p- 192.168.1.1` |
-| `-F` | Fast mode - puertos más comunes | `nmap -F 192.168.1.1` |
-| `-r` | Escanea puertos secuencialmente | `nmap -r 192.168.1.1` |
-| `--top-ports` | Escanea los N puertos más comunes | `nmap --top-ports 100 192.168.1.1` |
+| `-sn` | Solo discovery, **sin** escaneo de puertos (antes `-sP`) | `nmap -sn 192.168.1.0/24` — el "ping scan" de siempre |
+| `-Pn` | Omite discovery: trata **todos** los hosts como vivos (antes `-P0`) | `-Pn` cuando el firewall bloquea el ping |
+| `-Pn-` | Fuerza discovery aunque pases `-Pn` (nmap ≥ 7.80) | Recuperar discovery en scripts automatizados |
+| `-PS<puertos>` | TCP **SYN** ping — SYN a los puertos indicados | `-PS80,443,22` |
+| `-PA<puertos>` | TCP **ACK** ping — atraviesa firewalls con estado que responden RST al ACK | `-PA80` |
+| `-PU<puertos>` | UDP ping | `-PU53,161` |
+| `-PE` | ICMP echo (ping clásico) — el más bloqueado | `-PE` |
+| `-PP` | ICMP timestamp — pasa algunos filtros que solo bloquean echo | `-PP` |
+| `-PM` | ICMP netmask request | `-PM` |
+| `-PO<n>` | IP protocol ping (proto n) | `-PO 1` (ICMP) |
+| `-PY` | SCTP INIT ping | `-PY` |
+| `-n` | **No** resuelve DNS (más rápido y silencioso) | Siempre en redes grandes |
+| `-R` | Fuerza resolución DNS de todos los hosts | Cuando necesitas nombres |
+| `--dns-servers <srv>` | Servidores DNS propios | `--dns-servers 8.8.8.8` |
 
-> [!warning] Escaneo de Todos los Puertos (`-p-`)
-> Escanear todos los 65535 puertos TCP/UDP con `-p-` puede ser extremadamente lento, especialmente en redes con latencia o *firewalls*. Se recomienda usarlo solo cuando sea estrictamente necesario o en combinación con opciones de *timing* agresivas (`-T4`, `-T5`) en entornos controlados.
+> [!warning] El coste real de `-Pn`
+> `-Pn` salva el escaneo de hosts filtrados, pero (a) vuelve cada IP en "viva" — un /16 con `-Pn` escanea 65 536 hosts; (b) los escaneos UDP y los scripts NSE tardarán lo máximo sobre objetivos muertos. Regla práctica: `-Pn` contra **pocos hosts conocidos**, nunca contra rangos enteros sin filtrar antes con discovery.
 
-> [!info] Modo Rápido (`-F`)
-> La opción `-F` escanea los 100 puertos más comunes según la base de datos de Nmap (`nmap-services`). Esto proporciona un equilibrio entre velocidad y cobertura para un reconocimiento inicial.
+## Selección de puertos
 
-### Técnicas de Escaneo
-
-| Opción | Descripción | Ejemplo |
+| Flag | Significado | Ejemplo |
 |---|---|---|
-| `-sS` | TCP SYN scan (stealth) | `nmap -sS 192.168.1.1` |
-| `-sT` | TCP connect scan | `nmap -sT 192.168.1.1` |
-| `-sU` | UDP scan | `nmap -sU 192.168.1.1` |
-| `-sN` | TCP NULL scan | `nmap -sN 192.168.1.1` |
-| `-sF` | TCP FIN scan | `nmap -sF 192.168.1.1` |
-| `-sX` | TCP Xmas scan | `nmap -sX 192.168.1.1` |
-| `-sA` | TCP ACK scan | `nmap -sA 192.168.1.1` |
-| `-sW` | TCP Window scan | `nmap -sW 192.168.1.1` |
-| `-sM` | TCP Maimon scan | `nmap -sM 192.168.1.1` |
-| `--scanflags` | Escaneo con *flags* TCP personalizados | `nmap --scanflags URGACKPSHRSTSYNFIN 192.168.1.1` |
+| `-p <rango>` | Puertos concretos; rangos, listas y `U:`/`T:` por protocolo | `-p 22,80,443`, `-p 1-1024`, `-p U:53,161 T:80` |
+| `-p-` | Los 65 535 puertos TCP (con `-sU`, todos los UDP) | `nmap -p- -sS` |
+| `-F` | Modo rápido: los 100 puertos más comunes | `-F` |
+| `--top-ports <n>` | Los N más comunes según `nmap-services` (estadística real) | `--top-ports 1000` |
+| `-r` | Orden secuencial en vez de aleatorio | Redes con IDS de "barrido" |
+| `--port-ratio <p>` | Puertos con frecuencia ≥ p en nmap-services | `--port-ratio 0.1` |
 
-> [!info] TCP SYN Scan (`-sS`)
-> También conocido como "half-open scan", es la técnica de escaneo por defecto y más popular. Envía un paquete SYN y espera un SYN/ACK (puerto abierto) o RST (puerto cerrado). Si recibe un SYN/ACK, Nmap envía un RST para cerrar la conexión sin completar el *handshake* TCP, lo que lo hace menos ruidoso y más difícil de registrar por algunos sistemas de detección de intrusiones (IDS) o *firewalls* básicos.
+> [!tip] La progresión de trabajo correcta
+> 1) `--top-ports 100` en todos los hosts vivos → 2) `-p-` completo **solo** sobre hosts interesantes → 3) `-sU --top-ports 20` como mínimo UDP. Escanear `-p-` a toda una red es la forma clásica de convertir un reconocimiento en una tarde perdida.
 
-> [!info] TCP Connect Scan (`-sT`)
-> Esta técnica completa el *handshake* TCP de tres vías (SYN, SYN/ACK, ACK) para determinar si un puerto está abierto. Es menos sigilosa que el SYN scan y deja más rastros en los logs del sistema objetivo, pero es útil cuando el usuario no tiene privilegios para enviar paquetes RAW (como en algunos sistemas operativos o configuraciones de red).
+## Timing y rendimiento
 
-> [!info] UDP Scan (`-sU`)
-> El escaneo UDP es inherentemente más lento y menos fiable que el TCP scan debido a la naturaleza sin conexión del protocolo UDP. Nmap envía paquetes UDP a los puertos objetivo. Si no recibe respuesta, el puerto puede estar abierto o filtrado. Si recibe un mensaje ICMP "Port Unreachable", el puerto está cerrado. La ausencia de respuesta es ambigua y requiere más tiempo para determinar el estado.
+### Plantillas `-T0`…`-T5`
 
-> [!info] Escaneos Sigilosos (NULL, FIN, Xmas)
-> Las opciones `-sN` (NULL), `-sF` (FIN) y `-sX` (Xmas) son técnicas de escaneo sigilosas que manipulan los *flags* TCP. Se basan en el comportamiento de la RFC 793 para sistemas operativos compatibles:
-> *   **NULL Scan (`-sN`)**: Envía un paquete sin *flags* TCP activados.
-> *   **FIN Scan (`-sF`)**: Envía un paquete con el *flag* FIN activado.
-> *   **Xmas Scan (`-sX`)**: Envía un paquete con los *flags* FIN, PSH y URG activados (como un "árbol de Navidad" de *flags*).
-> En sistemas compatibles con la RFC 793, si el puerto está cerrado, se envía un RST. Si el puerto está abierto, no se envía ninguna respuesta. Esto puede ayudar a evadir *firewalls* que solo monitorean los *flags* SYN.
-
-> [!info] TCP ACK Scan (`-sA`)
-> El ACK scan no determina si un puerto está abierto o cerrado, sino si está filtrado o no filtrado por un *firewall*. Envía un paquete ACK. Si recibe un RST, el puerto es "no filtrado" (el *firewall* no lo bloquea). Si no hay respuesta o se recibe un ICMP "Communication Administratively Prohibited", el puerto es "filtrado". Es útil para mapear reglas de *firewall*.
-
-> [!tip] Escaneo con *Flags* Personalizados (`--scanflags`)
-> La opción `--scanflags` permite crear paquetes TCP con cualquier combinación de *flags* (SYN, ACK, FIN, RST, PSH, URG, ECE, CWR). Esto es útil para pruebas avanzadas de *firewalls* y para intentar evadir sistemas de detección de intrusiones que buscan patrones específicos. Por ejemplo, `--scanflags SYNACK` enviaría un paquete con ambos *flags* SYN y ACK activados.
-
-### Detección de Versión y SO
-
-| Opción | Descripción | Ejemplo |
+| Template | Nombre | Perfil |
 |---|---|---|
-| `-sV` | Detección de versiones de servicios | `nmap -sV 192.168.1.1` |
-| `--version-intensity` | Intensidad de detección (0-9) | `nmap -sV --version-intensity 5 192.168.1.1` |
-| `--version-light` | Detección ligera (intensidad 2) | `nmap -sV --version-light 192.168.1.1` |
-| `--version-all` | Máxima intensidad (intensidad 9) | `nmap -sV --version-all 192.168.1.1` |
-| `-O` | Detección de sistema operativo | `nmap -O 192.168.1.1` |
-| `--osscan-limit` | Limita OS detection a objetivos prometedores | `nmap -O --osscan-limit 192.168.1.1` |
-| `--osscan-guess` | Adivina el OS más agresivamente | `nmap -O --osscan-guess 192.168.1.1` |
+| `-T0` | Paranoid | Un paquete cada 5 min; evasión de IDS extrema; laboratorio, no práctica |
+| `-T1` | Sneaky | ~15 s entre probes |
+| `-T2` | Polite | ~0.4 s — redes sensibles a carga |
+| `-T3` | Normal | Por defecto; balance |
+| `-T4` | Aggressive | El estándar de trabajo en LAN/lab: paralelismo alto |
+| `-T5` | Insane | Máximo paralelismo; pierde resultados en redes con pérdida |
 
-> [!info] Detección de Versiones (`-sV`)
-> La detección de versiones (`-sV`) es crucial para identificar vulnerabilidades específicas. Nmap envía una serie de sondas a los puertos abiertos y compara las respuestas con una base de datos de *fingerprints* de servicios (`nmap-service-probes`). Esto permite identificar el nombre del servicio, la versión, el protocolo e incluso el sistema operativo subyacente en algunos casos.
+### Control fino (lo que realmente se usa en la práctica)
 
-> [!info] Detección de Sistema Operativo (`-O`)
-> La detección de SO (`-O`) utiliza una combinación de técnicas, incluyendo el análisis de *fingerprints* TCP/IP (como el tamaño de la ventana TCP, el orden de los *flags* TCP, el valor TTL inicial, etc.) y respuestas ICMP. Nmap compara estas características con su base de datos (`nmap-os-db`) para identificar el sistema operativo y, a menudo, la versión exacta del *kernel*.
-
-### Scripting con NSE (Nmap Scripting Engine)
-
-| Opción | Descripción | Ejemplo |
+| Flag | Significado | Ejemplo |
 |---|---|---|
-| `-sC` | Ejecuta scripts por defecto | `nmap -sC 192.168.1.1` |
-| `--script` | Ejecuta scripts específicos | `nmap --script http-title 192.168.1.1` |
-| `--script-args` | Argumentos para los scripts | `nmap --script http-title --script-args http.useragent="CustomUA" 192.168.1.1` |
-| `--script-trace` | Muestra toda la comunicación del script | `nmap --script http-title --script-trace 192.168.1.1` |
-| `--script-updatedb` | Actualiza la base de datos de scripts | `nmap --script-updatedb` |
+| `--min-rate <pps>` | Piso de paquetes/segundo — **elimina la espera adaptativa** | `--min-rate 500` (duración predecible) |
+| `--max-rate <pps>` | Techo de paquetes/segundo | `--max-rate 200` |
+| `--min-parallelism` / `--max-parallelism` | Probes simultáneos por host | `--min-parallelism 10` |
+| `--min-hostgroup` / `--max-hostgroup` | Tamaño del lote de hosts | `--max-hostgroup 64` |
+| `--host-timeout <t>` | Máximo por host — evita que un host muerto con `-Pn` frene todo | `--host-timeout 30m` |
+| `--max-retries <n>` | Reintentos de probe antes de dar por filtrado | `--max-retries 2` |
 
-> [!info] El Poder del NSE
-> El Nmap Scripting Engine (NSE) es una de las características más potentes de Nmap. Permite a los usuarios escribir (o usar los miles de scripts existentes) para automatizar una amplia gama de tareas, desde la detección de vulnerabilidades y la enumeración avanzada hasta la explotación simple y la interacción con servicios de red. Los scripts están escritos en lenguaje Lua.
+```bash
+# Escaneo de puerto completo con duración predecible sobre 256 hosts
+nmap -sS -p- --min-rate 1000 --max-retries 1 -T4 -n -oA full 192.168.1.0/24
+```
 
-> [!tip] Uso de Comodines con `--script`
-> Puedes usar comodines para ejecutar grupos de scripts. Por ejemplo:
-> *   `nmap --script "http-*" 192.168.1.1` (ejecuta todos los scripts HTTP)
-> *   `nmap --script "vuln,discovery" 192.168.1.1` (ejecuta scripts de las categorías `vuln` y `discovery`)
-> *   `nmap --script "not intrusive" 192.168.1.1` (ejecuta todos los scripts excepto los intrusivos)
+## Detección de servicio y versión
 
-> [!info] Argumentos Comunes de Scripts (`--script-args`)
-> Muchos scripts NSE aceptan argumentos para personalizar su comportamiento. Algunos ejemplos comunes incluyen:
-> *   `http.useragent`: Para cambiar el User-Agent en solicitudes HTTP.
-> *   `smbuser`, `smbpass`: Para credenciales de autenticación SMB.
-> *   `vulns.showall`: Para mostrar todas las vulnerabilidades encontradas, no solo las de alta confianza.
+| Flag | Significado |
+|---|---|
+| `-sV` | Activa *version detection*: sondea cada puerto abierto y compara con `nmap-service-probes` |
+| `--version-intensity <0-9>` | Profundidad (por defecto 7). 0 = solo el probe activo; 9 = todos los probes, el más fiable y lento |
+| `--version-light` | Atajo de intensidad 2 (los 2 probes principales) |
+| `--version-all` | Intensidad 9 + versiones alternativas |
+| `--version-trace` | Muestra cada probe/respuesta (depuración) |
+| `-O` | Detección de SO por fingerprint TCP/IP (`nmap-os-db`) |
+| `--osscan-limit` | Detección de SO solo contra hosts "prometedores" (≥1 puerto abierto) |
+| `--osscan-guess` | Fuerza el emparejamiento con porcentaje de confianza |
+| `-A` | **Atajo total**: `-sV -O -sC --traceroute` |
 
-### Categorías de Scripts NSE
+### Interpretar la salida de `-sV`
 
-| Categoría | Descripción | Ejemplo |
+```
+PORT     STATE SERVICE  VERSION
+445/tcp  open  microsoft-ds  Windows Server 2019 microsoft-ds
+8080/tcp open  http         Apache Tomcat 9.0.30
+```
+
+| Campo | Qué aporta al informe |
+|---|---|
+| `microsoft-ds` + versión | Base para decidir EternalBlue, SMB signing, enumeración con [[smbclient Cliente de Línea de Comandos para SMBCIFS]] |
+| `Apache Tomcat 9.0.30` | Guía a CVEs concretas de esa línea y a la vía de subida WAR de [[Msfvenom - Herramienta de Generación de Payloads]] |
+| `OpenSSH 7.4` | Posibles vulnerabilidades de la versión, soporte de usuarios/keys |
+| `(service info: "os: ...")` | El service detection a veces identifica el SO aunque no pidas `-O` |
+
+> [!tip] `--version-intensity 9` tiene coste
+> En la práctica: intensidad por defecto (7) para el escaneo inicial; subir a 9 solo contra los hosts/ports de interés cuando la versión exacta abre una puerta concreta (p. ej. decidir un exploit).
+
+## NSE — Nmap Scripting Engine
+
+Los scripts NSE (Lua) viven en categorías, se seleccionan por categoría, nombre o expresión, y reciben argumentos con `--script-args`.
+
+### Categorías
+
+| Categoría | Contenido | Riesgo |
 |---|---|---|
-| `auth` | Scripts de autenticación | `--script auth` |
-| `broadcast` | Descubrimiento de red por broadcast | `--script broadcast` |
-| `brute` | Fuerza bruta contra servicios | `--script brute` |
-| `default` | Scripts por defecto (equivale a -sC) | `--script default` |
-| `discovery` | Descubrimiento de servicios y hosts | `--script discovery` |
-| `dos` | Denial of Service (usar con cuidado) | `--script dos` |
-| `exploit` | Explotación de vulnerabilidades | `--script exploit` |
-| `external` | Scripts que usan recursos externos | `--script external` |
-| `fuzzer` | Fuzzing de servicios | `--script fuzzer` |
-| `intrusive` | Scripts intrusivos (detectables) | `--script intrusive` |
-| `malware` | Detección de malware | `--script malware` |
-| `safe` | Scripts seguros y no intrusivos | `--script safe` |
-| `version` | Detección de versiones mejorada | `--script version` |
-| `vuln` | Detección de vulnerabilidades | `--script vuln` |
+| `default` | Equivale a `-sC` — seguros, rápidos, siempre útiles | Bajo |
+| `safe` | No intrusivos, sin impacto | Bajo |
+| `discovery` | Enumeración de configuraciones | Bajo-medio |
+| `vuln` | Detección de vulnerabilidades conocidas | Medio (puede ser ruidoso) |
+| `auth` | Prueba de credenciales válidas | Medio |
+| `brute` | Fuerza bruta | **Alto** — requiere autorización explícita |
+| `intrusive` | Pueden romper servicios o generar muchísimo tráfico | Alto |
+| `exploit` | **Explotan** vulnerabilidades | Crítico |
+| `dos` | Denegación de servicio | Crítico — solo laboratorio |
+| `malware` | Detección de backdoors | Bajo |
+| `external` | Dependen de recursos externos (consultas whois/OSVDB) | Variable |
+| `broadcast` | Descubrimiento por broadcast (NetBIOS, mDNS, DHCP…) | Bajo |
 
-> [!warning] Scripts `dos`, `exploit`, `intrusive`
-> Las categorías `dos`, `exploit` e `intrusive` contienen scripts que pueden ser destructivos, generar mucho ruido en la red, o ser detectados fácilmente por sistemas de seguridad. Úsalos con extrema precaución y solo en entornos autorizados y controlados, como laboratorios de pruebas.
+### Selección de scripts
 
-> [!info] Scripts `default` y `safe`
-> La categoría `default` (`-sC`) incluye scripts que son considerados seguros, rápidos y útiles para la mayoría de los escaneos. La categoría `safe` es un subconjunto de `default` y garantiza que los scripts no son intrusivos ni causarán problemas.
+| Sintaxis | Ejemplo |
+|---|---|
+| Nombre | `--script http-enum` |
+| Lista | `--script smb-os-discovery,ssl-cert` |
+| Categoría | `--script vuln` |
+| Comodín | `--script "http-*"` |
+| Booleanos | `--script "default and not intrusive"` |
+| Ruta directa | `--script /ruta/script.nse` |
 
-### Opciones de Timing y Rendimiento
+### Argumentos y traza
 
-| Opción | Descripción | Ejemplo |
+| Flag | Uso |
+|---|---|
+| `--script-args k=v,...` | `--script-args smbuser=admin,smbpass=Pass123,http.useragent="Mozilla/5.0"` |
+| `--script-args-file f` | Argumentos desde archivo |
+| `--script-timeout <t>` | Corte por script colgado |
+| `--script-trace` | Muestra todo el tráfico que envía/recibe el script |
+| `--script-updatedb` | Regenera `scripts.db` tras añadir scripts propios |
+
+### Catálogo de recetas NSE (las que se usan de verdad)
+
+```bash
+# Enumeración web — directorios virtuales, headers, métodos, robots
+nmap -sV --script http-enum,http-headers,http-methods,http-robots.txt -p80,443 10.10.10.50
+
+# Toma de decisiones sobre SMB (¿signing? ¿qué SO? ¿shares?)
+nmap -p445 --script smb-os-discovery,smb-security-mode,smb-enum-shares,smb-enum-users 10.10.10.50
+
+# Vulnerabilidades SMB clásicas (EternalBlue, etc.)
+nmap -p445 --script smb-vuln* --script-args=unsafe=1 10.10.10.50
+
+# Auditoría TLS rápida desde Nmap (complementa a SSLScan/SSLyze)
+nmap -p443 --script ssl-cert,ssl-enum-ciphers,ssl-heartbleed,sslv3 10.10.10.50
+
+# Detección de vulnerabilidades general + versiones
+nmap -sV --script vuln -Pn 10.10.10.50
+
+# Fuerza bruta SMB autorizada (¡ruidosa!)
+nmap -p445 --script smb-brute --script-args userdb=users.txt,passdb=rockyou-top.txt 10.10.10.50
+
+# Broadcast: descubrir hosts y nombres por broadcast
+nmap --script broadcast-netbios-name-discovery,broadcast-dhcp-discover 192.168.1.255
+
+# DNS enumeration
+nmap --script dns-brute,dns-zone-transfer -p53 10.10.10.53
+```
+
+| Script | Qué entrega |
+|---|---|
+| `http-enum` | Directorios virtuales con posible CVE asociada (vía `http-vuln-cve2017-5638` etc.) |
+| `smb-os-discovery` | SO, workgroup, dominio, fecha, si es controlador de dominio |
+| `smb-security-mode` | ¿Signing required/disabled? (base de relay attacks) |
+| `ssl-enum-ciphers` | Calificación A-F de cada protocolo con sus cifrados |
+| `vuln` | Hallazgos con CVE y confianza (`VULNERABLE`, `Likely VULNERABLE`) |
+
+> [!warning] `unsafe=1` y categorías peligrosas
+> Muchos scripts de detección de vulnerabilidades (p. ej. `smb-vuln-ms17-010`) envían payloads de prueba potencialmente crasheros y solo ejecutan la parte arriesgada con `--script-args unsafe=1`. Ejecutar siempre primero **sin** el argumento; activarlo solo con autorización y contra hosts descartables.
+
+## Formatos de salida y análisis con línea de comandos
+
+| Flag | Formato | Uso principal |
 |---|---|---|
-| `-T0` | Paranoid (muy lento, evasión) | `nmap -T0 192.168.1.1` |
-| `-T1` | Sneaky (muy lento) | `nmap -T1 192.168.1.1` |
-| `-T2` | Polite (lento, menos ruido) | `nmap -T2 192.168.1.1` |
-| `-T3` | Normal (default) | `nmap -T3 192.168.1.1` |
-| `-T4` | Aggressive (rápido) | `nmap -T4 192.168.1.1` |
-| `-T5` | Insane (muy rápido, puede ser poco fiable) | `nmap -T5 192.168.1.1` |
-| `--min-hostgroup` | Tamaño mínimo del grupo de hosts | `nmap --min-hostgroup 64 192.168.1.0/24` |
-| `--min-rate` | Velocidad mínima de paquetes por segundo | `nmap --min-rate 100 192.168.1.1` |
-| `--max-rate` | Velocidad máxima de paquetes por segundo | `nmap --max-rate 100 192.168.1.1` |
+| `-oN archivo` | Normal (humano) | Lectura, informes |
+| `-oX archivo` | **XML** | Procesamiento programático, Metasploit, herramientas de informe |
+| `-oG archivo` | *Greppable* — una línea por host con `Ports:` | `grep`/`awk` rápido (legacy) |
+| `-oS archivo` | "Script kiddie" | Broma del autor; no usar |
+| `-oA base` | **Todos** anteriores: `base.nmap`, `base.xml`, `base.gnmap` | El estándar: nunca se arrepiente quien guarda todo |
 
-> [!info] Plantillas de Timing (`-T0` a `-T5`)
-> Nmap ofrece plantillas de *timing* para ajustar la velocidad y el sigilo del escaneo:
-> *   `-T0` (Paranoid): Muy lento, envía paquetes muy espaciados para evadir IDS/IPS.
-> *   `-T1` (Sneaky): Lento, similar a `-T0` pero un poco más rápido.
-> *   `-T2` (Polite): Más lento que el normal, reduce la carga en la red y es menos propenso a ser detectado.
-> *   `-T3` (Normal): El modo por defecto, un equilibrio entre velocidad y sigilo.
-> *   `-T4` (Aggressive): Rápido, asume una red fiable y puede ser ruidoso.
-> *   `-T5` (Insane): Muy rápido, puede perder algunos resultados en redes inestables o con alta latencia.
-> La elección de la plantilla depende del entorno y los objetivos del escaneo.
+### Extracción con `grep`/`awk` (formato greppable)
 
-> [!tip] Control Fino de Velocidad (`--min-rate`, `--max-rate`)
-> Para un control más granular sobre la velocidad del escaneo, puedes usar `--min-rate` y `--max-rate` para especificar el número mínimo y máximo de paquetes por segundo. Esto es útil para evitar la detección por parte de sistemas de seguridad o para acelerar escaneos en redes de alta velocidad.
+```bash
+# Hosts vivos desde un -oG
+grep "Status: Up" escaneo.gnmap | awk '{print $2}'
 
-### Evasión y Ofuscación
+# Puertos abiertos: una lista "ip:puerto" lista para Nmap posterior o Hydra
+grep "/open/" escaneo.gnmap | \
+  awk -F'[ /]+' '{for(i=6;i<=NF;i+=3) print $2":"$i}' | sort -u
+```
 
-| Opción | Descripción | Ejemplo |
+### JSON con `jq` (desde `-oX`)
+
+```bash
+# XSLT directo de Nmap a HTML para el informe
+xsltproc escaneo.xml -o informe.html
+
+# jq sobre el XML convertido (o usando el plugin nmap para jq):
+# lista puertos abiertos con servicio y versión
+jq -r '.nmaprun.host[] | select(.status.state=="up") |
+  .address[0].addr as $ip |
+  .ports.port[]? | select(.state=="open") |
+  "\($ip)\t\(.portid)/\(.protocol)\t\(.service.name)\t\(.service.version // "")"' escaneo.json
+
+# Solo hosts con 445 abierto (para CrackMapExec)
+jq -r '.nmaprun.host[] | select(any(.ports.port[]?; .portid=="445" and .state=="open")) | .address[0].addr' escaneo.json > smb-hosts.txt
+```
+
+> [!tip] XML es el formato canónico
+> El XML es el único formato estable para ingestión (el greppable cambió de formato entre versiones y rompió scripts famosos). Flujo recomendado: `-oA` siempre; humano desde `.nmap`, automatización desde `.xml` (+`jq`/`xsltproc`).
+
+## Interpretar la salida de un escaneo completo
+
+```
+Nmap scan report for 10.10.10.50
+Host is up (0.0042s latency).                    ← calidad de la medición; >0.5s = sospecha de tarpitting
+Not shown: 996 closed tcp ports (reset)          ← "filtered" en vez de "closed" = firewall
+PORT     STATE SERVICE       VERSION
+22/tcp   open  ssh           OpenSSH 8.2p1 Ubuntu 4ubuntu0.5   ← versión con parche exacto
+80/tcp   open  http          Apache httpd 2.4.41
+445/tcp  open  microsoft-ds  Windows 10
+3306/tcp open  mysql         MySQL 8.0.28                        ← service info añade OS hints
+Device type: general purpose|router
+Running: Linux 4.X|5.X                                                   ← de -O
+OS details: Linux 4.15 - 5.6 (conf: 92%)                        ← confianza del fingerprint
+```
+
+| Señal | Lectura correcta |
+|---|---|
+| Muchos `filtered` | Firewall activo — repetir con `-Pn`, `-PS`, o `-sA` para mapear reglas |
+| `open\|filtered` en UDP | Normal: subir con payloads específicos (`--script` de versiones) o paciencia |
+| OS details con confianza baja | No poner el SO en el informe como hecho — es una **estadística** |
+| Latencia alta e inestable | Posible IDS de rate-limiting/tarpitting: bajar a `-T2` y verificar resultados repetidos |
+
+## Evasión de firewalls e IDS
+
+| Técnica | Flag | Mecanismo / cuándo sirve |
 |---|---|---|
-| `-f` | Fragmenta paquetes | `nmap -f 192.168.1.1` |
-| `--mtu` | Especifica el MTU para fragmentación | `nmap --mtu 24 192.168.1.1` |
-| `-D` | Decoy scanning (escaneo con señuelos o *decoys*) | `nmap -D RND:5 192.168.1.1` |
-| `-S` | Spoof *source address* (suplantar dirección de origen) | `nmap -S 192.168.1.99 192.168.1.1` |
-| `-e` | Especifica la interfaz de red | `nmap -e eth0 192.168.1.1` |
-| `--source-port` | Spoof *source port* (suplantar puerto de origen) | `nmap --source-port 53 192.168.1.1` |
-| `--data-length` | Añade datos aleatorios a los paquetes | `nmap --data-length 100 192.168.1.1` |
-| `--ttl` | Establece TTL personalizado | `nmap --ttl 64 192.168.1.1` |
-| `--spoof-mac` | Spoof *MAC address* (suplantar dirección MAC) | `nmap --spoof-mac 0 192.168.1.1` |
+| Fragmentación | `-f` (8 bytes) / `--mtu 16|24|32|…` | Evita filtros que inspeccionan solo el primer fragmento (firewalls viejos, ACLs simples) |
+| Decoys | `-D RND:5` o `-D IP1,ME,IP2` | Los logs del target ven múltiples orígenes; `ME` marca la posición real. Requiere ruta de retorno plausible |
+| Puerto origen | `--source-port 53` | Tráfico desde puertos privilegiados (DNS) pasa filtros mal configurados que confían en el puerto |
+| Longitud del payload | `--data-length 100` | Bytes aleatorios al final del paquete: evade firmas por tamaño exacto |
+| TTL personalizado | `--ttl 64` | Igualar TTL de la red local — evita detección por TTL anómalo |
+| MAC aleatoria | `--spoof-mac 0` | Ofusca el identificador de capa 2 |
+| IP falsificada | `-S <ip>` | Requiere root, red y conocimiento del entorno; casi siempre inútil sin sniffing |
+| Flags TCP | `--scanflags URGACKPSH` | Paquetes que ninguna firma estándar espera |
+| Timing lento | `-T1`/`-T2`, `--max-rate` | Evita IDS por umbral de velocidad |
+| Sin resolución DNS | `-n` | Elimina consultas DNS ruidosas desde tu IP |
+| Alternativa total | [[Masscan]] + -e/pcap | Si el firewall bloquea Nmap por fingerprint de paquete |
 
-> [!info] Fragmentación de Paquetes (`-f`, `--mtu`)
-> La fragmentación de paquetes divide los paquetes de Nmap en fragmentos más pequeños. Esto puede ayudar a evadir *firewalls* o IDS/IPS que inspeccionan solo los encabezados de los paquetes o que tienen dificultades para reensamblar paquetes fragmentados, aunque los sistemas modernos son más robustos contra esta técnica. `--mtu` permite especificar el tamaño máximo de unidad de transmisión.
+> [!warning] Evasión ≠ invisibilidad
+> Un firewall moderno con inspección de estado y correlación de flujo detecta casi todas estas técnicas en aggregate: fragmentos que reensamblan a un SYN, decoys sin respuesta posterior, TTL inconsistente con la ruta. La evasión realista es **menos ruido + timing correcto**, no flags exóticos.
 
-> [!info] Decoy Scanning (`-D`)
-> El *decoy scanning* (`-D`) permite enviar paquetes desde múltiples direcciones IP falsas (señuelos) junto con la dirección IP real del atacante. Esto dificulta que los sistemas de detección de intrusiones identifiquen la fuente real del escaneo, ya que los logs mostrarán múltiples IPs realizando la actividad.
-`RND:5` genera 5 direcciones IP aleatorias.
+## Rendimiento a escala
 
-> [!warning] Suplantación de Dirección IP (`-S`)
-> La suplantación de la dirección IP de origen (`-S`) es una técnica avanzada que requiere privilegios de *root* y un conocimiento profundo de la red. Nmap enviará paquetes con la dirección IP especificada, pero no podrá recibir las respuestas directamente a menos que se configure un *sniffing* o se esté en la misma red que la IP suplantada.
+| Escala | Estrategia |
+|---|---|
+| < 50 hosts | Nmap directo: `-sS -T4 -F` y refinado con `-p-` |
+| 50–1 000 hosts | `-sn` primero, `-sS --top-ports 1000 --min-rate` sobre vivos, `-oA` |
+| 1 000+ hosts / rangos grandes | [[Masscan]] a ~1 000 pps con lista de puertos → resultados a Nmap con `-iL vivos.txt -sV` |
+| Puertos UDP masivos | Solo `--top-ports 20 -sU` con `--host-timeout`; el UDP completo es un pozo de tiempo |
+| Redes con pérdida | Evitar `-T5`; `--max-retries 2` y confiar en la repetición del escaneo completo |
 
-> [!info] Suplantación de Puerto de Origen (`--source-port`)
-> Al especificar un puerto de origen común (como 53 para DNS, 80 para HTTP, 443 para HTTPS), se puede intentar hacer que el escaneo parezca tráfico legítimo para algunos *firewalls* o sistemas de detección de intrusiones.
+Costes por defecto: Nmap espera ~un minuto por puerto filtrado y reintenta 2-3 veces. Un `-p-` con cientos de hosts filtrados **antes** de `--host-timeout`/`--min-rate` es el cuello de botella típico.
 
-> [!info] Añadir Datos Aleatorios (`--data-length`)
-> Añadir datos aleatorios a los paquetes puede ayudar a evadir *firewalls* o IDS/IPS que buscan patrones específicos en el tamaño o contenido de los paquetes.
+## Nmap vs Masscan
 
-> [!tip] Suplantación de Dirección MAC (`--spoof-mac`)
-> Cambiar la dirección MAC (`--spoof-mac`) puede ser útil en redes locales para evadir la detección basada en la dirección física del adaptador de red. `0` genera una MAC aleatoria.
-
-### Salida y Reportes
-
-| Opción | Descripción | Ejemplo |
+| Aspecto | Nmap | Masscan |
 |---|---|---|
-| `-oN` | Salida normal (texto) | `nmap -oN resultado.txt 192.168.1.1` |
-| `-oX` | Salida XML | `nmap -oX resultado.xml 192.168.1.1` |
-| `-oS` | Salida *script kiddie* (formato menos estructurado) | `nmap -oS resultado.txt 192.168.1.1` |
-| `-oG` | Salida *grepeable* (fácil de procesar con `grep`) | `nmap -oG resultado.txt 192.168.1.1` |
-| `-oA` | Todas las salidas (normal, XML, *grepeable*) | `nmap -oA resultado 192.168.1.1` |
-| `-v` | Aumenta el nivel de verbosidad (muestra más detalles) | `nmap -v 192.168.1.1` |
-| `-vv` | Verbosidad alta (muestra aún más detalles) | `nmap -vv 192.168.1.1` |
-| `--reason` | Muestra la razón del estado del puerto (ej. `syn-ack`, `rst-ack`) | `nmap --reason 192.168.1.1` |
-| `--open` | Muestra solo puertos abiertos (y sus estados) | `nmap --open 192.168.1.1` |
-| `--packet-trace` | Muestra todos los paquetes enviados/recibidos (para depuración) | `nmap --packet-trace 192.168.1.1` |
+| Velocidad | ~1 000 pps práctico | > 100 000 pps (async, raw) |
+| Precisión de estado | Alta (reintentos, fingerprints) | Baja en redes con pérdida — genera falsos positivos |
+| Service/version detection | `-sV` completo | No |
+| OS detection | `-O` | No |
+| NSE | Sí (miles de scripts) | No |
+| Estructura de salida | XML/greppable/normal | Propia (bucket sort) + pcap |
+| Rol en un engagement | **Análisis** | **Descubrimiento bruto** |
 
-> [!tip] Salida XML (`-oX`)
-> La salida XML es ideal para el procesamiento automatizado. Muchas herramientas de análisis de resultados de Nmap (como `xsltproc` o herramientas personalizadas) pueden consumir este formato para generar informes o integrar los resultados en otros flujos de trabajo.
+Flujo combinado estándar:
 
-> [!tip] Salida Grepeable (`-oG`)
-> El formato *grepeable* (`-oG`) es un formato de salida simple y de una línea por host, diseñado para ser fácilmente procesado por herramientas de línea de comandos como `grep`, `awk` o `cut`. Es muy útil para extraer rápidamente información específica de los resultados del escaneo.
+```bash
+masscan -p80,443,445,22,8080 10.10.10.0/24 --rate 1000 -oL masivo.txt
+awk '{print $4}' masivo.txt | sort -u > vivos.txt
+nmap -sV -sC -iL vivos.txt -oA refinado
+```
 
-> [!info] Salida Agresiva (`-oA`)
-> La opción `-oA` es muy conveniente, ya que guarda los resultados en los tres formatos principales (normal, XML y *grepeable*) con el nombre base especificado. Esto asegura que se tenga una copia de los resultados en formatos adecuados para lectura humana y procesamiento automatizado.
+## Recetas — los comandos que se escriben cada día
 
-> [!tip] Verbosidad (`-v`, `-vv`) y Razón (`--reason`)
-> Aumentar la verbosidad (`-v`, `-vv`) es útil para entender el progreso del escaneo y depurar problemas. La opción `--reason` proporciona información valiosa sobre por qué Nmap determinó un puerto como abierto, cerrado o filtrado, lo cual es fundamental para el análisis de *firewalls*.
+```bash
+# 1. Reconocimiento inicial (lo primero en cualquier alcance)
+nmap -sS --top-ports 100 -T4 -n -oA recon 192.168.1.0/24
 
-### Opciones Diversas
+# 2. Descubrimiento de hosts rápido (sin tocar puertos)
+nmap -sn -n 192.168.1.0/24 -oG vivos.gnmap
 
-| Opción | Descripción | Ejemplo |
+# 3. Puerto completo con duración predecible
+nmap -sS -p- --min-rate 1000 --max-retries 1 -T4 -n -oA full <ip>
+
+# 4. Ping scan evitando ICMP filtrado
+nmap -PS80,443,445,22 -sn -n 10.10.10.0/24
+
+# 5. Servicios y SO de un host ya descubierto
+nmap -sV -O --osscan-guess -p- -T4 -oA detalle 10.10.10.50
+
+# 6. Escaneo agresivo completo (lab/alcance amplio)
+nmap -A -T4 -Pn -oA agresivo 10.10.10.50
+
+# 7. Host que no responde al ping
+nmap -Pn -sV --top-ports 1000 10.10.10.50
+
+# 8. Mapeo de firewall
+nmap -sA -p 21,22,80,443,445,3389 -T4 10.10.10.0/24
+
+# 9. UDP esencial
+nmap -sU --top-ports 20 -T4 -oA udp 10.10.10.0/24
+
+# 10. Enumeración SMB lista para CrackMapExec
+nmap -p445 --script smb-os-discovery,smb-security-mode,smb-enum-shares 10.10.10.0/24 -oA smb
+
+# 11. Auditoría TLS
+nmap -p443,8443 --script ssl-cert,ssl-enum-ciphers,ssl-heartbleed 10.10.10.50
+
+# 12. Silencioso para IDS sensible
+nmap -sN -T1 -f --source-port 53 -n 10.10.10.50
+
+# 13. Pipeline a Hydra (extraer host:puerto ssh/http)
+grep "/open/" escaneo.gnmap | awk -F'[ /]+' '{print $2":"$6}' > targets-hydra.txt
+```
+
+## Errores comunes (con mensajes exactos)
+
+| Mensaje / síntoma | Causa | Fix |
 |---|---|---|
-| `-6` | Escaneo de IPv6 | `nmap -6 2001:db8::1` |
-| `-A` | Escaneo agresivo (detección de SO, versiones, scripts por defecto y *traceroute*) | `nmap -A 192.168.1.1` |
-| `--datadir` | Especifica el directorio de datos de Nmap | `nmap --datadir /ruta/custom 192.168.1.1` |
-| `--servicedb` | Especifica un archivo de servicios personalizado | `nmap --servicedb miservicios.txt 192.168.1.1` |
-| `--versiondb` | Especifica un archivo de versiones personalizado | `nmap --versiondb miversiones.txt 192.168.1.1` |
-| `--system-dns` | Usa el *resolver* DNS del sistema | `nmap --system-dns 192.168.1.1` |
-| `--dns-servers` | Especifica servidores DNS personalizados | `nmap --dns-servers 8.8.8.8 192.168.1.1` |
+| `TCP/IP fingerprinting requires root privileges` | Sin privilegios | `sudo nmap ...` (o aceptar `-sT` y `-O` deshabilitado) |
+| `QUITTING!` tras `Failed to resolve` | Nombre de host no resoluble y usado como target | Usar IP, o pasar DNS con `--dns-servers`, o comprobar `-n` no rompe algo |
+| Todos los puertos `filtered` con `-Pn` | Firewall + discovery omitido en hosts muertos | Quitar `-Pn` o filtrar hosts vivos antes |
+| `Host seems down. If it is really up...` | Firewall responde RST a SYN de discovery | Aceptar el flag sugerido: `--send-ip` / usar `-Pn` justificado |
+| Escaneo UDP que tarda horas | 65 535 puertos UDP + reintentos | `--top-ports 20`, `--host-timeout`, `-T4` |
+| NSE no ejecuta el script | Nombre mal escrito o DB desactualizada | `--script-updatedb`; verificar con `ls /usr/share/nmap/scripts/<s>.nse` |
+| Resultados que no coinciden entre ejecuciones | Rate limiting del objetivo/IDS | Repetir con `-T2 --max-retries 3` y comparar |
+| Los decoys no engañan | El target ve SYN pero no el tráfico posterior | Los decoys solo estorban en logs; para evasión real usar timing/fragmentación |
 
-> [!info] Escaneo Agresivo (`-A`)
-> La opción `-A` es un atajo para activar varias opciones de escaneo avanzadas: detección de SO (`-O`), detección de versiones (`-sV`), ejecución de scripts por defecto (`-sC`) y *traceroute* (`--traceroute`). Es una opción muy completa para obtener una gran cantidad de información en un solo escaneo, pero también es más ruidosa y lenta.
+## Cheatsheet
 
-> [!tip] Control de Resolución DNS (`--system-dns`, `--dns-servers`)
-> Controlar cómo Nmap resuelve los nombres de dominio es importante. `--system-dns` fuerza a Nmap a usar el *resolver* DNS configurado en el sistema operativo, mientras que `--dns-servers` permite especificar servidores DNS específicos, lo cual es útil para pruebas de DNS o para evitar *resolvers* lentos o filtrados.
+```bash
+# Discovery
+nmap -sn <rango>                 # ¿quién vive?
+nmap -PS80,443 -sn <rango>       # por TCP (ICMP bloqueado)
+
+# Escaneo
+nmap -sS --top-ports 100 -T4     # recon inicial
+nmap -sS -p- --min-rate 1000     # completo predecible
+nmap -sU --top-ports 20          # UDP esencial
+nmap -sA -p 80,443               # firewall: filtrado?
+nmap -Pn -sV <ip>                # host que no pingea
+nmap -A -T4 <ip>                 # todo (lab)
+
+# NSE
+nmap -sC <targets>               # default scripts
+nmap --script vuln -Pn <ip>      # vulnerabilidades
+nmap --script "http-*" -p80 <ip>
+nmap --script-args k=v --script <s> <ip>
+
+# Salida
+nmap ... -oA salida              # .nmap + .xml + .gnmap
+grep "/open/" salida.gnmap       # puertos abiertos
+xsltproc salida.xml -o r.html    # informe HTML
+
+# Evasión (autorizada)
+nmap -f --data-length 64 --source-port 53 -T2 <ip>
+```
+
+## Referencias
+
+- Manual oficial: <https://nmap.org/book/man.html>
+- Guía de NSE: <https://nmap.org/book/nse.html>
+- Libro "Nmap Network Scanning" (Gordon Lyon, libre): <https://nmap.org/book/>
+- NSE scripts search: <https://nmap.org/nsedoc/>
+- Análisis de los paquetes que envía Nmap: [[Wireshark y Tshark]]
+- Conceptos de reconocimiento: [[Reconocimiento y Escaneo de Redes y Web]]
+
+## Relacionadas
+
+- [[Masscan]] — descubrimiento bruto a velocidad imbatible
+- [[netdiscover]] / [[Arp Scan Herramienta de Descubrimiento]] — descubrimiento ARP en LAN
+- [[Enumeración de Servicios y CMS]] — qué hacer con cada puerto abierto
+- [[smbclient Cliente de Línea de Comandos para SMBCIFS]] / [[SMBMap]] / [[CrackMapExec Guía de Uso]] — la cadena SMB
+- [[SSLScan]] / [[SSLyze Analizador SSL TLS]] — auditoría TLS profunda (Nmap solo hace el primer sondeo)
+- [[THC Hydra]] — fuerza bruta sobre los servicios descubiertos
+- [[Creación de Informes en LaTeX]] — cómo documentar el mapa de red

@@ -1,73 +1,379 @@
 ---
-aliases:
-  - OpenSSL
+aliases: ["OpenSSL", "openssl", "OpenSSL CLI"]
 tags:
-  - herramientas/openssl
-estado: 🟢 Terminado
+  - tool/openssl
+tipo: herramienta
+estado: terminado
+creado: 2026-10-11
+actualizado: 2026-10-11
+relacionado:
+  - "[[SSLScan]]"
+  - "[[SSLyze Analizador SSL TLS]]"
+  - "[[Nmap Guía Completa]]"
+  - "[[PadBuster - Herramienta de Ataque de Relleno Oracle]]"
+  - "[[Reconocimiento y Escaneo de Redes y Web]]"
+fuente: "https://www.openssl.org/docs/man3.0/man1/"
 ---
-# OpenSSL: Comandos Principales y Funciones Criptográficas
 
-**OpenSSL** es un *conjunto de herramientas* de código abierto que implementa los protocolos SSL (Secure Sockets Layer) y TLS (Transport Layer Security), además de proporcionar una amplia gama de funciones criptográficas. Es la librería más utilizada para seguridad en internet, siendo fundamental para la comunicación segura en la web, VPNs, y muchas otras aplicaciones que requieren cifrado y autenticación.
+# OpenSSL — Comandos Principales
 
-> [!info] Importancia de OpenSSL
-> OpenSSL no solo proporciona las herramientas de línea de comandos, sino que también es una biblioteca criptográfica subyacente utilizada por innumerables aplicaciones y servicios (como Apache, Nginx, Postfix, OpenSSH) para manejar operaciones SSL/TLS, cifrado de datos, generación de claves y gestión de certificados. Su robustez y flexibilidad lo convierten en un pilar de la ciberseguridad moderna.
+**OpenSSL** es a la vez (1) la biblioteca criptográfica *de facto* de todo el software de red — Apache, Nginx, OpenSSH, Postfix, Python, curl — y (2) la CLI de referencia para **generar claves y certificados, inspeccionar TLS, verificar cadenas y cifrar archivos**. Para un pentester es la herramienta de diagnóstico TLS definitiva: cuando `curl -v` no dice qué pasó en el handshake, `openssl s_client` lo dice.
 
-## Tabla de Comandos Principales de OpenSSL
+> [!info] Dos caras de una misma herramienta
+> El binario `openssl` ejecuta *subcomandos* (`req`, `x509`, `s_client`, `enc`…) que son interfaces de la biblioteca subyacente. Cada versión añadió subcomandos nuevos (`genpkey`, `pkeyutl` modernizan a `genrsa`/`rsautl`). Regla: **usar los comandos modernos** (`genpkey`, `pkeyutl`) salvo cuando se reproduzca un apunte o guía antigua.
 
-### Comandos Básicos
+## Instalación
 
-| Comando | Descripción | Ejemplo |
+| Contexto | Comando |
+|---|---|
+| **Kali Linux / Debian / Ubuntu** | Preinstalado (`openssl version`) |
+| RHEL/Fedora | `sudo dnf install openssl` |
+| Windows | Vendido con Git for Windows / LibreSSL; oficial: slproweb.com builds |
+
+Sin dependencias externas: la CLI funciona en cualquier Linux mínimo.
+
+## Subcomandos esenciales (mapa rápido)
+
+| Subcomando | Función |
+|---|---|
+| `genpkey` / `genrsa` | Generar clave privada (moderna / legacy) |
+| `req` | Crear CSR o certificado autofirmado |
+| `x509` | Inspeccionar, convertir, firmar certificados |
+| `verify` | Verificar cadena de confianza |
+| `s_client` | Cliente TLS interactivo — diagnóstico y depuración |
+| `s_server` | Servidor TLS de prueba |
+| `s_time` | Medir handshake/rendimiento TLS |
+| `ciphers` / `ciphersuites` | Listar suites disponibles (cliente) |
+| `enc` | Cifrar/descifrar archivos (simétrico) |
+| `dgst` | Hashes y firmas digitales |
+| `pkeyutl` / `rsautl` | Operaciones con claves (cifrar, firmar) |
+| `pkcs12` | Exportar/importar paquetes clave+cert (PFX/P12) |
+| `pkcs8` | Convertir formatos de clave privada |
+| `rand` | Generar bytes aleatorios |
+| `ca` | CA rudimentaria (laboratorio) |
+
+## Generación de claves
+
+```bash
+# RSA moderno (el comando recomendado hoy)
+openssl genpkey -algorithm RSA -out clave.pem -pkeyopt rsa_keygen_bits:4096
+
+# RSA legacy (equivalente clásico — aún muy visto en guías)
+openssl genrsa -out clave.pem 4096
+
+# EC (ECC) — más rápida y más pequeña que RSA a igual seguridad
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out clave_ec.pem
+
+# Extraer la pública de una clave privada
+openssl pkey -in clave.pem -pubout -out clave_pub.pem
+```
+
+| Tamaño/curva | Estado (2026) |
+|---|---|
+| RSA 2048 | Mínimo aceptable |
+| RSA 4096 | Recomendado para CA y servicios largos |
+| RSA < 2048 | Inseguro, rechazado por navegadores |
+| EC P-256 / P-384 | Recomendado (rápido en handshake, clave corta) |
+| DSA | Obsoleto — no usar |
+
+## CSR y certificados autofirmados
+
+```bash
+# 1. CSR desde clave existente (interactivo: pide los campos)
+openssl req -new -key clave.pem -out peticion.csr
+
+# 2. CSR con subject en una sola línea (automatización)
+openssl req -new -key clave.pem -out peticion.csr \
+  -subj "/C=ES/ST=Madrid/L=Madrid/O=MiEmpresa/OU=IT/CN=app.ejemplo.com"
+
+# 3. CSR + clave en un solo paso (muy habitual en lab)
+openssl req -new -newkey rsa:2048 -nodes -keyout clave.pem -out peticion.csr \
+  -subj "/CN=app.ejemplo.com"
+
+# 4. Certificado autofirmado válido 1 año (labs, servidores internos)
+openssl req -x509 -newkey rsa:2048 -nodes -keyout clave.pem -out cert.pem \
+  -days 365 -subj "/CN=app.ejemplo.com"
+
+# 5. Autofirmado con SAN (Subject Alternative Name) — OBLIGATORIO hoy:
+#    los navegadores rechazan CN sin SAN desde 2020
+openssl req -x509 -newkey rsa:2048 -nodes -keyout clave.pem -out cert.pem -days 365 \
+  -subj "/CN=app.ejemplo.com" \
+  -addext "subjectAltName=DNS:app.ejemplo.com,DNS:localhost,IP:127.0.0.1"
+```
+
+| Campo del subject | Significado |
+|---|---|
+| `CN` | Common Name — el dominio (históricamente el hostname) |
+| `O` / `OU` | Organización / departamento |
+| `C` / `ST` / `L` | País / estado / localidad |
+
+> [!warning] CN solo ya no basta
+> Desde febrero de 2020 los navegadores **ignoran** el CN y exigen el campo `SAN` en el certificado. Un autofirmado con `-subj /CN=x` sin `-addext subjectAltName=...` da error `ERR_CERT_COMMON_NAME_INVALID` — es la trampa nº 1 de los certificados de laboratorio.
+
+## Inspección de certificados
+
+```bash
+# Texto completo (todo lo que el certificado declara)
+openssl x509 -in cert.pem -text -noout
+
+# Resumen de una CSR (qué pide el solicitante)
+openssl req -in peticion.csr -text -noout
+
+# Fechas y subject compactos (para scripts)
+openssl x509 -in cert.pem -noout -subject -dates -issuer
+
+# Extraer la pública de un certificado
+openssl x509 -in cert.pem -pubkey -noout
+
+# Huella del certificado (lo que se compara al aprobar en navegador)
+openssl x509 -in cert.pem -noout -fingerprint -sha256
+
+# Serial y versión
+openssl x509 -in cert.pem -noout -serial -dates
+```
+
+### Qué mirar en `x509 -text` (checklist)
+
+| Sección del texto | Qué verificar |
+|---|---|
+| `Issuer` vs `Subject` | ¿Iguales? → autofirmado (o CA propia) |
+| `Validity: Not Before / Not After` | Caducado o a punto de caducar |
+| `Subject Alternative Name` | Que cubra todos los hostnames servidos |
+| `Public Key Algorithm` + tamaño | RSA ≥ 2048, EC P-256+ |
+| `Signature Algorithm` | `sha256WithRSAEncryption` o mejor; MD5/SHA1 = crítico |
+| `X509v3 Basic Constraints` | `CA:TRUE` — quién puede firmar cadenas |
+| `Key Usage` / `Extended Key Usage` | Que las usos permitidos coincidan con el rol (serverAuth, clientAuth) |
+| `Authority Information Access` | Dónde descargar la cadena (OCSP/CRL) |
+
+## Verificación de cadenas de confianza
+
+```bash
+# Verificar contra el bundle del sistema
+openssl verify cert.pem
+
+# Verificar con la CA emisora y su intermediaria (cadena completa)
+openssl verify -CAfile ca.pem -untrusted cadena_intermedia.pem cert.pem
+
+# Verificar un servidor en vivo (compara la cadena que presenta)
+openssl s_client -connect ejemplo.com:443 -CAfile ca.pem </dev/null
+```
+
+Salida de `verify`: `cert.pem: OK` o errores exactos — `unable to get local issuer certificate` (falta la intermediaria en la cadena que envía el servidor), `certificate has expired`, `self-signed certificate`.
+
+## `s_client` — el estetoscopio TLS
+
+```bash
+# Diagnóstico completo de un servidor HTTPS
+openssl s_client -connect ejemplo.com:443 -showcerts
+
+# Forzar versión (verificar que TLS 1.0/1.1/SSLv3 están caídos)
+openssl s_client -connect ejemplo.com:443 -tls1_2
+openssl s_client -connect ejemplo.com:443 -tls1_3
+openssl s_client -connect ejemplo.com:443 -no_tls1_3
+
+# Forzar un cipher concreto (probar si el servidor lo acepta)
+openssl s_client -connect ejemplo.com:443 -cipher 'ECDHE-RSA-AES128-GCM-SHA256'
+
+# SNI correcto en virtual hosts (obligatorio con IPs múltiples)
+openssl s_client -connect 10.10.10.50:443 -servername app.ejemplo.com
+
+# Servicio STARTTLS (correo, LDAP, etc.)
+openssl s_client -starttls smtp -connect correo.ejemplo.com:25 -showcerts
+openssl s_client -starttls imap  -connect correo.ejemplo.com:143
+openssl s_client -starttls ldap  -connect dc.ejemplo.com:389
+openssl s_client -starttls pop   -connect correo.ejemplo.com:110
+
+# Verificar OCSP stapling
+openssl s_client -connect ejemplo.com:443 -status </dev/null
+
+# Enviar datos por la conexión (probar la aplicación de arriba)
+echo -e "GET / HTTP/1.1\r\nHost: ejemplo.com\r\n\r\n" | openssl s_client -connect ejemplo.com:443 -quiet
+```
+
+### Interpretar la salida de `s_client`
+
+| Bloque de salida | Qué dice |
+|---|---|
+| `Certificate chain` (con `-showcerts`) | Certificado del servidor + intermediarias — comprobar orden y completitud |
+| `subject= / issuer=` | Identidad presentada vs emisora |
+| `New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384` | Versión y cipher **negociados** de la conexión |
+| `Verify return code: 0 (ok)` | Resultado de la validación con los CA configurados — ≠ 0 = cadena rota |
+| `OCSP response:` | Stapling: si dice `No response` el servidor no lo entrega |
+
+> [!tip] La trampa del EOF
+> `s_client` espera la conexión abierta. En pipes y scripts **siempre** terminar con `</dev/null` o `echo |`, o el comando se queda colgado indefinidamente sin error.
+
+## Cifrado y descifrado de archivos (simétrico)
+
+```bash
+# AES-256-CBC con clave derivada de contraseña (Salted)
+openssl enc -aes-256-cbc -salt -in informe.txt -out informe.enc -pass pass:'MiClave'
+openssl enc -aes-256-cbc -d -in informe.enc -out informe.txt -pass pass:'MiClave'
+
+# Con clave de archivo en vez de passphrase (automatización, menos logs)
+openssl enc -aes-256-cbc -salt -in datos.tar.gz -out datos.enc -pass file:clave.key
+
+# AES-256-GCM (AEAD: autentica además de cifrar — disponible desde OpenSSL 3.x)
+openssl enc -aes-256-gcm -salt -in f.txt -out f.enc -pass pass:clave
+
+# Hash de un archivo (integridad)
+openssl dgst -sha256 archivo.iso
+openssl dgst -sha256 -hmac "secreto" archivo
+
+# Generar material aleatorio (tokens, salts)
+openssl rand -hex 32
+```
+
+| Algoritmo | Estado |
+|---|---|
+| `aes-256-cbc` | Clásico funcional; sin autenticación (usar con `-md sha256`) |
+| `aes-256-gcm` | Recomendado (AEAD) en OpenSSL 3.x |
+| `des`/`bf`/`rc4` | Obsoletos — `enc` los sigue listando, **no usarlos** |
+
+> [!warning] `enc` sin `-md sha256` en OpenSSL 1.1.1+
+> OpenSSL cambió el hash por defecto de MD5 a SHA-256 en los KDF. Un archivo cifrado con OpenSSL antiguo **no se descifra** con el nuevo sin añadir `-md md5` (y viceversa). Mensaje típico: `bad decrypt` / `error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt`. Guarda siempre junto al .enc la versión de OpenSSL usada.
+
+## Firmas digitales y operaciones asimétricas
+
+```bash
+# Firmar con privada
+openssl dgst -sha256 -sign clave_privada.pem -out firma.bin documento.txt
+
+# Verificar con pública
+openssl dgst -sha256 -verify clave_pub.pem -signature firma.bin documento.txt
+# -> Verified OK
+
+# Cifrar con pública / descifrar con privada (solo datos pequeños, ≤ tamaño de clave)
+openssl pkeyutl -encrypt -pubin -inkey clave_pub.pem -in plano.txt -out cifrado.bin
+openssl pkeyutl -decrypt -inkey clave_privada.pem -in cifrado.bin -out plano.txt
+```
+
+## Paquetes de certificados (conversión de formatos)
+
+```bash
+# PEM -> PKCS#12 (paquete para Windows/navegadores; pide passphrase)
+openssl pkcs12 -export -out certificado.pfx -inkey clave.pem -in cert.pem -name "MiCert"
+
+# PKCS#12 -> PEM
+openssl pkcs12 -in certificado.pfx -out certificado.pem -nodes
+
+# PEM (clave) -> PKCS#8 sin cifrar (formato moderno)
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in clave.pem -out clave8.pem
+
+# DER binario -> PEM
+openssl x509 -inform DER -in cert.der -outform PEM -out cert.pem
+
+# Extraer solo la pública de un P12
+openssl pkcs12 -in certificado.pfx -clcerts -nokeys -out cert_solo.pem
+```
+
+| Formato | Extensión típica | Contenido |
 |---|---|---|
-| `version` | Muestra la versión de OpenSSL instalada, incluyendo detalles sobre la configuración y las bibliotecas utilizadas. | `openssl version` |
-| `help` | Proporciona una ayuda general sobre el uso de OpenSSL y lista los subcomandos disponibles. | `openssl help` |
-| `list` | Lista todos los comandos y subcomandos disponibles en la instalación de OpenSSL. | `openssl list` |
-| `-help` | Muestra la ayuda específica para un subcomando particular, detallando sus opciones y argumentos. | `openssl genrsa -help` |
+| PEM | `.pem`, `.crt`, `.key`, `.csr` | Base64 con encabezados `-----BEGIN ...-----` |
+| DER | `.der`, `.crt` binario | Binario X.509/clave |
+| PKCS#12 | `.p12`, `.pfx` | Binario: clave privada + cert + cadena, con contraseña |
+| PKCS#8 | `.pk8` | Clave privada en estandarización moderna |
 
-> [!tip] Acceso a la Documentación
-> Para obtener la documentación más detallada sobre cualquier subcomando de OpenSSL, se recomienda usar `man openssl` seguido del nombre del subcomando (ej. `man openssl genrsa`) en sistemas basados en Unix/Linux. Esto proporciona información exhaustiva sobre cada opción y su uso.
+## Rendimiento y enumeración de ciphers
 
-### Generación de Claves y Certificados
+```bash
+# Benchmarks: handshake y transferencia contra un servidor
+openssl s_time -connect ejemplo.com:443 -new
 
-| Comando   | Descripción                                                                                                                                                                                                                  | Ejemplo                                                                                                            |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `genrsa`  | Genera una clave privada RSA. El tamaño de la clave (en bits) es crucial para la seguridad; 2048 o 4096 bits son los tamaños recomendados actualmente.                                                                       | `openssl genrsa -out key.pem 2048`                                                                                 |
-| `genpkey` | Genera una clave privada de propósito general, soportando varios algoritmos como RSA, DSA, EC (Elliptic Curve). Es una alternativa más moderna a `genrsa`.                                                                   | `openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048`                                |
-| `req`     | Se utiliza para generar una Solicitud de Firma de Certificado (CSR - Certificate Signing Request) o para crear certificados autofirmados. Una CSR es enviada a una Autoridad Certificadora (CA) para obtener un certificado. | `openssl req -new -key key.pem -out csr.pem -subj "/C=ES/ST=Madrid/L=Madrid/O=MiEmpresa/OU=IT/CN=www.example.com"` |
-| `x509`    | Es una utilidad para gestionar, mostrar y convertir certificados X.509. Permite ver el contenido de un certificado, extraer información o cambiar su formato.                                                                | `openssl x509 -in cert.pem -text -noout`                                                                           |
-| `ca`      | Actúa como una Autoridad Certificadora (CA) rudimentaria. Se utiliza para firmar CSRs y emitir certificados en un entorno de laboratorio o para una CA privada.                                                              | `openssl ca -in csr.pem -out cert.pem -config /etc/ssl/openssl.cnf`                                                |
+# Benchmark local de algoritmos
+openssl speed -evp aes-256-gcm rsa2048
 
-> [!info] Componentes de un Certificado X.509
-> Un certificado X.509 contiene información clave como la clave pública del titular, la identidad del titular (Subject), la identidad de la Autoridad Certificadora (Issuer), el período de validez, y la firma digital de la CA. La clave privada asociada a la clave pública del certificado debe mantenerse en secreto.
+# Suites disponibles en este build del cliente (TLS1.2 y anteriores)
+openssl ciphers -v 'ALL:eNULL' | head
+openssl ciphers -v -s -tls1_2
 
-### Operaciones Criptográficas
+# TLS 1.3 usa otro nombre de catálogo
+openssl ciphersuites
 
-| Comando | Descripción | Ejemplo |
+# Listar algoritmos soportados (OpenSSL 3.x)
+openssl list -cipher-algorithms
+openssl list -public-key-algorithms
+```
+
+> [!info] `ciphers` es la vista del cliente local
+> `openssl ciphers` lista lo que **tu build** soporta, no lo del servidor. Para las suites del servidor usar `s_client` (cipher negociado) o directamente [[SSLScan]] / [[SSLyze Analizador SSL TLS]] (catálogo completo servidor).
+
+## Recetas del día a día (pentest/lab)
+
+```bash
+# 1. Certificado autofirmado con SAN para un lab en 30 segundos
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 90 \
+  -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+# 2. Auditar qué TLS acepta un servidor (y si responde por IP con SNI)
+openssl s_client -connect 10.10.10.50:443 -servername target.local </dev/null
+
+# 3. Extraer el certificado de un servicio para análisis offline
+openssl s_client -connect ejemplo.com:443 </dev/null 2>/dev/null | \
+  openssl x509 -out cert.pem
+openssl x509 -in cert.pem -noout -text | grep -A2 "Validity"
+
+# 4. Comprobar si TLS 1.0/1.1 sigue activo (hallazgo de informe)
+openssl s_client -connect ejemplo.com:443 -tls1  </dev/null   # debe fallar
+openssl s_client -connect ejemplo.com:443 -tls1_1 </dev/null  # debe fallar
+
+# 5. Cadena de correo con STARTTLS
+openssl s_client -starttls smtp -connect correo.local:25 -showcerts </dev/null
+
+# 6. P12 para importar en Windows desde un lab Linux
+openssl pkcs12 -export -out lab.p12 -inkey key.pem -in cert.pem -name lab
+
+# 7. Verificar una cadena entregada por un servidor interno
+echo | openssl s_client -connect dc.local:636 -showcerts 2>/dev/null | \
+  sed -n '/BEGIN CERT/,/END CERT/p' > servidor.pem
+openssl verify -CAfile ca_interna.pem servidor.pem
+
+# 8. Token aleatorio para una cookie o password
+openssl rand -base64 24
+```
+
+## Errores comunes (con mensajes exactos)
+
+| Mensaje | Causa | Fix |
 |---|---|---|
-| `enc` | Realiza cifrado y descifrado de archivos utilizando una variedad de algoritmos simétricos (ej. AES, DES, Triple DES). Permite especificar el modo de operación (CBC, GCM, etc.) y la clave/contraseña. | `openssl enc -aes-256-cbc -salt -in file.txt -out file.enc -pass pass:MiContraseñaSecreta` |
-| `dgst` | Calcula resúmenes de mensajes (hashes) de archivos utilizando algoritmos como SHA256, SHA512, MD5. Es fundamental para verificar la integridad de los datos. | `openssl dgst -sha256 -hex file.txt` |
-| `rsautl` | Realiza operaciones RSA utilizando una clave privada o pública. Se puede usar para cifrar, descifrar, firmar y verificar datos pequeños. | `openssl rsautl -encrypt -pubin -inkey public_key.pem -in plaintext.txt -out encrypted.bin` |
-| `pkeyutl` | Una utilidad más general para operaciones con claves públicas y privadas, similar a `rsautl` pero compatible con más tipos de claves (RSA, DSA, EC). | `openssl pkeyutl -encrypt -pubin -inkey public_key.pem -in plaintext.txt -out encrypted.bin` |
+| `bad decrypt` / `error:06065064` al descifrar | KDF/hash distinto al usado al cifrar, o passphrase equivocada | Añadir `-md md5`/`-sha256` según el origen; verificar passphrase |
+| `no starttls protocol specified` | Olvidado `-starttls <proto>` en puerto no-TLS | `-starttls smtp` (o imap/pop/ldap/ftp…) |
+| `connect:errno=111` / timeout | Puerto incorrecto o servicio caído | Comprobar puerto y que habla TLS (¿STARTTLS?) |
+| `sslv3 alert handshake failure` | Versión/cipher forzado no soportado por el servidor | Probar sin `-tls1*`/`-cipher` y leer el cipher negociado |
+| Navegador rechaza el cert autofirmado con "nombre no válido" | Falta SAN | Regenerar con `-addext subjectAltName=...` |
+| `unable to get local issuer certificate` | El servidor no envió la intermediaria o falta el CA local | Pasar `-CAfile`/`-untrusted` con la cadena correcta |
+| El comando se queda colgado | `s_client` espera la conexión | Terminar con `</dev/null` o `echo ... |` |
+| `Unknown cipher` | Cipher list errónea o TLS1.3 (catálogo distinto) | `openssl ciphers` para nombres válidos; `ciphersuites` en TLS1.3 |
 
-> [!warning] Cifrado Simétrico vs. Asimétrico
-> `enc` utiliza cifrado simétrico (misma clave para cifrar y descifrar), ideal para grandes volúmenes de datos. `rsautl` y `pkeyutl` utilizan cifrado asimétrico (par de claves pública/privada), más lento pero esencial para el intercambio seguro de claves y firmas digitales.
+## Cheatsheet
 
-### Pruebas de Conectividad
+```bash
+openssl version -a                          # build y configuración
+openssl genpkey -algorithm RSA -out k.pem -pkeyopt rsa_keygen_bits:4096
+openssl req -x509 -newkey rsa:2048 -nodes -keyout k.pem -out c.pem -days 365 -subj "/CN=x" \
+  -addext "subjectAltName=DNS:x,IP:127.0.0.1"
+openssl req -new -key k.pem -out p.csr -subj "/CN=x"
+openssl x509 -in c.pem -text -noout
+openssl x509 -in c.pem -noout -dates -fingerprint -sha256
+openssl verify -CAfile ca.pem -untrusted inter.pem cert.pem
+echo | openssl s_client -connect host:443 -servername host -showcerts
+echo | openssl s_client -starttls smtp -connect host:25
+openssl ciphers -v 'HIGH' ; openssl ciphersuites
+openssl enc -aes-256-cbc -salt -md sha256 -in f -out f.enc -pass pass:x
+openssl dgst -sha256 archivo
+openssl pkcs12 -export -out c.p12 -inkey k.pem -in c.pem
+```
 
-| Comando | Descripción | Ejemplo |
-|---|---|---|
-| `s_client` | Actúa como un cliente SSL/TLS, permitiendo establecer una conexión segura a un servidor remoto. Es invaluable para depurar problemas de certificados, verificar la configuración TLS de un servidor y explorar los detalles de la conexión. | `openssl s_client -connect example.com:443 -showcerts -status` |
-| `s_server` | Inicia un servidor SSL/TLS de prueba. Útil para probar clientes SSL/TLS, depurar configuraciones de certificados o simular un servicio seguro. | `openssl s_server -accept 4433 -cert cert.pem -key key.pem -www` |
-| `s_time` | Mide el rendimiento de las operaciones SSL/TLS, como el handshake y la transferencia de datos, contra un servidor remoto. Ayuda a evaluar la latencia y el throughput. | `openssl s_time -connect example.com:443 -new` |
+## Referencias
 
-> [!tip] Depuración de Conexiones TLS
-> El comando `openssl s_client` es una herramienta esencial para los pentesters y administradores de sistemas. Permite inspeccionar la cadena de certificados, los cifrados soportados por el servidor, la versión de TLS negociada y detectar posibles vulnerabilidades de configuración.
+- Documentación oficial por versión: <https://www.openssl.org/docs/> (man1 de 3.x: <https://www.openssl.org/docs/man3.0/man1/>)
+- Chef's table of openssl commands (referencia clásica): <https://www.sslshopper.com/article-most-common-openssl-commands.html>
+- Guías relacionadas en el vault: [[SSLScan]] (barrido rápido), [[SSLyze Analizador SSL TLS]] (auditoría programática)
+- Fase de reconocimiento: [[Reconocimiento y Escaneo de Redes y Web]]
 
-### Conversión de Formatos
+## Relacionadas
 
-| Comando | Descripción | Ejemplo |
-|---|---|---|
-| `pkcs12` | Maneja archivos en formato PKCS#12 (también conocidos como PFX o P12), que suelen contener una clave privada y su certificado correspondiente, a menudo protegidos por contraseña. Comúnmente usado para exportar/importar certificados en Windows o navegadores. | `openssl pkcs12 -export -out certificate.pfx -inkey key.pem -in cert.pem -name "Mi Certificado"` |
-| `pkcs8` | Convierte claves privadas entre diferentes formatos, especialmente a y desde el formato PKCS#8, que es un estándar para el almacenamiento de claves privadas. | `openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in key.pem -out key_pkcs8.pem` |
-
-> [!info] Estándares de Formato de Claves y Certificados
-> Existen varios estándares para almacenar claves y certificados. PEM (Privacy-Enhanced Mail) es el formato más común en sistemas Unix/Linux, a menudo con extensiones `.pem`, `.crt`, `.key`. DER (Distinguished Encoding Rules) es un formato binario. PKCS#12 es un formato binario para almacenar una clave privada y su cadena de certificados. Comprender estos formatos es crucial para la interoperabilidad.
+- [[SSLScan]] — qué ciphers soporta el servidor, en lote
+- [[SSLyze Analizador SSL TLS]] — auditoría TLS completa y CI
+- [[Nmap Guía Completa]] — scripts `ssl-*` para el primer sondeo
+- [[PadBuster - Herramienta de Ataque de Relleno Oracle]] — oráculos de relleno en el contexto criptográfico (véase Bleichenbacher/ROBOT)
