@@ -1,26 +1,10 @@
 ---
-aliases:
-  - Docker Escape
-  - Docker PrivEsc
-  - Escape de Contenedores
 tags:
-  - sec/priv-esc
-  - sec/docker
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - abuso-contenedores
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Grupos de Linux y Escalada de Privilegios]]"
-  - "[[Linux Capabilities]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Vulnerabilidades del Kernel y Escalada de Privilegios]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/docker-security.html"
 ---
 
 # Abuso de Docker para Escalada de Privilegios y Escape de Contenedores

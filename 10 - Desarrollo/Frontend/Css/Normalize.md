@@ -1,19 +1,10 @@
 ---
-aliases: ["Normalize CSS", "Normalizar CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - normalize
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Box Model]]"
-  - "[[Especificidad]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-  - "[[Estilos para escribir CSS]]"
-  - "[[CSS Introducción]]"
-fuente: "https://necolas.github.io/normalize.css/"
 ---
 
 # Normalize

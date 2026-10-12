@@ -1,20 +1,10 @@
 ---
-aliases:
-  - Open Redirect
-  - Redirección Abierta
 tags:
-  - sec/web
+  - ciberseguridad
+  - web
+  - redireccion-abierta
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[HTTP Host header attacks]]"
-  - "[[Vulnerabilidades CORS y Laboratorios]]"
-fuente: "https://owasp.org/www-community/attacks/Unvalidated_Redirect"
 ---
 
 # Vulnerabilidad de Redirección Abierta (Open Redirect)

@@ -1,19 +1,10 @@
 ---
-aliases: ["Operadores JavaScript", "Operators", "Coerción de tipos", "Precedencia de operadores"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - operadores
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Java Script]]"
-  - "[[Booleanos]]"
-  - "[[Números]]"
-  - "[[Strings]]"
-  - "[[Estructuras de Control]]"
-  - "[[Sintaxis Moderna]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Operators"
 ---
 
 # Operadores

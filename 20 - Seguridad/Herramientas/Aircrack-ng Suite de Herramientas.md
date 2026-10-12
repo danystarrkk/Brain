@@ -1,18 +1,10 @@
 ---
-aliases: ["Aircrack-ng", "aircrack-ng Suite", "Auditoría Wi-Fi", "Suite Aircrack", "airmon-ng", "airodump-ng", "aireplay-ng"]
-tags: [tool/aircrack-ng]
+tags:
+  - ciberseguridad
+  - herramientas
+  - aircrack-ng-suite
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Hacking WiFi Fundamentos y Ataques]]"
-  - "[[Hacking Wi-Fi Tarjetas de Red]]"
-  - "[[MDK3 Herramienta de Auditoría Inalámbrica]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Tcpreplay]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://www.aircrack-ng.org/"
 ---
 
 # Aircrack-ng: Suite de Herramientas para Auditoría Inalámbrica

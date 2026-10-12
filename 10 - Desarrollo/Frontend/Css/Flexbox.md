@@ -1,19 +1,10 @@
 ---
-aliases: ["Flexbox", "Modelo Flex", "Flexible Box Layout"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - flexbox
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cuando usar GRID o Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Tipos de Display]]"
-  - "[[CSS Introducción]]"
-  - "[[Especificidad]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/CSS_flexible_box_layout"
 ---
 
 # Flexbox

@@ -1,21 +1,10 @@
 ---
-aliases: ["LaTeX Injection", "Inyección LaTeX", "TeX Injection"]
 tags:
-  - sec/web
-  - sec/web/injection
-  - sec/web/command-injection
+  - ciberseguridad
+  - web
+  - inyecciones-latex
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[OS Command Injection]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Path Traversal]]"
-  - "[[Local File Inclusion]]"
-  - "[[Creación de Informes en LaTeX]]"
-  - "[[Abuso de Subida de Archivos]]"
-fuente: "https://book.hacktricks.wiki/en/pentesting-web/unix-injection/latex-injection"
 ---
 
 # Inyecciones LaTeX

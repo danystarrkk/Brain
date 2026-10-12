@@ -1,20 +1,10 @@
 ---
-aliases: ["CSSI", "CSS Injection", "Inyección CSS", "CSS Exfiltration"]
 tags:
-  - sec/web
-  - sec/web/injection
-  - sec/web/client-side
+  - ciberseguridad
+  - web
+  - css
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Clickjacking Ataques]]"
-  - "[[Client-Side Template Injection (CSTI)]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Information disclosure]]"
-fuente: "https://portswigger.net/web-security/cross-site-scripting#can-i-run-javascript-in-css"
 ---
 
 # Inyecciones CSS (CSSI)

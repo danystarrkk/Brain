@@ -1,20 +1,10 @@
 ---
-aliases: ["Comandos de Git", "Git Commands", "Referencia de Comandos Git"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - git
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es Git]]"
-  - "[[Configuración Inicial]]"
-  - "[[Ramas]]"
-  - "[[Rebase]]"
-  - "[[Stash]]"
-  - "[[Tags]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://git-scm.com/docs"
 ---
 
 # Comandos Git

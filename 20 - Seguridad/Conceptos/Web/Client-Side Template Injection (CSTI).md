@@ -1,18 +1,10 @@
 ---
-aliases: ["CSTI", "Client-Side Template Injection", "Inyección de Plantillas del Lado del Cliente"]
 tags:
-  - sec/web
-  - sec/web/cliente
+  - ciberseguridad
+  - web
+  - client-side-csti
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Server-Side Template Injection (SSTI)]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Clickjacking Ataques]]"
-  - "[[Prototype Pollution]]"
-fuente: "https://portswigger.net/web-security/cross-site-scripting"
 ---
 
 # Client-Side Template Injection (CSTI)

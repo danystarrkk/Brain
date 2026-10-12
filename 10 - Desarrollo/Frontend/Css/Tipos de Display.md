@@ -1,19 +1,10 @@
 ---
-aliases: ["Display", "Display block e inline"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - display
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Box Model]]"
-  - "[[Tipos de Posiciones]]"
-  - "[[Animaciones]]"
-  - "[[Html]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/display"
 ---
 
 # Tipos de Display

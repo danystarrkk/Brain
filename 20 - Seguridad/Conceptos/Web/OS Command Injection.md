@@ -1,19 +1,10 @@
 ---
-aliases: ["OS Command Injection", "Inyección de Comandos", "Command Injection"]
 tags:
-  - sec/web
-  - sec/web/rce
+  - ciberseguridad
+  - web
+  - os-injection
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Local File Inclusion]]"
-  - "[[Path Traversal]]"
-  - "[[Log Poisoning]]"
-  - "[[Server-Side Template Injection (SSTI)]]"
-  - "[[Prototype Pollution]]"
-fuente: "https://portswigger.net/web-security/os-command-injection"
 ---
 
 # OS Command Injection

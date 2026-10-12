@@ -1,22 +1,10 @@
 ---
-aliases:
-  - WebDAV
-  - Enumeración WebDAV
-  - Explotación WebDAV
 tags:
-  - sec/web
-  - sec/web/dav
+  - ciberseguridad
+  - web
+  - webdav-explotacion
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Abuso de Subida de Archivos]]"
-  - "[[Local File Inclusion]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Information disclosure]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-fuente: "https://datatracker.ietf.org/doc/html/rfc4918"
 ---
 
 # WebDAV — Enumeración y Explotación

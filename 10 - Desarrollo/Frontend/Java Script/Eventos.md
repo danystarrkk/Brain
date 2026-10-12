@@ -1,18 +1,10 @@
 ---
-aliases: ["Event listeners", "Eventos del DOM", "addEventListener"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - eventos
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Document Object Model (DOM)]]"
-  - "[[Acceder a Html]]"
-  - "[[Funciones]]"
-  - "[[Formularios]]"
-  - "[[ReactJS - Efectos (useEffect)]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/API/Event_target/addEventListener"
 ---
 
 # Eventos

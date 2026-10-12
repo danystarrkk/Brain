@@ -1,20 +1,10 @@
 ---
-aliases: ["Concurrencia Python", "Threading Python", "Multiprocessing Python", "Asyncio", "GIL"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Librerías Estándar Esenciales]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python - Programación Orientada a Objetos]]"
-fuente: "https://docs.python.org/es/3/library/concurrency.html"
 ---
 
 # Python - Concurrencia: Threading, Multiprocessing y Asyncio

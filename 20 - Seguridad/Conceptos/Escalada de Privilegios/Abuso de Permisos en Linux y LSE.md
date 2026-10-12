@@ -1,28 +1,10 @@
 ---
-aliases:
-  - Linux Smart Enumeration
-  - LSE
-  - Permisos Linux
 tags:
-  - sec/priv-esc
-  - sec/linux
-  - sec/enumeracion
+  - ciberseguridad
+  - escalada
+  - lse
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Lectura de Permisos]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Linux Capabilities]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[Grupos de Linux y Escalada de Privilegios]]"
-  - "[[PATH Hijacking]]"
-  - "[[Vulnerabilidades del Kernel y Escalada de Privilegios]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Nmap Guía Completa]]"
-fuente: "https://github.com/diego-treitos/linux-smart-enumeration"
 ---
 
 # Abuso de Permisos en Linux y LSE

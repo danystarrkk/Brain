@@ -1,20 +1,10 @@
 ---
-aliases: [Laboratorios de Ciberseguridad Ofensiva, Vulnerabilidades Lógicas, Bypass de Autenticación]
 tags:
-  - sec/web
-  - sec/web/logic
-  - hacking/laboratorios
+  - ciberseguridad
+  - web
+  - laboratorios-autenticacion
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Labs - Control de Acceso]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Ataque de Oráculo de Relleno]]"
-  - "[[HTTP Host header attacks]]"
-fuente: "https://portswigger.net/web-security/logic-flaws"
 ---
 
 # Laboratorios de Vulnerabilidades Lógicas y de Autenticación

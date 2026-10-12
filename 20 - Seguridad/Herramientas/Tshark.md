@@ -1,21 +1,10 @@
 ---
-aliases:
+tags:
+  - ciberseguridad
+  - herramientas
   - tshark
-  - TShark
-  - Wireshark CLI
-tags: [tool/tshark]
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Wireshark y Tshark]]"
-  - "[[Tcpreplay]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://www.wireshark.org/docs/man-pages/tshark.html"
 ---
 
 # Tshark: Analizador de Protocolos en Línea de Comandos

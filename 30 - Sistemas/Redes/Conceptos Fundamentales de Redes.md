@@ -1,31 +1,9 @@
 ---
-aliases:
-  - Direcciones IP
-  - Direcciones MAC
-  - Protocolos de Red
-  - Modelo OSI
-  - Subnetting
-  - CIDR
-  - Modelo TCP/IP
-  - Three-Way Handshake
 tags:
-  - sys/redes
+  - sistemas
+  - redes
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Tipos de IP y Dirección MAC]]"
-  - "[[Tipos de Interfaces de Red]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[netdiscover]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Tshark]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-fuente: "https://www.rfc-editor.org/rfc/rfc791"
 ---
 
 # Conceptos Fundamentales de Redes

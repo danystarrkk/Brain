@@ -1,26 +1,10 @@
 ---
-aliases:
-  - Explotación de Vulnerabilidades
-  - Shells en Ciberseguridad
-  - Payloads Staged y Non-Staged
-  - Burp Suite
-  - Enumeración de Sistemas Linux
 tags:
-  - sec/exploit
-  - herramientas/burpsuite
-  - linux/seguridad
-  - redes/conceptos
+  - ciberseguridad
+  - explotacion
+  - introduccion-explotacion
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Python Ofensivo]]"
-  - "[[Msfvenom - Herramienta de Generación de Payloads]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-fuente: "https://nvd.nist.gov/vuln-metrics/cvss"
 ---
 
 # Introducción a la Explotación de Vulnerabilidades

@@ -1,17 +1,10 @@
 ---
-aliases: ["Instalación de Tailwindcss", "Tailwind CLI"]
 tags:
-  - dev/frontend/tailwind
+  - desarrollo
+  - frontend
+  - tailwindcss
 tipo: concepto
 estado: terminado
-creado: 2026-06-03
-actualizado: 2026-10-11
-relacionado:
-  - "[[TailwindCSS - Sintaxis Básica]]"
-  - "[[CSS Introducción]]"
-  - "[[ReactJS - Vite]]"
-  - "[[Normalize]]"
-fuente: "https://tailwindcss.com/docs/installation"
 ---
 
 # TailwindCSS - Instalación y Configuración

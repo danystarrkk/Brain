@@ -1,20 +1,10 @@
 ---
-aliases: ["POO Python", "Clases Python", "Python OOP"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Estructuras de Datos]]"
-  - "[[Python - Librerías Estándar Esenciales]]"
-  - "[[Python - Proyectos Prácticos POO]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Node JS]]"
-fuente: "https://docs.python.org/es/3/tutorial/classes.html"
 ---
 
 # Python - Programación Orientada a Objetos

@@ -1,18 +1,10 @@
 ---
-aliases: ["macchanger", "cambiar mac", "MAC Randomizer", "Spoofing MAC", "mac changer"]
-tags: [tool/macchanger]
+tags:
+  - ciberseguridad
+  - herramientas
+  - mac
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Tipos de IP y Dirección MAC]]"
-  - "[[Conceptos Fundamentales de Redes]]"
-  - "[[Hacking WiFi Fundamentos y Ataques]]"
-  - "[[Hacking Wi-Fi Tarjetas de Red]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://github.com/alobbs/macchanger"
 ---
 
 # Macchanger: Herramienta para Modificación de Dirección MAC

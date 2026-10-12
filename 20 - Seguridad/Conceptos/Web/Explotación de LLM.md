@@ -1,25 +1,10 @@
 ---
-aliases:
-  - LLM
-  - Prompt Injection
-  - Inyección de Prompt
-  - Explotación de Modelos de Lenguaje
 tags:
-  - sec/web
-  - sec/web/llm
-  - sec/web/injection
+  - ciberseguridad
+  - web
+  - llm
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Server-Side Template Injection (SSTI)]]"
-  - "[[OS Command Injection]]"
-  - "[[Abuso de APIs]]"
-  - "[[SQL Injection]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-fuente: "https://portswigger.net/web-security/llm-ai"
 ---
 
 # Explotación de LLM

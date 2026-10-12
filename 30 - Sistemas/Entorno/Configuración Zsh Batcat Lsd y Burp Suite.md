@@ -1,22 +1,10 @@
 ---
-aliases: ["Configuración Zsh Batcat Lsd Burp Suite Fix", "bat lsd setup", "herramientas CLI modernas"]
 tags:
-  - sys/entorno
-  - linux/bash
-  - linux/customizacion
-  - hacking/herramientas
-  - herramientas/burpsuite
+  - sistemas
+  - entorno
+  - zsh-suite
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración de Zsh y Plugins]]"
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-  - "[[Configuración de Polybar]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-fuente: "https://github.com/sharkdp/bat"
 ---
 
 # Configuración Zsh Batcat, Lsd y Burp Suite

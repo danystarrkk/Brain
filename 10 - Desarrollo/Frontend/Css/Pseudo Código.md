@@ -1,18 +1,10 @@
 ---
-aliases: ["Pseudo-clases", "Selectores pseudo", "Pseudo-elementos"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - pseudo-codigo
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Selectores en CSS]]"
-  - "[[Especificidad]]"
-  - "[[Anatomía de CSS]]"
-  - "[[Formularios]]"
-  - "[[Estilos para escribir CSS]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn/CSS/Building_blocks/Selectors/Pseudo-classes_and_pseudo-elements"
 ---
 
 # Pseudo Código

@@ -1,17 +1,10 @@
 ---
-aliases: ["SSLyze", "sslyze", "Analizador SSL TLS"]
 tags:
-  - tool/sslyze
+  - ciberseguridad
+  - herramientas
+  - tls
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SSLScan]]"
-  - "[[OpenSSL Comandos Principales]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/nabla-c0d3/sslyze"
 ---
 
 # SSLyze — Analizador SSL/TLS

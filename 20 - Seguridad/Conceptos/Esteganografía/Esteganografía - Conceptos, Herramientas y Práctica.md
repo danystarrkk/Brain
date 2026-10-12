@@ -1,22 +1,9 @@
 ---
-aliases:
-  - Esteganografía
-  - Steganografía
-  - Ocultamiento de Mensajes
-  - Stego Fundamentos
 tags:
-  - sec/stego
+  - ciberseguridad
+  - esteganografia
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Estegoanálisis - Detección y ContraMedidas]]"
-  - "[[Steghide - Uso Avanzado]]"
-  - "[[Stegseek - Guía Rápida]]"
-  - "[[Zsteg - Análisis LSB PNG]]"
-  - "[[Wireshark y Tshark]]"
-fuente: "https://en.wikipedia.org/wiki/Steganography"
 ---
 
 # Esteganografía: Conceptos, Herramientas y Práctica

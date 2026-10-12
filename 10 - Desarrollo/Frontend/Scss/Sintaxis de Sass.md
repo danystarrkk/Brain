@@ -1,18 +1,10 @@
 ---
-aliases: ["Sintaxis de SASS", "Sintaxis SCSS"]
 tags:
-  - dev/frontend/scss
+  - desarrollo
+  - frontend
+  - sintaxis-sass
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es Sass]]"
-  - "[[Mixins]]"
-  - "[[Separar Sass en Archivos]]"
-  - "[[Especificidad]]"
-  - "[[Selectores en CSS]]"
-fuente: "https://sass-lang.com/documentation/syntax/"
 ---
 
 # Sintaxis de Sass

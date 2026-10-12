@@ -1,19 +1,10 @@
 ---
-aliases: ["Position", "Posicionamiento CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - posiciones
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Box Model]]"
-  - "[[Flexbox]]"
-  - "[[Efectos de Scroll]]"
-  - "[[Tipos de Display]]"
-  - "[[Sombras CSS]]"
-  - "[[Responsive Web Design]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/position"
 ---
 
 # Tipos de Posiciones

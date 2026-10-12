@@ -1,17 +1,10 @@
 ---
-aliases: ["Estructura HTML", "Estructurar HTML"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - estructurar-html
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Etiquetas]]"
-  - "[[Etiquetas Meta]]"
-  - "[[Responsive Web Design]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/Guide/HTML/Using_HTML_sections_and_outlines"
 ---
 
 # Estructurar HTML

@@ -1,20 +1,10 @@
 ---
-aliases:
-  - Informes LaTeX
-  - LaTeX Reports
-  - Informes de Pentest en LaTeX
 tags:
-  - sec/doc
+  - ciberseguridad
+  - documentacion
+  - creacion-latex
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Introducción a la Explotación de Vulnerabilidades]]"
-  - "[[Presidential_1]]"
-fuente: "https://www.latex-project.org/help/documentation/"
 ---
 
 # Creación de Informes en LaTeX

@@ -1,21 +1,10 @@
 ---
-aliases: ["Host Header Attacks", "Ataques con Cabecera Host", "Password Reset Poisoning"]
 tags:
-  - sec/web
-  - sec/web/http
-  - sec/web/cache
+  - ciberseguridad
+  - web
+  - http-attacks
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Vulnerabilidades de HTTP Request Smuggling]]"
-  - "[[Vulnerabilidad de Redirección Abierta]]"
-  - "[[Information disclosure]]"
-fuente: "https://portswigger.net/web-security/host-header"
 ---
 
 # HTTP Host header attacks

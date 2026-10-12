@@ -1,24 +1,10 @@
 ---
-aliases:
-  - THC-Hydra
-  - Hydra
-  - THC Hydra
-  - Brute Force Hydra
-tags: [tool/hydra]
+tags:
+  - ciberseguridad
+  - herramientas
+  - thc-hydra
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
-  - "[[Gobuster]]"
-  - "[[WFuzz]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[WPScan]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Enumeración de Servicios y CMS]]"
-fuente: "https://github.com/vanhauser-thc/thc-hydra"
 ---
 
 # THC Hydra: Fuerza Bruta Multiservicio

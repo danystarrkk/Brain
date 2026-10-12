@@ -1,18 +1,10 @@
 ---
-aliases: ["SASS", "SCSS", "Syntactically Awesome Style Sheets"]
 tags:
-  - dev/frontend/scss
+  - desarrollo
+  - frontend
+  - sass
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Sintaxis de Sass]]"
-  - "[[Mixins]]"
-  - "[[Separar Sass en Archivos]]"
-  - "[[Compilar Sass]]"
-  - "[[CSS Introducción]]"
-fuente: "https://sass-lang.com/documentation/"
 ---
 
 # ¿Qué es Sass?

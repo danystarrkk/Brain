@@ -1,22 +1,12 @@
 ---
-aliases:
-  - CORS
-  - Cross-Origin Resource Sharing
 tags:
-  - sec/web
-  - sec/web/cors
+  - ciberseguridad
+  - web
+  - cors-laboratorios
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Insecure Direct Object References IDOR]]"
-fuente: "https://portswigger.net/web-security/cors"
 ---
+
 # Intercambio de Recursos de Origen Cruzado (CORS)
 
 **CORS** (*Cross-Origin Resource Sharing*) es un mecanismo **por el que el servidor autoriza explícitamente** qué orígenes pueden leer sus respuestas desde JavaScript del navegador. Lejos de "restringir el acceso", CORS existe para **relajar de forma controlada** la Política del Mismo Origen (*Same-Origin Policy, SOP*): sin él, cualquier sitio podría leer respuestas de cualquier API; con él mal configurado (reflejo de `Origin` + credenciales), cualquier sitio puede **robar datos autenticados de cualquier usuario** que visite una página atacante.

@@ -1,20 +1,10 @@
 ---
-aliases: ["Burp Suite Targeted Scanning", "Burp Suite Non-Standard Data Structures", "Escaneo Dirigido Burp", "Targeted Scan"]
 tags:
-  - sec/web
-  - sec/web/tools
+  - ciberseguridad
+  - web
+  - burp-estandar
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[XML External Entity Injection]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Vulnerabilidades de HTTP Request Smuggling]]"
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[Condiciones de Carrera]]"
-fuente: "https://portswigger.net/burp/documentation/desktop/scan-configurations"
 ---
 
 # Escaneo Dirigido en Burp Suite y Estructuras de Datos No Estándar

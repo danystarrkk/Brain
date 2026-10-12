@@ -1,19 +1,10 @@
 ---
-aliases: ["JoomScan", "OWASP Joomla Vulnerability Scanner", "joomscan", "Escáner Joomla"]
-tags: [tool/joomscan]
+tags:
+  - ciberseguridad
+  - herramientas
+  - joomscan-escaneo
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[WPScan]]"
-  - "[[Droopscan]]"
-  - "[[Tabla de Opciones Principales de MageScan]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[Gobuster]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/OWASP/joomscan"
 ---
 
 # JoomScan: Escáner de Vulnerabilidades para Joomla (OWASP)

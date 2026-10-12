@@ -1,27 +1,10 @@
 ---
-aliases:
-  - Elevación de Privilegios Binarios
-  - Exim CVE-2016-1531
-  - Buffer Overflow SUID
 tags:
-  - sec/priv-esc
-  - sec/linux
-  - sec/explotacion
+  - ciberseguridad
+  - escalada
+  - elevacion-binarios
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Linux Capabilities]]"
-  - "[[Secuestro de Bibliotecas Compartidas]]"
-  - "[[Python Library Hijacking]]"
-  - "[[PATH Hijacking]]"
-  - "[[Vulnerabilidades del Kernel y Escalada de Privilegios]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Ghidra - Reverse Engineering Tool]]"
-  - "[[GHex Editor Hexadecimal]]"
-fuente: "https://gtfobins.github.io/"
 ---
 
 # Elevación de Privilegios mediante Explotación de Binarios

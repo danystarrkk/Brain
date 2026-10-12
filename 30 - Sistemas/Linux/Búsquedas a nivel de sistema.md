@@ -1,27 +1,10 @@
 ---
-aliases:
-  - Búsquedas de sistema
-  - Comandos de búsqueda
-  - Filtrado de archivos
-  - find
-  - locate
-  - fd
-  - ripgrep
 tags:
-  - sys/linux
+  - sistemas
+  - linux
+  - busquedas-sistema
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Comandos, Rutas y Operadores de Linux]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Lectura de Permisos]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-fuente: "https://www.gnu.org/software/findutils/manual/html_node/find_html/"
 ---
 
 # Búsquedas a nivel de sistema

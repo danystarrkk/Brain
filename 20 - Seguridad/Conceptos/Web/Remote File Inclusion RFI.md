@@ -1,21 +1,10 @@
 ---
-aliases:
-  - RFI
-  - Remote File Inclusion
 tags:
-  - sec/web
-  - sec/web/rfi
+  - ciberseguridad
+  - web
+  - rfi
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Local File Inclusion]]"
-  - "[[Path Traversal]]"
-  - "[[OS Command Injection]]"
-  - "[[Log Poisoning]]"
-  - "[[Abuso de Subida de Archivos]]"
-fuente: "https://owasp.org/www-community/attacks/Remote_File_Inclusion"
 ---
 
 # Remote File Inclusion (RFI)

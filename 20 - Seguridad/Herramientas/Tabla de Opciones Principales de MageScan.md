@@ -1,24 +1,10 @@
 ---
-aliases:
-  - MageScan
-  - MageScan Opciones
-  - MageScan Comandos
-  - Fingerprinting de Magento
-tags: [tool/magescan]
+tags:
+  - ciberseguridad
+  - herramientas
+  - tabla-magescan
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[WPScan]]"
-  - "[[JoomScan Herramienta de Escaneo]]"
-  - "[[Droopscan]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Gobuster]]"
-  - "[[Nmap Guía Completa]]"
-fuente: "https://github.com/stymie/magescan"
 ---
 
 # MageScan: Fingerprinting y Auditoría de Magento

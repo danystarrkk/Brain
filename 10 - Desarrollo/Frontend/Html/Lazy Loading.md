@@ -1,19 +1,10 @@
 ---
-aliases: ["Carga diferida", "loading lazy"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - lazy-loading
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[Preload]]"
-  - "[[Prefetch]]"
-  - "[[Imágenes CSS]]"
-  - "[[Document Object Model (DOM)]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/Performance/Lazy_loading"
 ---
 
 # Lazy Loading

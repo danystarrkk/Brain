@@ -1,23 +1,10 @@
 ---
-aliases: ["Performance Web", "Rendimiento Web", "Optimización Web", "Web Performance"]
 tags:
-  - devops/gulp
+  - desarrollo
+  - devops
+  - performance-web
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gulp]]"
-  - "[[GulpFile Completo]]"
-  - "[[Compilar Sass]]"
-  - "[[Lazy Loading]]"
-  - "[[Preload]]"
-  - "[[Prefetch]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[ReactJS - Vite]]"
-  - "[[Html]]"
-  - "[[CSS Introducción]]"
-fuente: "https://web.dev/articles/vitals"
 ---
 
 # Performance Web

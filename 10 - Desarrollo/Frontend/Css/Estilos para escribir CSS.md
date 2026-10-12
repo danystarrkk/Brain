@@ -1,21 +1,10 @@
 ---
-aliases: ["Estilos para Escribir Código Css", "Metodologías CSS", "Estilos CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Especificidad]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-  - "[[Sintaxis de Sass]]"
-  - "[[Separar Sass en Archivos]]"
-  - "[[Mixins]]"
-  - "[[Selectores en CSS]]"
-  - "[[CSS Introducción]]"
-  - "[[Crear archivo para CSS]]"
-fuente: "https://getbem.com/"
 ---
 
 # Estilos para escribir CSS

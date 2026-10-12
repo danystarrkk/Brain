@@ -1,18 +1,10 @@
 ---
-aliases: ["Padding Oracle Attack", "Ataque de Oráculo de Relleno", "CBC Oracle"]
 tags:
-  - sec/web
-  - sec/crypto
+  - ciberseguridad
+  - web
+  - oraculo-relleno
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[Abuso de APIs]]"
-  - "[[Information disclosure]]"
-  - "[[Condiciones de Carrera]]"
-fuente: "https://portswigger.net/web-security/crypto/padding-oracle"
 ---
 
 # Ataque de Oráculo de Relleno (Padding Oracle Attack)

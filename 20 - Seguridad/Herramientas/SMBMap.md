@@ -1,18 +1,10 @@
 ---
-aliases: ["SMBMap", "smbmap"]
 tags:
-  - tool/smbmap
+  - ciberseguridad
+  - herramientas
+  - smbmap
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Msfvenom - Herramienta de Generación de Payloads]]"
-fuente: "https://github.com/ShawnDEvans/smbmap"
 ---
 
 # SMBMap

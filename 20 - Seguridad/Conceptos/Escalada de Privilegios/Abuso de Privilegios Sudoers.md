@@ -1,22 +1,10 @@
 ---
-aliases: ["sudoers", "sudo", "privilegios sudo"]
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - abuso-sudoers
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Grupos de Linux y Escalada de Privilegios]]"
-  - "[[PATH Hijacking]]"
-  - "[[Python Library Hijacking]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://gtfobins.github.io/"
 ---
 
 # Abuso de Privilegios Sudoers

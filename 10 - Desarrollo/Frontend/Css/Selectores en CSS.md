@@ -1,18 +1,10 @@
 ---
-aliases: ["Selectores CSS", "Tipos de selectores"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Especificidad]]"
-  - "[[Anatomía de CSS]]"
-  - "[[Pseudo Código]]"
-  - "[[Estilos para escribir CSS]]"
-  - "[[CSS Grid]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn/CSS/Building_blocks/Selectors"
 ---
 
 # Selectores en CSS

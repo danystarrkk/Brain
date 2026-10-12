@@ -1,19 +1,10 @@
 ---
-aliases: ["Race Conditions", "Condiciones de Carrera", "TOCTOU", "Time of Check Time of Use"]
 tags:
-  - sec/web
-  - sec/web/logica
+  - ciberseguridad
+  - web
+  - condiciones-carrera
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Abuso de Subida de Archivos]]"
-  - "[[Laboratorios de Vulnerabilidades Lógicas y de Autenticación]]"
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Session Puzzling Session Fixation y Session Variable Overloading]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-fuente: "https://portswigger.net/web-security/race-conditions"
 ---
 
 # Condiciones de Carrera (Race Conditions)

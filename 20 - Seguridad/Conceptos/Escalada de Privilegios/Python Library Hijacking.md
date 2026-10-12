@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Secuestro de Librerías Python
-  - Python Library Hijacking
-  - Python Path Hijacking
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - python-hijacking
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[PATH Hijacking]]"
-  - "[[Secuestro de Bibliotecas Compartidas]]"
-  - "[[Explotación de Servicios Internos]]"
-  - "[[Privilegios SUID en Linux]]"
-fuente: "https://docs.python.org/3/library/sys.html#sys.path"
 ---
 
 # Python Library Hijacking

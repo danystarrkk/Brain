@@ -1,21 +1,10 @@
 ---
-aliases: ["Node", "NodeJS", "Node.js"]
 tags:
-  - dev/backend/node
+  - desarrollo
+  - backend
+  - js
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[ReactJS - Vite]]"
-  - "[[Formato Json]]"
-  - "[[Qué es una API]]"
-  - "[[TailwindCSS - Instalación y Configuración]]"
-  - "[[Document Object Model (DOM)]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-fuente: "https://nodejs.org/docs/latest/api/"
 ---
 
 # Node JS

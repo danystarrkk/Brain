@@ -1,19 +1,10 @@
 ---
-aliases: ["Bash Redirección", "File Descriptors Bash", "Stdin Stdout Stderr", "Here-docs"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]]"
-  - "[[Bash Scripting - Procesos y Señales]]"
-  - "[[Bash Scripting - Patrones Comunes y Plantillas]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html#Redirections"
 ---
 
 # Bash Scripting - Entrada-Salida y Redirección

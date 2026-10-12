@@ -1,21 +1,10 @@
 ---
-aliases: ["WFuzz", "Web Fuzzer", "wfuzz"]
-tags: [tool/wfuzz]
+tags:
+  - ciberseguridad
+  - herramientas
+  - wfuzz
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gobuster]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[THC Hydra]]"
-  - "[[WPScan]]"
-  - "[[Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar]]"
-  - "[[Abuso de APIs]]"
-  - "[[Inyección NoSQL]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/xmendez/wfuzz"
 ---
 
 # WFuzz: Fuzzing Web Genérico

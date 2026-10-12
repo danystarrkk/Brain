@@ -1,23 +1,10 @@
 ---
-aliases: ["Consola del navegador", "console.log", "DevTools Console", "DevTools"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - consola
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Java Script]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Estructuras de Control]]"
-  - "[[Operadores]]"
-  - "[[Números]]"
-  - "[[Formato Json]]"
-  - "[[Qué es una API]]"
-  - "[[Recomendaciones]]"
-  - "[[Document Object Model (DOM)]]"
-  - "[[Eventos]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/API/Console"
 ---
 
 # La Consola en JavaScript

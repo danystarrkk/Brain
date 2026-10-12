@@ -1,22 +1,10 @@
 ---
-aliases:
-  - Estegoanálisis
-  - Steganálisis
-  - Detección de Esteganografía
-  - Steganalysis
 tags:
-  - sec/stego
+  - ciberseguridad
+  - esteganografia
+  - estegoanalisis
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
-  - "[[Steghide - Uso Avanzado]]"
-  - "[[Stegseek - Guía Rápida]]"
-  - "[[Zsteg - Análisis LSB PNG]]"
-  - "[[Wireshark y Tshark]]"
-fuente: "https://www.wsj.net/public/resources/images/BN-BP351_stego_J_20141219144947.jpg"
 ---
 
 # Estegoanálisis: Detección y Contramedidas

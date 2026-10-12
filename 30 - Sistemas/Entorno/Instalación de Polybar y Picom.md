@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Polybar Picom Instalacion
-  - BSPWM Compositor Bar
-  - Compilar picom
 tags:
-  - sys/entorno
-  - linux/customizacion
-  - linux/administracion
+  - sistemas
+  - entorno
+  - polybar-picom
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración de Picom]]"
-  - "[[Configuración de Polybar]]"
-  - "[[Instalación y Configuración de Blue Sky Polybar]]"
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-fuente: "https://github.com/yshui/picom"
 ---
 
 # Instalación de Polybar y Picom

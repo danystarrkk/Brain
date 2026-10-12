@@ -1,19 +1,10 @@
 ---
-aliases: ["WebP", "AVIF", "Picture"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - formatos-webp
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Etiquetas]]"
-  - "[[Lazy Loading]]"
-  - "[[Preload]]"
-  - "[[Imágenes CSS]]"
-  - "[[Modernizr]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML/Element/picture"
 ---
 
 # Formatos AVIF y WebP

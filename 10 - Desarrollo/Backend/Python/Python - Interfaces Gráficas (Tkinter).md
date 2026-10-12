@@ -1,19 +1,10 @@
 ---
-aliases: ["Tkinter", "GUI Python", "Desarrollo GUI", "Interfaces Gráficas Python"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Programación Orientada a Objetos]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-fuente: "https://docs.python.org/es/3/library/tkinter.html"
 ---
 
 # Python - Interfaces Gráficas (Tkinter)

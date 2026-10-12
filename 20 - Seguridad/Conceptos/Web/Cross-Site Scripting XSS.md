@@ -1,21 +1,10 @@
 ---
-aliases: ["XSS", "Cross-Site Scripting", "Inyección de Scripts", "XSS Reflejado", "XSS Almacenado", "DOM XSS"]
 tags:
-  - sec/web
-  - sec/web/cliente
+  - ciberseguridad
+  - web
+  - xss
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Client-Side Template Injection (CSTI)]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Clickjacking Ataques]]"
-  - "[[Prototype Pollution]]"
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Log Poisoning]]"
-  - "[[Vulnerabilidades CORS y Laboratorios]]"
-fuente: "https://portswigger.net/web-security/cross-site-scripting"
 ---
 
 # Cross-Site Scripting (XSS)

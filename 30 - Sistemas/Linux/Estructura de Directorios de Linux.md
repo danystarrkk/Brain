@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Linux Filesystem Hierarchy Standard
-  - FHS
-  - Jerarquía de Directorios Linux
-  - Estructura Linux
 tags:
-  - sys/linux
+  - sistemas
+  - linux
+  - estructura-linux
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Comandos, Rutas y Operadores de Linux]]"
-  - "[[Lectura de Permisos]]"
-  - "[[Búsquedas a nivel de sistema]]"
-  - "[[Cron Jobs y Programación de Tareas]]"
-  - "[[Tipos de Interfaces de Red]]"
-fuente: "https://refspecs.linuxfoundation.org/FHS_3.0/fhs/index.html"
 ---
 
 # Estructura de Directorios de Linux

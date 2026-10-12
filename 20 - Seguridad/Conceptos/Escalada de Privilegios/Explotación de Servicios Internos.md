@@ -1,26 +1,10 @@
 ---
-aliases:
-  - Servicios Internos
-  - Explotación de Servicios
-  - Pivoting
 tags:
-  - sec/priv-esc
-  - sec/linux
-  - sec/red
+  - ciberseguridad
+  - escalada
+  - explotacion-internos
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Grupos de Linux y Escalada de Privilegios]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[THC Hydra]]"
-fuente: "https://book.hacktricks.wiki/en/network-services-pentesting.html"
 ---
 
 # Explotación de Servicios Internos

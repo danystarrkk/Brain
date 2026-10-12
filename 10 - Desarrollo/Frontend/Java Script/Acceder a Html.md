@@ -1,18 +1,10 @@
 ---
-aliases: ["Seleccionar elementos del DOM", "Manipular el DOM", "Acceder a HTML"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - acceder-html
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Document Object Model (DOM)]]"
-  - "[[Eventos]]"
-  - "[[Html]]"
-  - "[[Formularios]]"
-  - "[[Iteradores]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/API/Document/querySelector"
 ---
 
 # Acceder a HTML con JavaScript

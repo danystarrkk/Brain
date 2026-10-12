@@ -1,19 +1,10 @@
 ---
-aliases: ["DOM", "Document Object Model"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - document-dom
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Acceder a Html]]"
-  - "[[Eventos]]"
-  - "[[Html]]"
-  - "[[Java Script]]"
-  - "[[ReactJS - Fundamentos]]"
-  - "[[Qué es una API]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/API/Document_Object_Model/Introduction"
 ---
 
 # Document Object Model (DOM)

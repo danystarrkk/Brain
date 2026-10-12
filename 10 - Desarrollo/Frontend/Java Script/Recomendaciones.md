@@ -1,18 +1,10 @@
 ---
-aliases: ["Recomendaciones", "Buenas prácticas JS", "Best Practices JavaScript", "Convenciones JavaScript"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - recomendaciones
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Java Script]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Funciones]]"
-  - "[[Document Object Model (DOM)]]"
-  - "[[Qué es una API]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Guide"
 ---
 
 # Recomendaciones de código JavaScript

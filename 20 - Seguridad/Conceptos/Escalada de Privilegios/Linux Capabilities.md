@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Capabilities Linux
-  - File Capabilities
-  - Linux Privileges
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - linux-capabilities
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Secuestro de Bibliotecas Compartidas]]"
-  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
-  - "[[Lectura de Permisos]]"
-  - "[[Grupos de Linux y Escalada de Privilegios]]"
-fuente: "https://man7.org/linux/man-pages/man7/capabilities.7.html"
 ---
 
 # Linux Capabilities

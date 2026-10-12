@@ -1,19 +1,10 @@
 ---
-aliases: ["WebSocket", "WebSockets", "Burp Suite WebSocket", "XSS WebSocket", "Cross-site WebSocket hijacking"]
 tags:
-  - sec/web
-  - sec/web/websocket
+  - ciberseguridad
+  - web
+  - websocket-labs
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Abuso de APIs]]"
-  - "[[Inyección NoSQL]]"
-  - "[[OS Command Injection]]"
-fuente: "https://portswigger.net/web-security/websockets"
 ---
 
 # WebSocket — Vulnerabilidades y testing con Burp Suite

@@ -1,21 +1,10 @@
 ---
-aliases: ["Functions", "Funciones en JavaScript"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - funciones
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Estructuras de Control]]"
-  - "[[Iteradores]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Arreglos]]"
-  - "[[Array Methods]]"
-  - "[[Objetos]]"
-  - "[[Operadores]]"
-  - "[[ReactJS - Fundamentos]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Functions"
 ---
 
 # Funciones

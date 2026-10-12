@@ -1,20 +1,10 @@
 ---
-aliases: ["Python Patrones", "SOLID Python", "Type Hints Python", "Buenas Prácticas Python"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Programación Orientada a Objetos]]"
-  - "[[Python - Estructuras de Datos]]"
-  - "[[Python - Proyectos Prácticos POO]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-fuente: "https://docs.python.org/es/3/library/typing.html"
 ---
 
 # Python - Patrones, Buenas Prácticas y Tipado

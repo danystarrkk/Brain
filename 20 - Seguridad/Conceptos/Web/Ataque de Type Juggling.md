@@ -1,18 +1,10 @@
 ---
-aliases: ["Type Juggling", "PHP Type Juggling", "Comparación Débil PHP", "Magic Hashes"]
 tags:
-  - sec/web
-  - sec/lenguajes/php
+  - ciberseguridad
+  - web
+  - type-juggling
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SQL Injection]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[Ataques de Deserialización]]"
-  - "[[Abuso de APIs]]"
-fuente: "https://www.php.net/manual/en/language.types.type-comparisons.php"
 ---
 
 # Ataque de Type Juggling

@@ -1,21 +1,10 @@
 ---
-aliases: ["Compilar Sass", "Sass con Gulp", "Pipeline de Sass"]
 tags:
-  - devops/gulp
+  - desarrollo
+  - devops
+  - compilar-sass
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gulp]]"
-  - "[[GulpFile Completo]]"
-  - "[[Qué es Sass]]"
-  - "[[Sintaxis de Sass]]"
-  - "[[Separar Sass en Archivos]]"
-  - "[[Mixins]]"
-  - "[[CSS Introducción]]"
-  - "[[ReactJS - Vite]]"
-fuente: "https://github.com/doublefusion/gulp-sass"
 ---
 
 # Compilar Sass

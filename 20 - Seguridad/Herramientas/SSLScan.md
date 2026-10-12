@@ -1,17 +1,10 @@
 ---
-aliases: ["SSLScan", "sslscan", "Escáner SSL"]
 tags:
-  - tool/sslscan
+  - ciberseguridad
+  - herramientas
+  - sslscan
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SSLyze Analizador SSL TLS]]"
-  - "[[OpenSSL Comandos Principales]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/rbsec/sslscan"
 ---
 
 # SSLScan

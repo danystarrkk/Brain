@@ -1,19 +1,10 @@
 ---
-aliases: ["Unidades relativas", "Unidades de viewport", "Unidades de contenedor", "Unidades dinámicas"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - medidas-relativas
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Medidas CSS]]"
-  - "[[Responsive Web Design]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Efectos de Scroll]]"
-  - "[[Box Model]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/length#viewport-percentage_lengths"
 ---
 
 # Medidas Relativas

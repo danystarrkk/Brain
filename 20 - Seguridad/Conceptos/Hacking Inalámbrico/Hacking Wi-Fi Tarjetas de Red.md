@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Hacking Wi-Fi
-  - Tarjetas de Red para Hacking Wi-Fi
-  - Chipsets WiFi Hacking
-  - Adaptadores WiFi
 tags:
-  - sec/wireless
-  - hacking/herramientas
+  - ciberseguridad
+  - inalambrico
+  - hacking-red
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Hacking WiFi Fundamentos y Ataques]]"
-  - "[[Aircrack-ng Suite de Herramientas]]"
-  - "[[MDK3 Herramienta de Auditoría Inalámbrica]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-fuente: "https://www.aircrack-ng.org/driver-mac80211.html"
 ---
 
 # Hacking Wi-Fi: Requisitos de Hardware — Tarjetas de Red

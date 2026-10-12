@@ -1,25 +1,10 @@
 ---
-aliases: ["CSS Introducción", "Qué es CSS", "Introducción a CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css-introduccion
 tipo: concepto
 estado: terminado
-creado: 2025-05-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Anatomía de CSS]]"
-  - "[[Especificidad]]"
-  - "[[Selectores en CSS]]"
-  - "[[Box Model]]"
-  - "[[Colores CSS]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Responsive Web Design]]"
-  - "[[Animaciones]]"
-  - "[[Estilos para escribir CSS]]"
-  - "[[Inyecciones CSS]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn_web_development/Core/Styling_basics/What_is_CSS"
 ---
 
 # CSS Introducción

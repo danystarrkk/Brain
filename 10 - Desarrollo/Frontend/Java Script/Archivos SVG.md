@@ -1,17 +1,10 @@
 ---
-aliases: ["SVG", "Scalable Vector Graphics", "SVG con JavaScript", "Animar SVG"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - svg
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Document Object Model (DOM)]]"
-  - "[[Eventos]]"
-  - "[[Imágenes CSS]]"
-  - "[[Formatos Avif y Webp]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/SVG/Tutorial"
 ---
 
 # Archivos SVG

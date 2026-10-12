@@ -1,18 +1,10 @@
 ---
-aliases: ["Uso de JavaScript", "¿Qué podemos hacer con JavaScript?", "Arquitecturas Frontend"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - java-script
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Java Script]]"
-  - "[[Document Object Model (DOM)]]"
-  - "[[ReactJS - Vite]]"
-  - "[[Node JS]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript"
 ---
 
 # Uso de Java Script

@@ -1,28 +1,10 @@
 ---
-aliases:
-  - Linux Info
-  - System Info
-  - Network Commands
-  - Coreutils
-  - Comandos Básicos Linux
 tags:
-  - sys/linux
-  - sys/redes
+  - sistemas
+  - linux
+  - sistema-linux
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Comandos, Rutas y Operadores de Linux]]"
-  - "[[Búsquedas a nivel de sistema]]"
-  - "[[Lectura de Permisos]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Tipos de Interfaces de Red]]"
-  - "[[Conceptos Fundamentales de Redes]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Wireshark y Tshark]]"
-fuente: "https://www.gnu.org/software/coreutils/manual/html_node/"
 ---
 
 # Comandos Básicos de Sistema y Red en Linux

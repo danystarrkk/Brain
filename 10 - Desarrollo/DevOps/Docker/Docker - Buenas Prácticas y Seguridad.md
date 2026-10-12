@@ -1,19 +1,10 @@
 ---
-aliases: ["Seguridad Docker", "Hardening de contenedores", "Docker Security"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Dockerfile y Construcción de Imágenes]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Docker - Redes y Volúmenes]]"
-  - "[[Docker - Laboratorios y Vulhub]]"
-  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
-fuente: "https://docs.docker.com/build/building/best-practices/"
 ---
 
 # Docker - Buenas Prácticas y Seguridad

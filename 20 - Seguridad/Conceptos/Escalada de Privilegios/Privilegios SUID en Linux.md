@@ -1,25 +1,10 @@
 ---
-aliases:
-  - SUID
-  - Set User ID
-  - Privilegios SUID
-  - SGID
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - privilegios-linux
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Linux Capabilities]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[Lectura de Permisos]]"
-  - "[[PATH Hijacking]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-fuente: "https://gtfobins.github.io/"
 ---
 
 # Privilegios SUID (Set User ID) en Linux

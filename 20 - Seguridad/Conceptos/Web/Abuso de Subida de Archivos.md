@@ -1,19 +1,10 @@
 ---
-aliases: ["File Upload Vulnerabilities", "Web Shell Upload", "Abuso de Subida de Archivos"]
 tags:
-  - sec/web
-  - sec/web/upload
+  - ciberseguridad
+  - web
+  - abuso-archivos
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Local File Inclusion]]"
-  - "[[Path Traversal]]"
-  - "[[OS Command Injection]]"
-  - "[[Log Poisoning]]"
-  - "[[Condiciones de Carrera]]"
-fuente: "https://portswigger.net/web-security/file-upload"
 ---
 
 # Abuso de Subida de Archivos

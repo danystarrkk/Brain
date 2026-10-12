@@ -1,19 +1,10 @@
 ---
-aliases: ["Branches", "Git Branches", "Ramas en Git"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - ramas
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es Git]]"
-  - "[[Comandos Git]]"
-  - "[[Rebase]]"
-  - "[[Stash]]"
-  - "[[Configuración Inicial]]"
-  - "[[Tags]]"
-fuente: "https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell"
 ---
 
 # Ramas

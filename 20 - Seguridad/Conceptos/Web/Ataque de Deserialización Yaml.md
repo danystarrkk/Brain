@@ -1,19 +1,10 @@
 ---
-aliases: ["DES-Yaml Attack", "YAML Deserialization Vulnerability", "PyYAML RCE"]
 tags:
-  - sec/web
-  - sec/web/deserializacion
-  - sec/lenguajes/python
+  - ciberseguridad
+  - web
+  - deserializacion-yaml
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ataques de Deserialización]]"
-  - "[[Ataque de Deserialización Pickle]]"
-  - "[[OS Command Injection]]"
-  - "[[Local File Inclusion]]"
-fuente: "https://portswigger.net/web-security/deserialization"
 ---
 
 # Ataque de Deserialización YAML (DES-Yaml)

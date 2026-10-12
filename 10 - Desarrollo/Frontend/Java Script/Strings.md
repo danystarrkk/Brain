@@ -1,19 +1,10 @@
 ---
-aliases: ["Strings", "Cadenas de texto en JavaScript", "Tipos de String"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - strings
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Números]]"
-  - "[[Booleanos]]"
-  - "[[Funciones]]"
-  - "[[Array Methods]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Operadores]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/String"
 ---
 
 # Strings

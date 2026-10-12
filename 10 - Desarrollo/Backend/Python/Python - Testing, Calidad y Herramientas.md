@@ -1,20 +1,10 @@
 ---
-aliases: ["Testing Python", "pytest", "Calidad Python", "Linting Python"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Proyectos Prácticos POO]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-fuente: "https://docs.pytest.org/"
 ---
 
 # Python - Testing, Calidad y Herramientas

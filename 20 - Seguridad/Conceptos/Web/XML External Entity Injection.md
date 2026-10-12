@@ -1,19 +1,10 @@
 ---
-aliases: ["XXE Injection", "XML External Entity", "Inyección XXE"]
 tags:
-  - sec/web
-  - sec/web/xxe
+  - ciberseguridad
+  - web
+  - xml-injection
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Local File Inclusion]]"
-  - "[[Ataques de Deserialización]]"
-  - "[[Abuso de Subida de Archivos]]"
-  - "[[Abuso de APIs]]"
-fuente: "https://portswigger.net/web-security/xxe"
 ---
 
 # XML External Entity (XXE) Injection

@@ -1,17 +1,10 @@
 ---
-aliases: ["Meta tags", "Metaetiquetas"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - etiquetas-meta
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Estructurar Html]]"
-  - "[[Responsive Web Design]]"
-  - "[[Formatos Avif y Webp]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML/Element/meta"
 ---
 
 # Etiquetas Meta

@@ -1,23 +1,10 @@
 ---
-aliases: ["Nmap", "Network Mapper", "Escaneo de Redes", "nmap"]
 tags:
-  - tool/nmap
+  - ciberseguridad
+  - herramientas
+  - nmap
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Masscan]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[netdiscover]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
-  - "[[SSLScan]]"
-  - "[[Creación de Informes en LaTeX]]"
-fuente: "https://nmap.org/book/man.html"
 ---
 
 # Nmap — Guía Completa

@@ -1,23 +1,10 @@
 ---
-aliases:
-  - web cache
-  - Web Cache Deception
-  - WCD
-  - Engaño de Caché Web
 tags:
-  - sec/web
-  - sec/web/cache
+  - ciberseguridad
+  - web
+  - web-deception
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Information disclosure]]"
-  - "[[HTTP Host header attacks]]"
-fuente: "https://portswigger.net/web-security/web-cache-deception"
 ---
 
 # Web Cache Deception

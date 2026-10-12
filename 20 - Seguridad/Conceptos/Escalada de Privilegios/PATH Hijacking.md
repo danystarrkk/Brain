@@ -1,24 +1,10 @@
 ---
-aliases:
-  - PATH Hijacking
-  - Secuestro de PATH
-  - Path Injection
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - path-hijacking
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-  - "[[Explotación de Servicios Internos]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation.html"
 ---
 
 # PATH Hijacking

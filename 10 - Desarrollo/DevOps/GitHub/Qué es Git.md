@@ -1,19 +1,10 @@
 ---
-aliases: ["Git", "Control de Versiones", "Sistema de Control de Versiones"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - git
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración Inicial]]"
-  - "[[Comandos Git]]"
-  - "[[Ramas]]"
-  - "[[Rebase]]"
-  - "[[Tags]]"
-  - "[[Qué es una API]]"
-fuente: "https://git-scm.com/about"
 ---
 
 # Qué es Git

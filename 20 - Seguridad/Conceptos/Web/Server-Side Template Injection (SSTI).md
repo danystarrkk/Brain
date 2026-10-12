@@ -1,22 +1,12 @@
 ---
-aliases:
-  - SSTI
-  - Inyección de Plantillas del Lado del Servidor
 tags:
-  - sec/web
-  - sec/web/ssti
+  - ciberseguridad
+  - web
+  - server-side-ssti
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Client-Side Template Injection (CSTI)]]"
-  - "[[OS Command Injection]]"
-  - "[[Ataques de Deserialización]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Prototype Pollution]]"
-fuente: "https://portswigger.net/web-security/server-side-template-injection"
 ---
+
 # Server-Side Template Injection (SSTI)
 
 El **Server-Side Template Injection** (**SSTI**) es una vulnerabilidad en la que el atacante **inyecta expresiones en una plantilla que el servidor evalúa**, logrando que el motor de plantillas ejecute su código — hasta RCE completa. Es una inyección de *lenguaje de plantilla* (Jinja2, Twig, FreeMarker, ERB…), no de HTML ni de comandos: la app confunde **datos** con **código de plantilla**.

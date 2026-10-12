@@ -1,20 +1,10 @@
 ---
-aliases: ["Deserialización Pickle", "DES-Pickle Attack", "Python Pickle Vulnerability", "Pickle RCE"]
 tags:
-  - sec/web
-  - sec/web/deserializacion
-  - sec/lenguajes/python
+  - ciberseguridad
+  - web
+  - deserializacion-pickle
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ataques de Deserialización]]"
-  - "[[Ataque de Deserialización Yaml]]"
-  - "[[OS Command Injection]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Log Poisoning]]"
-fuente: "https://docs.python.org/3/library/pickle.html"
 ---
 
 # Ataque de Deserialización Pickle (DES-Pickle)

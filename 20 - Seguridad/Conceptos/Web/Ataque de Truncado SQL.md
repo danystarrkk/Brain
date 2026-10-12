@@ -1,19 +1,10 @@
 ---
-aliases: ["SQL Truncation", "Truncado SQL", "SQL Truncation Attack"]
 tags:
-  - sec/web
-  - sec/web/sqli
+  - ciberseguridad
+  - web
+  - sql
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SQL Injection]]"
-  - "[[Inyección NoSQL]]"
-  - "[[Abuso de APIs]]"
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Ataque de Asignación Masiva]]"
-fuente: "https://portswigger.net/web-security/sql-injection"
 ---
 
 # Ataque de Truncado SQL

@@ -1,20 +1,10 @@
 ---
-aliases: ["Degradados Css", "Gradientes CSS", "linear-gradient"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Colores CSS]]"
-  - "[[Background]]"
-  - "[[Animaciones]]"
-  - "[[Sombras CSS]]"
-  - "[[Imágenes CSS]]"
-  - "[[Medidas Relativas]]"
-  - "[[Efectos de Scroll]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/gradient/linear-gradient"
 ---
 
 # Degradados en CSS

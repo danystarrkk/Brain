@@ -1,19 +1,10 @@
 ---
-aliases: ["Docker Networking", "Volúmenes Docker", "Redes y volúmenes Docker"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Docker - Docker Compose]]"
-  - "[[Docker - Buenas Prácticas y Seguridad]]"
-  - "[[Docker - Laboratorios y Vulhub]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://docs.docker.com/engine/network/"
 ---
 
 # Docker - Redes y Volúmenes

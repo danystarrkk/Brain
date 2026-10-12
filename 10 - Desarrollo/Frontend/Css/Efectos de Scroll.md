@@ -1,20 +1,10 @@
 ---
-aliases: ["Efecto de Scroll", "Scroll snap", "scroll-snap"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - efectos-scroll
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Animaciones]]"
-  - "[[Responsive Web Design]]"
-  - "[[Tipos de Posiciones]]"
-  - "[[Degradados en CSS]]"
-  - "[[Box Model]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/CSS_scroll_snap_module"
 ---
 
 # Efectos de Scroll

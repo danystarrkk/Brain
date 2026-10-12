@@ -1,21 +1,10 @@
 ---
-aliases: ["Bash Patrones", "Bash Plantillas", "Script Skeleton Bash", "Idiomas y Recetas Bash"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Argumentos y Opciones]]"
-  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
-  - "[[Bash Scripting - Procesos y Señales]]"
-  - "[[Bash Scripting - Funciones y Scope]]"
-  - "[[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]"
-  - "[[Cron Jobs y Programación de Tareas]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html"
 ---
 
 # Bash Scripting - Patrones Comunes y Plantillas

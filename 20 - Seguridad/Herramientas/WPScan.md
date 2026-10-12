@@ -1,21 +1,10 @@
 ---
-aliases: ["WPScan", "wpscan", "WordPress Scanner"]
-tags: [tool/wpscan]
+tags:
+  - ciberseguridad
+  - herramientas
+  - wpscan
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[Tabla de Opciones Principales de MageScan]]"
-  - "[[JoomScan Herramienta de Escaneo]]"
-  - "[[Droopscan]]"
-  - "[[WFuzz]]"
-  - "[[THC Hydra]]"
-  - "[[Gobuster]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/wpscanteam/wpscan"
 ---
 
 # WPScan: Escáner de Seguridad de WordPress

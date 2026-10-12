@@ -1,34 +1,10 @@
 ---
-aliases:
-  - Nmap
-  - Reconocimiento de Redes
-  - OSINT
-  - Evasión de Firewall
-  - Enumeración de Puertos
-  - Descubrimiento de Hosts
-  - Google Hacking
-  - Fuzzing Web
-  - Burp Suite
 tags:
-  - sec/recon
-  - hacking/herramientas
-  - redes/comandos
-  - redes/protocolos
-  - scripting/bash
+  - ciberseguridad
+  - reconocimiento
+  - reconocimiento-web
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Nmap Guía Completa]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Gobuster]]"
-  - "[[Masscan]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[netdiscover]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[Creación de Informes en LaTeX]]"
-fuente: "https://nmap.org/book/man.html"
 ---
 
 # Reconocimiento y Escaneo de Redes y Web

@@ -1,19 +1,10 @@
 ---
-aliases: ["Anatomía CSS", "Sintaxis básica de CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[CSS Introducción]]"
-  - "[[Selectores en CSS]]"
-  - "[[Especificidad]]"
-  - "[[Medidas CSS]]"
-  - "[[Crear archivo para CSS]]"
-  - "[[Estilos para escribir CSS]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn_web_development/Core/Styling_basics/Getting_started"
 ---
 
 # Anatomía de CSS

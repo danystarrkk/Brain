@@ -1,19 +1,10 @@
 ---
-aliases: ["Bash Funciones", "Scope en Bash", "Funciones y Variables en Bash"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Argumentos y Opciones]]"
-  - "[[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]]"
-  - "[[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]"
-  - "[[Shellshock Vulnerabilidad en Bash]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html#Shell-Functions"
 ---
 
 # Bash Scripting - Funciones y Scope

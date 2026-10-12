@@ -1,21 +1,10 @@
 ---
-aliases:
-  - Blue Sky Polybar
-  - Tema blue-sky
-  - Vaughn Valle polybar
 tags:
-  - sys/entorno
-  - linux/customizacion
+  - sistemas
+  - entorno
+  - blue-polybar
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración de Polybar]]"
-  - "[[Instalación de Polybar y Picom]]"
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-fuente: "https://github.com/VaughnValle/blue-sky"
 ---
 
 # Instalación y Configuración de Blue Sky Polybar

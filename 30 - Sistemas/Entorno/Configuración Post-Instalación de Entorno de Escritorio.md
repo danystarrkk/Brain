@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Configuración de Entorno de Escritorio
-  - Post-instalación Bspwm
-  - Checklist post-install
 tags:
-  - sys/entorno
-  - linux/customizacion
+  - sistemas
+  - entorno
+  - post-instalacion-escritorio
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Configuración de Picom]]"
-  - "[[Configuración de Polybar]]"
-  - "[[Configuración de Zsh y Plugins]]"
-  - "[[Configuración Zsh Batcat Lsd y Burp Suite]]"
-  - "[[Vim Comandos Esenciales]]"
-fuente: "https://wiki.archlinux.org/title/XDG_Base_Directory"
 ---
 
 # Configuración Post-Instalación de Entorno de Escritorio

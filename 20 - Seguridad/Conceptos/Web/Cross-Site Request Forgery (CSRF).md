@@ -1,20 +1,10 @@
 ---
-aliases: ["CSRF", "XSRF", "Cross-Site Request Forgery", "Falsificación de Peticiones entre Sitios"]
 tags:
-  - sec/web
-  - sec/web/cliente
+  - ciberseguridad
+  - web
+  - cross-site-csrf
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Clickjacking Ataques]]"
-  - "[[Vulnerabilidades CORS y Laboratorios]]"
-  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
-  - "[[HTTP Host header attacks]]"
-  - "[[Session Puzzling Session Fixation y Session Variable Overloading]]"
-fuente: "https://portswigger.net/web-security/csrf"
 ---
 
 # Cross-Site Request Forgery (CSRF)

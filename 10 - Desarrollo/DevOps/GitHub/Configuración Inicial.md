@@ -1,18 +1,10 @@
 ---
-aliases: ["Configuración de Git", "git config", "Setup de Git"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - inicial
 tipo: concepto
 estado: terminado
-creado: 2024-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es Git]]"
-  - "[[Comandos Git]]"
-  - "[[Archivos Especiales]]"
-  - "[[Ramas]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-fuente: "https://git-scm.com/docs/git-config"
 ---
 
 # Configuración Inicial

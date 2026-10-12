@@ -1,19 +1,10 @@
 ---
-aliases: ["smbclient", "SMBClient", "Cliente SMB"]
 tags:
-  - tool/smbclient
+  - ciberseguridad
+  - herramientas
+  - smbclient-smbcifs
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SMBMap]]"
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[THC Hydra]]"
-  - "[[Msfvenom - Herramienta de Generación de Payloads]]"
-fuente: "https://www.samba.org/samba/docs/current/man-html/smbclient.1.html"
 ---
 
 # smbclient — Cliente de Línea de Comandos para SMB/CIFS

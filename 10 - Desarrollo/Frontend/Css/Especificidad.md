@@ -1,19 +1,10 @@
 ---
-aliases: ["Specificity", "Cascada y especificidad"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - especificidad
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Selectores en CSS]]"
-  - "[[Anatomía de CSS]]"
-  - "[[Estilos para escribir CSS]]"
-  - "[[Sintaxis de Sass]]"
-  - "[[CSS Introducción]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/Specificity"
 ---
 
 # Especificidad

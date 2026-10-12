@@ -1,17 +1,10 @@
 ---
-aliases: ["Forms", "Formularios HTML"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - formularios
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Etiquetas]]"
-  - "[[Eventos]]"
-  - "[[Acceder a Html]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML/Element/form"
 ---
 
 # Formularios en HTML

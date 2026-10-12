@@ -1,21 +1,10 @@
 ---
-aliases: ["API Abuse", "Explotación de APIs", "API Hacking", "Hacking de APIs"]
 tags:
-  - sec/web
-  - sec/web/api
+  - ciberseguridad
+  - web
+  - abuso-apis
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[Inyección NoSQL]]"
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[GraphQL Introspección y Mutaciones en Ataques IDOR]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[SQL Injection]]"
-fuente: "https://owasp.org/www-project-api-security/"
 ---
 
 # Abuso de APIs

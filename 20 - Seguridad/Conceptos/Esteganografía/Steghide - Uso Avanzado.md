@@ -1,20 +1,10 @@
 ---
-aliases:
-  - Steghide
-  - Steghide Flags
-  - Ocultar Datos con Steghide
 tags:
-  - sec/stego
+  - ciberseguridad
+  - esteganografia
+  - steghide
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Stegseek - Guía Rápida]]"
-  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
-  - "[[Estegoanálisis - Detección y ContraMedidas]]"
-  - "[[Zsteg - Análisis LSB PNG]]"
-fuente: "http://steghide.sourceforge.net/documentation/"
 ---
 
 # Steghide — Uso Avanzado

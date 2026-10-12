@@ -1,17 +1,10 @@
 ---
-aliases: ["Vite", "Bundler"]
 tags:
-  - dev/frontend/react
+  - desarrollo
+  - frontend
+  - reactjs
 tipo: concepto
 estado: terminado
-creado: 2026-03-21
-actualizado: 2026-10-11
-relacionado:
-  - "[[ReactJS - Fundamentos]]"
-  - "[[Node JS]]"
-  - "[[TailwindCSS - Instalación y Configuración]]"
-  - "[[Formato Json]]"
-fuente: "https://vite.dev/guide/"
 ---
 
 # ReactJS - Vite

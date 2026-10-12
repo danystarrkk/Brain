@@ -1,19 +1,10 @@
 ---
-aliases: ["Bash Argumentos", "getopts Bash", "CLI Parsing en Bash", "Parámetros Posicionales"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Funciones y Scope]]"
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
-  - "[[Bash Scripting - Patrones Comunes y Plantillas]]"
-  - "[[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html#index-getopts"
 ---
 
 # Bash Scripting - Argumentos y Opciones

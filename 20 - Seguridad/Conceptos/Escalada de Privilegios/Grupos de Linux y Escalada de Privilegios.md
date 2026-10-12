@@ -1,24 +1,10 @@
 ---
-aliases:
-  - Linux Groups
-  - Grupos de Riesgo
-  - LXD PrivEsc
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - grupos-privilegios
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-  - "[[Lectura de Permisos]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation.html"
 ---
 
 # Grupos de Linux y Escalada de Privilegios

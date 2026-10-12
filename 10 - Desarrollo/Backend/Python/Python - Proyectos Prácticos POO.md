@@ -1,20 +1,10 @@
 ---
-aliases: ["Proyectos POO Python", "Proyectos Prácticos Python", "Biblioteca POO"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Programación Orientada a Objetos]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Interfaces Gráficas (Tkinter)]]"
-  - "[[Python - Redes y HTTP]]"
-fuente: "https://docs.python.org/es/3/library/dataclasses.html"
 ---
 
 # Python - Proyectos Prácticos POO

@@ -1,19 +1,10 @@
 ---
-aliases: ["Log Poisoning", "Envenenamiento de Logs"]
 tags:
-  - sec/web
-  - sec/web/rce
+  - ciberseguridad
+  - web
+  - log-poisoning
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Local File Inclusion]]"
-  - "[[Path Traversal]]"
-  - "[[Abuso de Subida de Archivos]]"
-  - "[[OS Command Injection]]"
-  - "[[Cross-Site Scripting XSS]]"
-fuente: "https://book.hacktricks.wiki/en/pentesting-web/file-inclusion/lf2rce-via-log-poisoning.html"
 ---
 
 # Log Poisoning

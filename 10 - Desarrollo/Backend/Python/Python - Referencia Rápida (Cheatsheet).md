@@ -1,24 +1,10 @@
 ---
-aliases: ["Cheatsheet Python", "Python Quick Reference", "Python Referencia"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Estructuras de Datos]]"
-  - "[[Python - Programación Orientada a Objetos]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Librerías Estándar Esenciales]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Interfaces Gráficas (Tkinter)]]"
-fuente: "https://docs.python.org/es/3/library/"
 ---
 
 # Python - Referencia Rápida (Cheatsheet)

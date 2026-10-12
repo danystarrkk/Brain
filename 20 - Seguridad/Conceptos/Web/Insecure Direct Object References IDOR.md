@@ -1,21 +1,10 @@
 ---
-aliases: ["IDOR", "Insecure Direct Object References", "Referencias Directas Inseguras"]
 tags:
-  - sec/web
-  - sec/web/idor
-  - sec/web/access-control
+  - ciberseguridad
+  - web
+  - idor
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[GraphQL Introspección y Mutaciones en Ataques IDOR]]"
-  - "[[Labs - Control de Acceso]]"
-  - "[[Abuso de APIs]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Information disclosure]]"
-fuente: "https://portswigger.net/web-security/access-control/idor"
 ---
 
 # Insecure Direct Object References (IDOR)

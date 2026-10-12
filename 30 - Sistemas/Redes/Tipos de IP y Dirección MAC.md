@@ -1,27 +1,10 @@
 ---
-aliases:
-  - Tipos de IP y MAC
-  - IP Privada y Pública
-  - NAT
-  - Dirección MAC
-  - OUI
-  - IPv6
-  - DHCP
 tags:
-  - sys/redes
+  - sistemas
+  - redes
+  - mac
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Conceptos Fundamentales de Redes]]"
-  - "[[Tipos de Interfaces de Red]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[netdiscover]]"
-  - "[[Nmap Guía Completa]]"
-fuente: "https://www.rfc-editor.org/rfc/rfc1918"
 ---
 
 # Tipos de IP y Dirección MAC

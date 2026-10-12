@@ -1,19 +1,10 @@
 ---
-aliases: ["bspwm", "sxhkd", "configuracion window manager", "Window Manager de Mosaico"]
 tags:
-  - sys/entorno
-  - linux/customizacion
+  - sistemas
+  - entorno
+  - sxhkd
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración de Picom]]"
-  - "[[Configuración de Polybar]]"
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-  - "[[Instalación de Polybar y Picom]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://github.com/baskerville/bspwm"
 ---
 
 # Configuración de BSPWM y SXHKD

@@ -1,18 +1,10 @@
 ---
-aliases: ["SCSS Mixins", "@mixin"]
 tags:
-  - dev/frontend/scss
+  - desarrollo
+  - frontend
+  - mixins
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Sintaxis de Sass]]"
-  - "[[Separar Sass en Archivos]]"
-  - "[[Responsive Web Design]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-fuente: "https://sass-lang.com/documentation/at-rules/mixin/"
 ---
 
 # Mixins

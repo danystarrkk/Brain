@@ -1,18 +1,10 @@
 ---
-aliases: ["HTML", "Qué es HTML"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - html
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Estructurar Html]]"
-  - "[[Etiquetas]]"
-  - "[[Etiquetas Meta]]"
-  - "[[CSS Introducción]]"
-  - "[[Document Object Model (DOM)]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML"
 ---
 
 # Qué es HTML?

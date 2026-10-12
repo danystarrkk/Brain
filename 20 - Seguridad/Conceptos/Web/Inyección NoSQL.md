@@ -1,21 +1,10 @@
 ---
-aliases:
-  - NoSQL Injection
-  - Inyección NoSQL
 tags:
-  - sec/web
-  - sec/web/nosql
+  - ciberseguridad
+  - web
+  - inyeccion-nosql
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SQL Injection]]"
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Laboratorios de Vulnerabilidades Lógicas y de Autenticación]]"
-fuente: "https://portswigger.net/web-security/nosql-injection"
 ---
 
 # Inyección NoSQL

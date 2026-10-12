@@ -1,17 +1,10 @@
 ---
-aliases: ["GHex", "Editor Hexadecimal", "Editor Hex", "ghex"]
-tags: [tool/ghex]
+tags:
+  - ciberseguridad
+  - herramientas
+  - ghex-hexadecimal
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ghidra - Reverse Engineering Tool]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Msfvenom - Herramienta de Generación de Payloads]]"
-  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
-fuente: "https://wiki.gnome.org/Apps/Ghex"
 ---
 
 # GHex: Editor Hexadecimal para Linux

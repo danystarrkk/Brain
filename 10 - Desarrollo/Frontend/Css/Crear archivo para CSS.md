@@ -1,20 +1,10 @@
 ---
-aliases: ["Crear archivo para Css", "Crear archivo CSS", "Link a CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2025-05-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[CSS Introducción]]"
-  - "[[Estilos para escribir CSS]]"
-  - "[[Preload]]"
-  - "[[Qué es Sass]]"
-  - "[[Sintaxis de Sass]]"
-  - "[[Normalize]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn_web_development/Core/Styling_basics/Getting_started"
 ---
 
 # Crear archivo para CSS

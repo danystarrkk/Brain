@@ -1,18 +1,10 @@
 ---
-aliases: ["API", "API REST", "APIs web", "Interfaz de Programación"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - api
 tipo: concepto
 estado: terminado
-creado: 2025-02-01
-actualizado: 2026-10-11
-relacionado:
-  - "[[Formato Json]]"
-  - "[[Java Script]]"
-  - "[[Acceder a Html]]"
-  - "[[Eventos]]"
-  - "[[Node JS]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTTP/Overview"
 ---
 
 # Qué es una API

@@ -1,20 +1,10 @@
 ---
-aliases: ["Manejo de Archivos Python", "Serialización Python", "Python Archivos"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Estructuras de Datos]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Librerías Estándar Esenciales]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://docs.python.org/es/3/library/filesys.html"
 ---
 
 # Python - Manejo de Archivos y Serialización

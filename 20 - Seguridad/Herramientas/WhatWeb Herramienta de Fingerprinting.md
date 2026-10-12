@@ -1,19 +1,10 @@
 ---
-aliases: WhatWeb, Fingerprinting Web, whatweb
-tags: [tool/whatweb]
+tags:
+  - ciberseguridad
+  - herramientas
+  - whatweb-fingerprinting
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Tabla de Opciones Principales de MageScan]]"
-  - "[[WPScan]]"
-  - "[[WFuzz]]"
-  - "[[Gobuster]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/urbanadventurer/WhatWeb"
 ---
 
 # WhatWeb: Fingerprinting de Tecnologías Web

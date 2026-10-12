@@ -1,19 +1,10 @@
 ---
-aliases: ["GulpFile Completo", "gulpfile.js", "Gulpfile de Producción"]
 tags:
-  - devops/gulp
+  - desarrollo
+  - devops
+  - gulpfile
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gulp]]"
-  - "[[Instalar Gulp]]"
-  - "[[Compilar Sass]]"
-  - "[[Performance Web]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[Qué es Sass]]"
-fuente: "https://gulpjs.com/docs/en/getting-started/quick-start"
 ---
 
 # GulpFile Completo

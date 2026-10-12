@@ -1,19 +1,10 @@
 ---
-aliases: ["Web Cache Poisoning", "Envenenamiento de Caché Web", "Cache Poisoning", "Cache Key Injection"]
 tags:
-  - sec/web
-  - sec/web/infra
+  - ciberseguridad
+  - web
+  - envenenamiento-web
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Web cache deception]]"
-  - "[[HTTP Host header attacks]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Vulnerabilidades CORS y Laboratorios]]"
-  - "[[Vulnerabilidades de HTTP Request Smuggling]]"
-fuente: "https://portswigger.net/web-security/web-cache-poisoning"
 ---
 
 # Envenenamiento de Caché Web

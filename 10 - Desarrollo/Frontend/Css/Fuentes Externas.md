@@ -1,20 +1,10 @@
 ---
-aliases: ["Fuentes personalizadas", "Google Fonts", "Web fonts", "@font-face"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - fuentes-externas
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Preload]]"
-  - "[[Imágenes CSS]]"
-  - "[[Material Icons]]"
-  - "[[Medidas CSS]]"
-  - "[[Responsive Web Design]]"
-  - "[[Formatos Avif y Webp]]"
-fuente: "https://fonts.google.com/"
 ---
 
 # Fuentes Externas

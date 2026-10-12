@@ -1,20 +1,10 @@
 ---
-aliases: ["RWD", "Diseño responsive"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - responsive-design
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Medidas Relativas]]"
-  - "[[Medidas CSS]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Tipos de Posiciones]]"
-  - "[[Imágenes CSS]]"
-  - "[[Html]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn/CSS/CSS_layout/Responsive_Design"
 ---
 
 # Responsive Web Design

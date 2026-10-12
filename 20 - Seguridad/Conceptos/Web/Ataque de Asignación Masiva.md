@@ -1,19 +1,10 @@
 ---
-aliases: ["Mass Assignment Attack", "Asignación Masiva", "Over-Posting", "Mass Overposting"]
 tags:
-  - sec/web
-  - sec/web/api
+  - ciberseguridad
+  - web
+  - asignacion-masiva
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Abuso de APIs]]"
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Ataques de Deserialización]]"
-  - "[[GraphQL Introspección y Mutaciones en Ataques IDOR]]"
-  - "[[Ataque de Type Juggling]]"
-fuente: "https://portswigger.net/web-security/mass-assignment"
 ---
 
 # Ataque de Asignación Masiva (Mass Assignment Attack)

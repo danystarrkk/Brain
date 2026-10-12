@@ -1,24 +1,10 @@
 ---
-aliases:
-  - Polybar Config
-  - Configuración Polybar
-  - Barra de estado Linux
 tags:
-  - sys/entorno
-  - linux/customizacion
-  - scripting/bash
+  - sistemas
+  - entorno
+  - polybar
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Instalación de Polybar y Picom]]"
-  - "[[Instalación y Configuración de Blue Sky Polybar]]"
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Configuración de Picom]]"
-  - "[[Configuración Zsh Batcat Lsd y Burp Suite]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-fuente: "https://github.com/polybar/polybar"
 ---
 
 # Configuración de Polybar

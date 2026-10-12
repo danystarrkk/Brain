@@ -1,24 +1,10 @@
 ---
-aliases:
-  - Vulnerabilidades del Kernel
-  - Escalada de Privilegios Linux
-  - Kernel Exploitation
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - kernel-privilegios
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
-  - "[[Linux Capabilities]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Secuestro de Bibliotecas Compartidas]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-fuente: "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/linux-kernel-exploitation.html"
 ---
 
 # Vulnerabilidades del Kernel y Escalada de Privilegios

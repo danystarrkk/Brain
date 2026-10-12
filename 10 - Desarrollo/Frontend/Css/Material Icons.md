@@ -1,19 +1,10 @@
 ---
-aliases: ["Iconos Material", "Material Symbols", "Icon fonts", "Ligaduras de fuente"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - material-icons
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Fuentes Externas]]"
-  - "[[Html]]"
-  - "[[Archivos SVG]]"
-  - "[[Animaciones]]"
-  - "[[Estilos para escribir CSS]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-fuente: "https://fonts.google.com/icons"
 ---
 
 # Material Icons

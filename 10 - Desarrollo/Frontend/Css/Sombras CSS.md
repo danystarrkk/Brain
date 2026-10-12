@@ -1,19 +1,10 @@
 ---
-aliases: ["Box shadow", "Sombras en CSS", "Text shadow", "drop-shadow"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Colores CSS]]"
-  - "[[Degradados en CSS]]"
-  - "[[Box Model]]"
-  - "[[Tipos de Posiciones]]"
-  - "[[Animaciones]]"
-  - "[[Background]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/box-shadow"
 ---
 
 # Sombras CSS

@@ -1,22 +1,10 @@
 ---
-aliases: ["Stdlib Python", "Librerías Estándar Python", "Batteries Included Python"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Estructuras de Datos]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Python - Referencia Rápida (Cheatsheet)]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://docs.python.org/es/3/library/index.html"
 ---
 
 # Python - Librerías Estándar Esenciales

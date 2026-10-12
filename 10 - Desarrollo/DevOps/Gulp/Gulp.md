@@ -1,19 +1,10 @@
 ---
-aliases: ["Gulp", "Gulp.js", "Task Runner", "Automatización de Tareas"]
 tags:
-  - devops/gulp
+  - desarrollo
+  - devops
+  - gulp
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Instalar Gulp]]"
-  - "[[GulpFile Completo]]"
-  - "[[Compilar Sass]]"
-  - "[[Performance Web]]"
-  - "[[Node JS]]"
-  - "[[ReactJS - Vite]]"
-fuente: "https://gulpjs.com/docs/en/getting-started/quick-start"
 ---
 
 # Gulp

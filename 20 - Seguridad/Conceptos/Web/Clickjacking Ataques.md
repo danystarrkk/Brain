@@ -1,18 +1,10 @@
 ---
-aliases: ["Clickjacking", "UI Redressing", "Ataque de Clickjacking", "Framejacking"]
 tags:
-  - sec/web
-  - sec/web/cliente
+  - ciberseguridad
+  - web
+  - clickjacking
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Vulnerabilidades CORS y Laboratorios]]"
-  - "[[Client-Side Template Injection (CSTI)]]"
-fuente: "https://portswigger.net/web-security/clickjacking"
 ---
 
 # Clickjacking Ataques

@@ -1,24 +1,10 @@
 ---
-aliases:
-  - Tcpreplay
+tags:
+  - ciberseguridad
+  - herramientas
   - tcpreplay
-  - tcpprep
-  - tcprewrite
-  - Replay de Paquetes
-tags: [tool/tcpreplay]
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Tshark]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Aircrack-ng Suite de Herramientas]]"
-  - "[[Masscan]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-fuente: "https://tcpreplay.appneta.com/"
 ---
 
 # Tcpreplay: Suite de Reproducción y Reescritura de Tráfico

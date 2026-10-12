@@ -1,19 +1,10 @@
 ---
-aliases: ["Colores Css", "Valores de color", "Custom properties de color"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Degradados en CSS]]"
-  - "[[Background]]"
-  - "[[Animaciones]]"
-  - "[[Sombras CSS]]"
-  - "[[Box Model]]"
-  - "[[Especificidad]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/color_value"
 ---
 
 # Colores CSS

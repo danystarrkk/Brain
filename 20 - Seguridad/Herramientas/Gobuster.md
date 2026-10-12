@@ -1,21 +1,10 @@
 ---
-aliases: ["Gobuster", "gobuster", "Fuzzing de Directorios", "Enumeración de Directorios"]
-tags: [tool/gobuster]
+tags:
+  - ciberseguridad
+  - herramientas
+  - gobuster
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[WFuzz]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[WPScan]]"
-  - "[[HTTP Host header attacks]]"
-  - "[[Ataques de Transferencia de Zona DNS (AXFR)]]"
-  - "[[Burp Suite Escaneo Dirigido y Estructuras de Datos No Estándar]]"
-fuente: "https://github.com/OJ/gobuster"
 ---
 
 # Gobuster: Enumeración de Directorios, Subdominios y VHosts

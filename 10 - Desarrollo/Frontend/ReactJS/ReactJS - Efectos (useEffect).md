@@ -1,17 +1,10 @@
 ---
-aliases: ["useEffect", "Efectos React", "Hooks useEffect"]
 tags:
-  - dev/frontend/react
+  - desarrollo
+  - frontend
+  - reactjs
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[ReactJS - Fundamentos]]"
-  - "[[ReactJS - Vite]]"
-  - "[[Funciones]]"
-  - "[[Qué es una API]]"
-fuente: "https://react.dev/learn/synchronizing-with-effects"
 ---
 
 # ReactJS - Efectos (useEffect)

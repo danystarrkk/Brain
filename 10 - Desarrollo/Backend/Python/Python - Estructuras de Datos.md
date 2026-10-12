@@ -1,19 +1,10 @@
 ---
-aliases: ["Estructuras de Datos Python", "Colecciones Python", "Collections Python"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Programación Orientada a Objetos]]"
-  - "[[Python - Librerías Estándar Esenciales]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Referencia Rápida (Cheatsheet)]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-fuente: "https://docs.python.org/es/3/library/stdtypes.html#types-sequence"
 ---
 
 # Python - Estructuras de Datos

@@ -1,26 +1,10 @@
 ---
-aliases:
-  - Modo Monitor
-  - Ataques WiFi
-  - Hacking Inalámbrico
-  - 802.11
-  - Handshake WPA2
 tags:
-  - sec/wireless
-  - hacking/herramientas
-  - redes/conceptos
+  - ciberseguridad
+  - inalambrico
+  - hacking-wifi
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Hacking Wi-Fi Tarjetas de Red]]"
-  - "[[Aircrack-ng Suite de Herramientas]]"
-  - "[[MDK3 Herramienta de Auditoría Inalámbrica]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-  - "[[Tcpreplay]]"
-fuente: "https://www.wi-fi.org/discover-wi-fi/security"
 ---
 
 # Hacking Wi-Fi: Fundamentos y Ataques

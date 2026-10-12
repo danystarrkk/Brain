@@ -1,18 +1,10 @@
 ---
-aliases: ["Bash Aritmética", "Números Aleatorios Bash", "$RANDOM", "Bash Math"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]]"
-  - "[[Bash Scripting - Patrones Comunes y Plantillas]]"
-  - "[[Python - Fundamentos y Sintaxis]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html#Arithmetic-Evaluation"
 ---
 
 # Bash Scripting - Aritmética y Números Aleatorios

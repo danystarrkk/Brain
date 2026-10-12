@@ -1,20 +1,10 @@
 ---
-aliases: ["PortSwigger Labs", "Labs", "Access Control", "Control de Acceso Labs"]
 tags:
-  - sec/web
-  - sec/web/access-control
-  - hacking/laboratorios
+  - ciberseguridad
+  - web
+  - labs
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Laboratorios de Vulnerabilidades Lógicas y de Autenticación]]"
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[GraphQL Introspección y Mutaciones en Ataques IDOR]]"
-  - "[[Gestión de Autenticación]]"
-fuente: "https://portswigger.net/web-security/access-control"
 ---
 
 # Labs - Control de Acceso (PortSwigger)

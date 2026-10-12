@@ -1,19 +1,10 @@
 ---
-aliases: ["Squid Proxy", "SQUID", "Proxy Abierto", "Enumeración Squid"]
 tags:
-  - sec/web
-  - sec/redes
+  - ciberseguridad
+  - web
+  - enumeracion-proxies
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Nmap Guía Completa]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Information disclosure]]"
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Ataques de Transferencia de Zona DNS (AXFR)]]"
-fuente: "https://book.hacktricks.xyz/en/network-services-pentesting/pentesting-http-proxy"
 ---
 
 # Enumeración y Explotación de SQUID Proxies

@@ -1,27 +1,10 @@
 ---
-aliases:
-  - Comandos Linux
-  - Rutas Linux
-  - Operadores Linux
-  - Bash Comandos
-  - PATH
-  - Redirecciones Bash
 tags:
-  - sys/linux
+  - sistemas
+  - linux
+  - comandos-linux
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Búsquedas a nivel de sistema]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Lectura de Permisos]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[PATH Hijacking]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Node JS]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html"
 ---
 
 # Comandos, Rutas y Operadores de Linux

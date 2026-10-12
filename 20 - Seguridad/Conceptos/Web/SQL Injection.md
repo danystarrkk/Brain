@@ -1,22 +1,12 @@
 ---
-aliases:
-  - SQLI
-  - SQL Injection
 tags:
-  - sec/web
-  - sec/web/sqli
+  - ciberseguridad
+  - web
+  - sql-injection
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ataque de Truncado SQL]]"
-  - "[[Inyección NoSQL]]"
-  - "[[XPath y sus Vulnerabilidades]]"
-  - "[[Inyecciones LDAP]]"
-  - "[[Ataque de Asignación Masiva]]"
-fuente: "https://portswigger.net/web-security/sql-injection"
 ---
+
 # SQL Injection
 
 **SQL Injection** (**SQLI**) es una técnica de ataque utilizada para explotar vulnerabilidades en aplicaciones web que **no validan adecuadamente** la entrada del usuario en la consulta SQL que se envía a la base de datos. Los atacantes pueden utilizar esta técnica para ejecutar consultas SQL maliciosas y obtener información confidencial, como nombres de usuario, contraseñas y otra información almacenada en la base de datos — o, con las condiciones adecuadas, para RCE, lectura/escritura de ficheros y control total del SGBD.

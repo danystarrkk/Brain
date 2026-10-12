@@ -1,21 +1,10 @@
 ---
-aliases: ["Bash Debugging", "ShellCheck Guía", "Buenas Prácticas Bash", "Strict Mode Bash"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Funciones y Scope]]"
-  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
-  - "[[Bash Scripting - Procesos y Señales]]"
-  - "[[Bash Scripting - Patrones Comunes y Plantillas]]"
-  - "[[Node JS]]"
-  - "[[Python - Fundamentos y Sintaxis]]"
-fuente: "https://www.shellcheck.net/"
 ---
 
 # Bash Scripting - Debugging, Buenas Prácticas y ShellCheck

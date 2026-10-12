@@ -1,17 +1,10 @@
 ---
-aliases: ["Lo Básico", "Tailwind Básico"]
 tags:
-  - dev/frontend/tailwind
+  - desarrollo
+  - frontend
+  - tailwindcss
 tipo: concepto
 estado: terminado
-creado: 2026-06-03
-actualizado: 2026-10-11
-relacionado:
-  - "[[TailwindCSS - Instalación y Configuración]]"
-  - "[[Especificidad]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-fuente: "https://tailwindcss.com/docs"
 ---
 
 # TailwindCSS - Sintaxis Básica

@@ -1,22 +1,10 @@
 ---
-aliases:
-  - LFI
-  - Local File Inclusion
 tags:
-  - sec/web
-  - sec/web/rce
+  - ciberseguridad
+  - web
+  - local-inclusion
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Path Traversal]]"
-  - "[[Log Poisoning]]"
-  - "[[Abuso de Subida de Archivos]]"
-  - "[[Remote File Inclusion RFI]]"
-  - "[[OS Command Injection]]"
-  - "[[XML External Entity Injection]]"
-fuente: "https://portswigger.net/web-security/file-inclusion"
 ---
 
 # Local File Inclusion (LFI)

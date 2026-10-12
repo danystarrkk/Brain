@@ -1,19 +1,10 @@
 ---
-aliases: ["Unidades absolutas", "Medidas px, em y rem", "Unidades CSS", "Funciones math CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Medidas Relativas]]"
-  - "[[Box Model]]"
-  - "[[Responsive Web Design]]"
-  - "[[Fuentes Externas]]"
-  - "[[Especificidad]]"
-  - "[[CSS Grid]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/length"
 ---
 
 # Medidas CSS

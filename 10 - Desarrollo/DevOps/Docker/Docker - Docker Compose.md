@@ -1,21 +1,10 @@
 ---
-aliases: ["Docker Compose", "compose.yaml", "Orquestación con Compose"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Docker - Redes y Volúmenes]]"
-  - "[[Docker - Dockerfile y Construcción de Imágenes]]"
-  - "[[Docker - Buenas Prácticas y Seguridad]]"
-  - "[[Docker - Laboratorios y Vulhub]]"
-  - "[[ReactJS - Vite]]"
-  - "[[Node JS]]"
-fuente: "https://docs.docker.com/reference/compose/"
 ---
 
 # Docker - Docker Compose

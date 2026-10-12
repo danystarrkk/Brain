@@ -1,19 +1,10 @@
 ---
-aliases: ["JWT", "JSON Web Tokens"]
 tags:
-  - sec/web
-  - sec/web/auth
+  - ciberseguridad
+  - web
+  - json-bypass
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gestión de Autenticación]]"
-  - "[[Inyección NoSQL]]"
-  - "[[Path Traversal]]"
-  - "[[Vulnerabilidades OAuth en PortSwigger Labs]]"
-  - "[[Session Puzzling Session Fixation y Session Variable Overloading]]"
-fuente: "https://portswigger.net/web-security/jwt"
 ---
 
 # JSON Web Tokens: Explotación y Bypass

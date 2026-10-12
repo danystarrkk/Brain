@@ -1,20 +1,10 @@
 ---
-aliases: ["Módulos Python", "Paquetes Python", "Distribución Python", "pyproject Python"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Librerías Estándar Esenciales]]"
-  - "[[Python - Testing, Calidad y Herramientas]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python Library Hijacking]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-fuente: "https://docs.python.org/es/3/tutorial/modules.html"
 ---
 
 # Python - Módulos, Paquetes y Distribución

@@ -1,21 +1,10 @@
 ---
-aliases: ["Imágenes de fondo", "Background images", "Imágenes desde CSS"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Background]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[Lazy Loading]]"
-  - "[[Degradados en CSS]]"
-  - "[[Box Model]]"
-  - "[[Fuentes Externas]]"
-  - "[[Animaciones]]"
-  - "[[Efectos de Scroll]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/background-image"
 ---
 
 # Imágenes CSS

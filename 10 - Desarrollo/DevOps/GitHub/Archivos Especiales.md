@@ -1,20 +1,10 @@
 ---
-aliases: ["Archivos Especiales de Git", "gitignore", "gitattributes", "Git Internals Files"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - archivos-especiales
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración Inicial]]"
-  - "[[Comandos Git]]"
-  - "[[Ramas]]"
-  - "[[Qué es Git]]"
-  - "[[Node JS]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Docker - Docker Compose]]"
-fuente: "https://git-scm.com/docs/gitignore"
 ---
 
 # Archivos Especiales

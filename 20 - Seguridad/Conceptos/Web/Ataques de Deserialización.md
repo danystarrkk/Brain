@@ -1,20 +1,10 @@
 ---
-aliases: ["Deserialización", "Deserialization Attacks", "Insecure Deserialization"]
 tags:
-  - sec/web
-  - sec/web/deserializacion
+  - ciberseguridad
+  - web
+  - deserializacion
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ataque de Deserialización Pickle]]"
-  - "[[Ataque de Deserialización Yaml]]"
-  - "[[Prototype Pollution]]"
-  - "[[Ataque de Type Juggling]]"
-  - "[[XML External Entity Injection]]"
-  - "[[Server-Side Template Injection (SSTI)]]"
-fuente: "https://portswigger.net/web-security/deserialization"
 ---
 
 # Ataques de Deserialización

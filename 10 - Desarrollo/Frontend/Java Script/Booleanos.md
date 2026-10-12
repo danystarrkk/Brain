@@ -1,19 +1,10 @@
 ---
-aliases: ["Booleans", "Booleanos en JavaScript"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - booleanos
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Estructuras de Control]]"
-  - "[[Operadores]]"
-  - "[[Funciones]]"
-  - "[[Números]]"
-  - "[[Strings]]"
-  - "[[Objetos]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/Boolean"
 ---
 
 # Booleanos

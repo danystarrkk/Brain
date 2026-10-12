@@ -1,20 +1,10 @@
 ---
-aliases: ["Objetos", "Objetos en JavaScript", "Object"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - objetos
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Java Script]]"
-  - "[[Funciones]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Iteradores]]"
-  - "[[Formato Json]]"
-  - "[[Arreglos]]"
-  - "[[Strings]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/Object"
 ---
 
 # Objetos

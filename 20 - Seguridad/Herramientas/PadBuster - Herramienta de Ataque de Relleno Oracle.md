@@ -1,18 +1,10 @@
 ---
-aliases: ["PadBuster", "padbuster", "Padding Oracle"]
 tags:
-  - tool/padbuster
+  - ciberseguridad
+  - herramientas
+  - padbuster
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ataque de Oráculo de Relleno]]"
-  - "[[OpenSSL Comandos Principales]]"
-  - "[[WFuzz]]"
-  - "[[Gobuster]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/GDSSecurity/PadBuster"
 ---
 
 # PadBuster

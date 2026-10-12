@@ -1,21 +1,10 @@
 ---
-aliases: ["GraphQL Introspection", "GraphQL Mutations", "GraphQL IDOR", "GraphQL"]
 tags:
-  - sec/web
-  - sec/web/api
-  - sec/web/idor
+  - ciberseguridad
+  - web
+  - idor
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[Abuso de APIs]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://portswigger.net/web-security/graphql"
 ---
 
 # GraphQL: Introspección y Mutaciones en Ataques IDOR

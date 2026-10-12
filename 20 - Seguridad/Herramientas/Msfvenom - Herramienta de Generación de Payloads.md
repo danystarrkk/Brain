@@ -1,18 +1,10 @@
 ---
-aliases: ["Msfvenom", "Payload Generation", "msfvenom", "Generación de Payloads"]
 tags:
-  - tool/msfvenom
+  - ciberseguridad
+  - herramientas
+  - msfvenom
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[THC Hydra]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Ghidra - Reverse Engineering Tool]]"
-fuente: "https://github.com/rapid7/metasploit-framework"
 ---
 
 # Msfvenom

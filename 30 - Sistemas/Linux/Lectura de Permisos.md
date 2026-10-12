@@ -1,31 +1,10 @@
 ---
-aliases:
-  - Permisos Linux
-  - chmod
-  - chown
-  - chattr
-  - lsattr
-  - SUID
-  - SGID
-  - Sticky Bit
-  - Capabilities
-  - ACL Linux
-  - umask
 tags:
-  - sys/linux
+  - sistemas
+  - linux
+  - permisos
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Linux Capabilities]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Comandos, Rutas y Operadores de Linux]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Búsquedas a nivel de sistema]]"
-fuente: "https://man7.org/linux/man-pages/man7/chmod.7.html"
 ---
 
 # Lectura de Permisos

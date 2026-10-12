@@ -1,19 +1,10 @@
 ---
-aliases: ["Path Traversal", "Directory Traversal", "PortSwigger File Path Traversal"]
 tags:
-  - sec/web
-  - sec/web/traversal
+  - ciberseguridad
+  - web
+  - path-traversal
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Local File Inclusion]]"
-  - "[[Log Poisoning]]"
-  - "[[Abuso de Subida de Archivos]]"
-  - "[[Insecure Direct Object References IDOR]]"
-  - "[[OS Command Injection]]"
-fuente: "https://portswigger.net/web-security/file-path-traversal"
 ---
 
 # Path Traversal

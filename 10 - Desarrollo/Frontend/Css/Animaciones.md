@@ -1,19 +1,10 @@
 ---
-aliases: ["@keyframes", "Animaciones CSS", "Crea animaciones"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - animaciones
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Efectos de Scroll]]"
-  - "[[Degradados en CSS]]"
-  - "[[Colores CSS]]"
-  - "[[Sombras CSS]]"
-  - "[[Tipos de Posiciones]]"
-  - "[[Especificidad]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/@keyframes"
 ---
 
 # Animaciones

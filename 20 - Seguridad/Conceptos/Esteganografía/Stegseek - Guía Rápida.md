@@ -1,20 +1,10 @@
 ---
-aliases:
-  - Stegseek
-  - Cracker de Steghide
-  - Fuerza Bruta Steghide
 tags:
-  - sec/stego
+  - ciberseguridad
+  - esteganografia
+  - stegseek
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Steghide - Uso Avanzado]]"
-  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
-  - "[[Estegoanálisis - Detección y ContraMedidas]]"
-  - "[[Zsteg - Análisis LSB PNG]]"
-fuente: "https://github.com/RickdeJager/stegseek"
 ---
 
 # Stegseek — Guía Rápida

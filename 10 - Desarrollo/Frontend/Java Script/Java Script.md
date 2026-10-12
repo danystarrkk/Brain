@@ -1,20 +1,10 @@
 ---
-aliases: ["Cómo se ejecuta JavaScript", "Etiqueta script", "Qué es JavaScript", "ECMAScript"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - java-script
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Document Object Model (DOM)]]"
-  - "[[Acceder a Html]]"
-  - "[[La Consola]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Node JS]]"
-  - "[[Qué es una API]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript"
 ---
 
 # Java Script

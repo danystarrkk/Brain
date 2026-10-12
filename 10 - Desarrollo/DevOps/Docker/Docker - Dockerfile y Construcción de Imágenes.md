@@ -1,20 +1,10 @@
 ---
-aliases: ["Dockerfile", "Construcción de imágenes", "Build de imágenes Docker"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Docker - Buenas Prácticas y Seguridad]]"
-  - "[[Docker - Comandos de Referencia Rápida]]"
-  - "[[Docker - Docker Compose]]"
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Node JS]]"
-fuente: "https://docs.docker.com/reference/dockerfile/"
 ---
 
 # Docker - Dockerfile y Construcción de Imágenes

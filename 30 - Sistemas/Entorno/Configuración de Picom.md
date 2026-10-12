@@ -1,22 +1,10 @@
 ---
-aliases:
-  - Picom Configuration
-  - Configurar Picom
-  - Compositor X11
 tags:
-  - sys/entorno
-  - linux/customizacion
+  - sistemas
+  - entorno
+  - picom
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Instalación de Polybar y Picom]]"
-  - "[[Configuración de Polybar]]"
-  - "[[Instalación y Configuración de Blue Sky Polybar]]"
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-fuente: "https://github.com/yshui/picom"
 ---
 
 # Configuración de Picom

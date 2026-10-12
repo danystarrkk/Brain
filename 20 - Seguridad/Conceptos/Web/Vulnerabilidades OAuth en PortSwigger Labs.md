@@ -1,24 +1,10 @@
 ---
-aliases:
-  - OAuth Bypass
-  - OAuth Vulnerabilidades
-  - PortSwigger OAuth Labs
-  - OAuth 2.0
 tags:
-  - sec/web
-  - sec/web/oauth
+  - ciberseguridad
+  - web
+  - oauth-labs
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gestión de Autenticación]]"
-  - "[[Vulnerabilidad de Redirección Abierta]]"
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Abuso de APIs]]"
-fuente: "https://portswigger.net/web-security/oauth"
 ---
 
 # Vulnerabilidades OAuth

@@ -1,27 +1,12 @@
 ---
-aliases:
-  - LDAP Injection
-  - Inyección LDAP
 tags:
-  - sec/web
-  - sec/web/injection
-  - sec/web/auth
-  - hacking/laboratorios
-  - scripting/python
-  - linux/comandos
-  - redes/protocolos
+  - ciberseguridad
+  - web
+  - ldap
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SQL Injection]]"
-  - "[[Inyección NoSQL]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://portswigger.net/web-security/ldap-injection"
 ---
+
 # Inyecciones LDAP (Protocolo Ligero de Acceso a Directorios)
 
 Las inyecciones **LDAP** (**Protocolo Ligero de Acceso a Directorios**) son un tipo de ataque en el que se aprovechan las vulnerabilidades en las aplicaciones web que interactúan con un servidor LDAP. El servidor LDAP es un servicio de directorio que se utiliza para almacenar y organizar información de usuarios, grupos y recursos en una red, facilitando su acceso y gestión.

@@ -1,19 +1,10 @@
 ---
-aliases: ["ES2015", "ES6", "JavaScript moderno", "Sintaxis ES6+"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - sintaxis-moderna
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Java Script]]"
-  - "[[Sintaxis Antigua]]"
-  - "[[Funciones]]"
-  - "[[Iteradores]]"
-  - "[[Objetos]]"
-  - "[[Operadores]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment"
 ---
 
 # Sintaxis Moderna

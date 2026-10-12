@@ -1,19 +1,10 @@
 ---
-aliases: ["Droopscan", "droopescan", "Drupscan", "Escáner Drupal"]
-tags: [tool/droopescan]
+tags:
+  - ciberseguridad
+  - herramientas
+  - droopscan
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[WPScan]]"
-  - "[[JoomScan Herramienta de Escaneo]]"
-  - "[[Tabla de Opciones Principales de MageScan]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-  - "[[Gobuster]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/droope/droopescan"
 ---
 
 # Droopscan (droopescan): Escáner de Seguridad para Drupal y CMS

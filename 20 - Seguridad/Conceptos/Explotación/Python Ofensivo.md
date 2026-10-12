@@ -1,21 +1,10 @@
 ---
-aliases: [Hacking Ofensivo, Desarrollo de Herramientas Ofensivas]
 tags:
-  - sec/exploit
-  - hacking/reconocimiento
-  - programacion/python
+  - ciberseguridad
+  - explotacion
+  - python-ofensivo
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Introducción a la Explotación de Vulnerabilidades]]"
-  - "[[Python - Fundamentos y Sintaxis]]"
-  - "[[Python - Redes y HTTP]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://docs.python.org/3/library/socket.html"
 ---
 
 # Python Ofensivo

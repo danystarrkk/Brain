@@ -1,17 +1,10 @@
 ---
-aliases: ["Etiquetas HTML", "Tags HTML"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - etiquetas
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Estructurar Html]]"
-  - "[[Formularios]]"
-  - "[[Formatos Avif y Webp]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML/Element"
 ---
 
 # Etiquetas en HTML

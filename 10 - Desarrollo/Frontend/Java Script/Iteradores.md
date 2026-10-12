@@ -1,19 +1,10 @@
 ---
-aliases: ["Bucles", "Loops", "Ciclos en JavaScript", "for", "forEach"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - iteradores
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Arreglos]]"
-  - "[[Funciones]]"
-  - "[[Array Methods]]"
-  - "[[Objetos]]"
-  - "[[Estructuras de Control]]"
-  - "[[Sintaxis Moderna]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Statements/for"
 ---
 
 # Iteradores

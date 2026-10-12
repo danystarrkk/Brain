@@ -1,24 +1,12 @@
 ---
-aliases:
-  - SSRF
-  - Server-Side Request Forgery
 tags:
-  - sec/web
-  - sec/web/ssrf
-  - sec/redes
+  - ciberseguridad
+  - web
+  - server-side-ssrf
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[HTTP Host header attacks]]"
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Vulnerabilidad de Redirección Abierta]]"
-  - "[[Remote File Inclusion RFI]]"
-  - "[[Abuso de APIs]]"
-  - "[[XML External Entity Injection]]"
-fuente: "https://portswigger.net/web-security/ssrf"
 ---
+
 # Server-Side Request Forgery (SSRF)
 
 El **Server-Side Request Forgery** (**SSRF**) es una vulnerabilidad en la que un atacante **fuerza al servidor a realizar peticiones de red en su nombre**, controlando la URL o parte de ella. Como la petición nace *dentro* de la red del servidor (loopback, red interna, servicios cloud), el atacante obtiene un **proxy de red privilegiado**: alcanza hosts inalcanzables desde Internet, lee el metadata de la nube, habla con servicios que confían en el origen local y, en el mejor de los casos, encadena a RCE.

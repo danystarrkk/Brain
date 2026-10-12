@@ -1,20 +1,10 @@
 ---
-aliases: ["Cuando usar Grid o Flexbox", "Grid vs Flexbox"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - grid-flexbox
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Responsive Web Design]]"
-  - "[[Tipos de Display]]"
-  - "[[Box Model]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-  - "[[Estilos para escribir CSS]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/CSS_flexible_box_layout"
 ---
 
 # Cuando usar GRID o Flexbox

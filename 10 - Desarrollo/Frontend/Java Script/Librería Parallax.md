@@ -1,17 +1,10 @@
 ---
-aliases: ["Parallax", "parallax.js", "Efecto parallax", "Efecto de profundidad"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - libreria-parallax
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Librería GSAP]]"
-  - "[[Html]]"
-  - "[[Archivos SVG]]"
-  - "[[Animaciones]]"
-fuente: "https://github.com/wagerfield/parallax"
 ---
 
 # Librería Parallax

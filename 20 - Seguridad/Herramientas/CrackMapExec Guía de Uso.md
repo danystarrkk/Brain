@@ -1,18 +1,10 @@
 ---
-aliases: ["CrackMapExec", "CME", "NetExec", "nxc", "cme"]
-tags: [tool/crackmapexec]
+tags:
+  - ciberseguridad
+  - herramientas
+  - crackmapexec
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SMBMap]]"
-  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
-  - "[[THC Hydra]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Enumeración de Servicios y CMS]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://github.com/Pennyw0rth/NetExec"
 ---
 
 # CrackMapExec: La Navaja Suiza para Pentesting de Active Directory

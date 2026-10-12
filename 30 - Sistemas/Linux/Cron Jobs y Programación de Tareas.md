@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Cron Jobs
-  - Tareas Programadas
-  - Crontab
-  - systemd timers
-  - Anacron
 tags:
-  - sys/linux
+  - sistemas
+  - linux
+  - cron-tareas
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Detección y Explotación de Tareas Cron]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Comandos, Rutas y Operadores de Linux]]"
-fuente: "https://man7.org/linux/man-pages/man5/crontab.5.html"
 ---
 
 # Cron Jobs y Programación de Tareas

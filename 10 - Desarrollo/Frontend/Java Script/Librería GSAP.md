@@ -1,17 +1,10 @@
 ---
-aliases: ["GSAP", "GreenSock", "GreenSock Animation Platform", "ScrollTrigger"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - gsap
 tipo: concepto
 estado: terminado
-creado: 2025-01-27
-actualizado: 2026-10-11
-relacionado:
-  - "[[Librería Parallax]]"
-  - "[[Java Script]]"
-  - "[[Eventos]]"
-  - "[[Animaciones]]"
-fuente: "https://gsap.com/docs/v3/"
 ---
 
 # Librería GSAP

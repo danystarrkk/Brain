@@ -1,24 +1,10 @@
 ---
-aliases:
-  - Wireshark
-  - Tshark
-  - Analizador de protocolos
-  - Captura de red
-  - Análisis de tráfico
-tags: [tool/wireshark]
+tags:
+  - ciberseguridad
+  - herramientas
+  - wireshark-tshark
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Tshark]]"
-  - "[[Tcpreplay]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[CrackMapExec Guía de Uso]]"
-  - "[[smbclient Cliente de Línea de Comandos para SMBCIFS]]"
-  - "[[THC Hydra]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://www.wireshark.org/docs/"
 ---
 
 # Wireshark y Tshark: Dominio del Análisis de Tráfico

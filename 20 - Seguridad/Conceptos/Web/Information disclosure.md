@@ -1,22 +1,10 @@
 ---
-aliases: ["Divulgación de Información", "Information Disclosure", "PortSwigger Labs"]
 tags:
-  - sec/web
-  - sec/web/recon
-  - sec/web/info-disclosure
+  - ciberseguridad
+  - web
+  - information-disclosure
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Path Traversal]]"
-  - "[[Local File Inclusion]]"
-  - "[[Labs - Control de Acceso]]"
-  - "[[Gestión de Autenticación]]"
-  - "[[Creación de Informes en LaTeX]]"
-fuente: "https://portswigger.net/web-security/information-disclosure"
 ---
 
 # Information Disclosure

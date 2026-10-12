@@ -1,21 +1,10 @@
 ---
-aliases:
-  - Shellshock
-  - Bash Vulnerability
-  - CVE-2014-6271
 tags:
-  - sec/web
-  - sec/linux
+  - ciberseguridad
+  - web
+  - shellshock-bash
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[OS Command Injection]]"
-  - "[[Server-Side Request Forgery (SSRF)]]"
-  - "[[Log Poisoning]]"
-  - "[[Information disclosure]]"
-fuente: "https://nvd.nist.gov/vuln/detail/CVE-2014-6271"
 ---
 
 # Shellshock: Vulnerabilidad en Bash

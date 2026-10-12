@@ -1,20 +1,10 @@
 ---
-aliases: ["Bash Control de Flujo", "If Case Loops Bash", "Condicionales y Bucles en Bash"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Funciones y Scope]]"
-  - "[[Bash Scripting - Manipulación de Cadenas y Arrays Avanzados]]"
-  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
-  - "[[Bash Scripting - Procesos y Señales]]"
-  - "[[Bash Scripting - Aritmética y Números Aleatorios]]"
-  - "[[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html#Conditional-Constructs"
 ---
 
 # Bash Scripting - Control de Flujo

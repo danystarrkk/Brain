@@ -1,27 +1,10 @@
 ---
-aliases:
-  - Enumeración de Servicios
-  - Enumeración de CMS
-  - Service Fingerprinting
-  - Fingerprinting de Versiones
 tags:
-  - sec/recon
-  - hacking/explotacion
-  - hacking/herramientas
-  - redes/protocolos
+  - ciberseguridad
+  - reconocimiento
+  - cms
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[WPScan]]"
-  - "[[Droopscan]]"
-  - "[[JoomScan Herramienta de Escaneo]]"
-  - "[[Gobuster]]"
-  - "[[WhatWeb Herramienta de Fingerprinting]]"
-fuente: "https://nmap.org/book/man-version-detection.html"
 ---
 
 # Enumeración de Servicios y CMS

@@ -1,17 +1,10 @@
 ---
-aliases: ["MDK3", "MDK3 WiFi", "mdk3"]
 tags:
-  - tool/mdk3
+  - ciberseguridad
+  - herramientas
+  - mdk3-inalambrica
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Hacking WiFi Fundamentos y Ataques]]"
-  - "[[Aircrack-ng Suite de Herramientas]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-fuente: "https://www.aircrack-ng.org/"
 ---
 
 # MDK3

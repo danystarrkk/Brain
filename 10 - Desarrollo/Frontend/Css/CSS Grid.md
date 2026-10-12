@@ -1,21 +1,10 @@
 ---
-aliases: ["Css Grid", "Grid CSS", "CSS grid layout"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - css-grid
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Flexbox]]"
-  - "[[Cuando usar GRID o Flexbox]]"
-  - "[[Medidas Relativas]]"
-  - "[[Responsive Web Design]]"
-  - "[[Box Model]]"
-  - "[[Tipos de Display]]"
-  - "[[Animaciones]]"
-  - "[[TailwindCSS - Sintaxis Básica]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/CSS_grid_layout"
 ---
 
 # CSS Grid

@@ -1,20 +1,10 @@
 ---
-aliases:
-  - Vim
-  - nvim
-  - Editor de texto Vim
 tags:
-  - sys/entorno
-  - linux/comandos
+  - sistemas
+  - entorno
+  - vim
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-fuente: "https://vim.rtorr.com/"
 ---
 
 # Vim: Comandos Esenciales para la Edición Rápida

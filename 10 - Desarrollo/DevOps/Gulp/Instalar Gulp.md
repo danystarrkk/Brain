@@ -1,17 +1,10 @@
 ---
-aliases: ["Instalar Gulp", "Setup de Gulp", "Configurar Gulp"]
 tags:
-  - devops/gulp
+  - desarrollo
+  - devops
+  - instalar-gulp
 tipo: concepto
 estado: terminado
-creado: 2024-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gulp]]"
-  - "[[GulpFile Completo]]"
-  - "[[Compilar Sass]]"
-  - "[[Node JS]]"
-fuente: "https://gulpjs.com/docs/en/getting-started/quick-start"
 ---
 
 # Instalar Gulp

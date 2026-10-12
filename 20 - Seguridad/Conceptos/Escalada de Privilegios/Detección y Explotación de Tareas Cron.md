@@ -1,25 +1,10 @@
 ---
-aliases:
-  - Cron Jobs
-  - Explotación de Cron
-  - Pspy
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - deteccion-cron
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cron Jobs y Programación de Tareas]]"
-  - "[[PATH Hijacking]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Abuso de Privilegios Sudoers]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/privilege-escalation-by-cron-job-injection.html"
 ---
 
 # Detección y Explotación de Tareas Cron

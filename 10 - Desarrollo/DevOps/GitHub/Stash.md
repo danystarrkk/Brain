@@ -1,18 +1,10 @@
 ---
-aliases: ["Git Stash", "Stash", "Almacenamiento Temporal de Cambios"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - stash
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ramas]]"
-  - "[[Comandos Git]]"
-  - "[[Rebase]]"
-  - "[[Qué es Git]]"
-  - "[[Configuración Inicial]]"
-fuente: "https://git-scm.com/docs/git-stash"
 ---
 
 # Stash

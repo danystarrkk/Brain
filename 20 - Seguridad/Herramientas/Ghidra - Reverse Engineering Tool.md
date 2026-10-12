@@ -1,17 +1,10 @@
 ---
-aliases: ["Ghidra", "Reverse Engineering", "Ingeniería Inversa", "Decompilador", "Ghidra Headless"]
-tags: [tool/ghidra]
+tags:
+  - ciberseguridad
+  - herramientas
+  - ghidra
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[GHex Editor Hexadecimal]]"
-  - "[[Elevación de Privilegios mediante Explotación de Binarios]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[Msfvenom - Herramienta de Generación de Payloads]]"
-  - "[[Introducción a la Explotación de Vulnerabilidades]]"
-fuente: "https://ghidra-sre.org/"
 ---
 
 # Ghidra: Herramienta de Ingeniería Inversa

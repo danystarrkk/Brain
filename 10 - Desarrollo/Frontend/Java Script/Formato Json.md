@@ -1,18 +1,10 @@
 ---
-aliases: ["JSON", "JavaScript Object Notation"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - formato-json
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es una API]]"
-  - "[[Objetos]]"
-  - "[[Acceder a Html]]"
-  - "[[Node JS]]"
-  - "[[Sintaxis Moderna]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/JSON"
 ---
 
 # Formato JSON

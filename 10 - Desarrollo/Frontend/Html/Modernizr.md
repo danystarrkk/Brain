@@ -1,18 +1,10 @@
 ---
-aliases: ["Feature Detection", "Detección de features"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - modernizr
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Html]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[CSS Introducción]]"
-  - "[[Java Script]]"
-  - "[[Document Object Model (DOM)]]"
-fuente: "https://modernizr.com/"
 ---
 
 # Modernizr

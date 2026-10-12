@@ -1,18 +1,10 @@
 ---
-aliases: ["masscan", "Mass IP Port Scanner", "Escáner de Puertos Masivo"]
-tags: [tool/masscan]
+tags:
+  - ciberseguridad
+  - herramientas
+  - masscan
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Nmap Guía Completa]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[SSLScan]]"
-  - "[[netdiscover]]"
-fuente: "https://github.com/robertdavidgraham/masscan"
 ---
 
 # Masscan: Escáner de Puertos a Altísima Velocidad

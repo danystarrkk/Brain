@@ -1,18 +1,10 @@
 ---
-aliases: ["Partials Sass", "Módulos Sass", "Separar Sass"]
 tags:
-  - dev/frontend/scss
+  - desarrollo
+  - frontend
+  - separar-archivos
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es Sass]]"
-  - "[[Mixins]]"
-  - "[[Sintaxis de Sass]]"
-  - "[[Compilar Sass]]"
-  - "[[Node JS]]"
-fuente: "https://sass-lang.com/documentation/at-rules/use/"
 ---
 
 # Separar Sass en Archivos

@@ -1,21 +1,10 @@
 ---
-aliases: ["Cheatsheet Docker", "Referencia rápida Docker", "Comandos Docker"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Docker - Dockerfile y Construcción de Imágenes]]"
-  - "[[Docker - Redes y Volúmenes]]"
-  - "[[Docker - Docker Compose]]"
-  - "[[Docker - Buenas Prácticas y Seguridad]]"
-  - "[[Comandos Git]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://docs.docker.com/reference/cli/docker/"
 ---
 
 # Docker - Comandos de Referencia Rápida

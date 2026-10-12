@@ -1,23 +1,12 @@
 ---
-aliases:
-  - HTTP Smuggling
-  - Request Smuggling
 tags:
-  - sec/web
-  - sec/web/smuggling
-  - sec/redes
+  - ciberseguridad
+  - web
+  - http-smuggling
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Envenenamiento de Caché Web]]"
-  - "[[Web cache deception]]"
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[HTTP Host header attacks]]"
-  - "[[Gestión de Autenticación]]"
-fuente: "https://portswigger.net/web-security/request-smuggling"
 ---
+
 # Vulnerabilidades de HTTP Request Smuggling
 
 Las vulnerabilidades de HTTP Request Smuggling ocurren cuando **el inicio y el fin de una solicitud HTTP son interpretados de manera diferente por el front-end y el back-end** de una aplicación. Un atacante contrabandea (*smuggle*) una segunda solicitud dentro de la primera: el front-end cree que envía una, el back-end procesa dos. De ahí nacen bypass de controles, robo de peticiones de otros usuarios, envenenamiento de caché y XSS persistente.

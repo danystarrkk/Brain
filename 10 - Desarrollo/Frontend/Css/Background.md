@@ -1,19 +1,10 @@
 ---
-aliases: ["Background position", "Fondos en CSS", "Propiedades de background"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - background
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Degradados en CSS]]"
-  - "[[Imágenes CSS]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[Box Model]]"
-  - "[[Colores CSS]]"
-  - "[[Animaciones]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/CSS/background-position"
 ---
 
 # Background

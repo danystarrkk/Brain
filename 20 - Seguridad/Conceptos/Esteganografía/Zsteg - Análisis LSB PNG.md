@@ -1,21 +1,10 @@
 ---
-aliases:
-  - Zsteg
-  - zsteg
-  - Análisis LSB PNG
-  - Extracción LSB
 tags:
-  - sec/stego
+  - ciberseguridad
+  - esteganografia
+  - zsteg
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Esteganografía - Conceptos, Herramientas y Práctica]]"
-  - "[[Estegoanálisis - Detección y ContraMedidas]]"
-  - "[[Steghide - Uso Avanzado]]"
-  - "[[Stegseek - Guía Rápida]]"
-fuente: "https://github.com/zed-0xff/zsteg"
 ---
 
 # Zsteg — Análisis LSB en PNG/BMP

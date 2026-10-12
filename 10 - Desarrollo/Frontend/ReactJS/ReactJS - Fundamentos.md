@@ -1,19 +1,10 @@
 ---
-aliases: ["Esenciales", "Esenciales2", "React Fundamentos", "ReactJSX"]
 tags:
-  - dev/frontend/react
+  - desarrollo
+  - frontend
+  - reactjs
 tipo: concepto
 estado: terminado
-creado: 2026-03-21
-actualizado: 2026-10-11
-relacionado:
-  - "[[ReactJS - Efectos (useEffect)]]"
-  - "[[ReactJS - Vite]]"
-  - "[[Sintaxis Moderna]]"
-  - "[[Funciones]]"
-  - "[[Arreglos]]"
-  - "[[Document Object Model (DOM)]]"
-fuente: "https://react.dev/learn"
 ---
 
 # ReactJS - Fundamentos

@@ -1,21 +1,10 @@
 ---
-aliases: ["Box Model", "Modelo de caja", "box-sizing"]
 tags:
-  - dev/frontend/css
+  - desarrollo
+  - frontend
+  - box-model
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Medidas CSS]]"
-  - "[[Medidas Relativas]]"
-  - "[[Tipos de Display]]"
-  - "[[Especificidad]]"
-  - "[[Flexbox]]"
-  - "[[CSS Grid]]"
-  - "[[Sombras CSS]]"
-  - "[[Tipos de Posiciones]]"
-fuente: "https://developer.mozilla.org/es/docs/Learn_web_development/Core/Styling_basics/Box_model"
 ---
 
 # Box Model

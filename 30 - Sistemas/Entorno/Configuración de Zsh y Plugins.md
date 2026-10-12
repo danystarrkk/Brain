@@ -1,23 +1,10 @@
 ---
-aliases:
-  - Zsh Config
-  - Configuración Zsh
-  - Zsh Plugins
 tags:
-  - sys/entorno
-  - linux/customizacion
+  - sistemas
+  - entorno
+  - zsh-plugins
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Configuración Zsh Batcat Lsd y Burp Suite]]"
-  - "[[Configuración Post-Instalación de Entorno de Escritorio]]"
-  - "[[Configuración de BSPWM y SXHKD]]"
-  - "[[Configuración de Polybar]]"
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://www.zsh.org/docu/releases/zsh-5.9/doc/zshhtml/Startup_002fShutdown-Files.html"
 ---
 
 # Configuración de Zsh y Plugins

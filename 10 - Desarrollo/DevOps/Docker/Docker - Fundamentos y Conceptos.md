@@ -1,20 +1,10 @@
 ---
-aliases: ["Fundamentos Docker", "Qué es un contenedor", "Docker Fundamentos"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Dockerfile y Construcción de Imágenes]]"
-  - "[[Docker - Gestión de Contenedores]]"
-  - "[[Docker - Redes y Volúmenes]]"
-  - "[[Docker - Docker Compose]]"
-  - "[[Docker - Buenas Prácticas y Seguridad]]"
-  - "[[Abuso de Docker para Escalada de Privilegios y Escape de Contenedores]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://docs.docker.com/get-started/"
 ---
 
 # Docker - Fundamentos y Conceptos

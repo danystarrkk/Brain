@@ -1,18 +1,10 @@
 ---
-aliases: ["netdiscover", "Netdiscover", "Descubrimiento ARP"]
 tags:
-  - tool/netdiscover
+  - ciberseguridad
+  - herramientas
+  - netdiscover
 tipo: herramienta
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Wireshark y Tshark]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-fuente: "https://github.com/alexxy/netdiscover"
 ---
 
 # Netdiscover

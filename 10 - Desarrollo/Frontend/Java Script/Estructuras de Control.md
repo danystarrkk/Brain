@@ -1,18 +1,10 @@
 ---
-aliases: ["Control de flujo", "Condicionales en JavaScript", "Switch", "Bucles JavaScript"]
 tags:
-  - dev/frontend/js
+  - desarrollo
+  - frontend
+  - estructuras-control
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Booleanos]]"
-  - "[[Funciones]]"
-  - "[[Iteradores]]"
-  - "[[Operadores]]"
-  - "[[Sintaxis Moderna]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Statements/if...else"
 ---
 
 # Estructuras de Control

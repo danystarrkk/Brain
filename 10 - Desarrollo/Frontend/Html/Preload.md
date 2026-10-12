@@ -1,19 +1,10 @@
 ---
-aliases: ["rel=preload", "Precarga de recursos"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - preload
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Prefetch]]"
-  - "[[Lazy Loading]]"
-  - "[[Formatos Avif y Webp]]"
-  - "[[Etiquetas Meta]]"
-  - "[[Html]]"
-  - "[[Fuentes Externas]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML/Reference/Elements/link"
 ---
 
 # Preload

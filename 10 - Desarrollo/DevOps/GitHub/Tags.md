@@ -1,18 +1,10 @@
 ---
-aliases: ["Git Tags", "Etiquetas en Git", "Tagging"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - tags
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Qué es Git]]"
-  - "[[Comandos Git]]"
-  - "[[Ramas]]"
-  - "[[Rebase]]"
-  - "[[Configuración Inicial]]"
-fuente: "https://git-scm.com/book/en/v2/Git-Basics-Tagging"
 ---
 
 # Tags

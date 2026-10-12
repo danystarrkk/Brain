@@ -1,24 +1,10 @@
 ---
-aliases:
-  - Shared Library Hijacking
-  - DLL Hijacking (Linux)
-  - LD_PRELOAD Attack
-  - Secuestro de .so
 tags:
-  - sec/priv-esc
-  - sec/linux
+  - ciberseguridad
+  - escalada
+  - secuestro-compartidas
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Linux Capabilities]]"
-  - "[[Privilegios SUID en Linux]]"
-  - "[[PATH Hijacking]]"
-  - "[[Vulnerabilidades del Kernel y Escalada de Privilegios]]"
-  - "[[Abuso de Permisos en Linux y LSE]]"
-  - "[[Explotación de Servicios Internos]]"
-fuente: "https://man7.org/linux/man-pages/man8/ld.so.8.html"
 ---
 
 # Secuestro de Bibliotecas Compartidas (Shared Library Hijacking)

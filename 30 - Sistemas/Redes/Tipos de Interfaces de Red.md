@@ -1,29 +1,10 @@
 ---
-aliases:
-  - Interfaces de Red
-  - Loopback
-  - Interfaz Wifi
-  - Interfaz Ethernet
-  - ip link
-  - Bridge Linux
-  - Veth
-  - MTU
 tags:
-  - sys/redes
+  - sistemas
+  - redes
+  - interfaces-red
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Conceptos Fundamentales de Redes]]"
-  - "[[Tipos de IP y Dirección MAC]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Macchanger Herramienta de Modificación MAC]]"
-  - "[[Arp Scan Herramienta de Descubrimiento]]"
-  - "[[netdiscover]]"
-  - "[[Wireshark y Tshark]]"
-fuente: "https://man7.org/linux/man-pages/man8/ip-link.8.html"
 ---
 
 # Tipos de Interfaces de Red

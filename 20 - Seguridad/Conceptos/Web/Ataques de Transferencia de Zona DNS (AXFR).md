@@ -1,19 +1,10 @@
 ---
-aliases: ["AXFR Attack", "DNS Zone Transfer", "Transferencia de Zona DNS", "AXFR"]
 tags:
-  - sec/web
-  - sec/recon
+  - ciberseguridad
+  - web
+  - transferencia-axfr
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Reconocimiento y Escaneo de Redes y Web]]"
-  - "[[Nmap Guía Completa]]"
-  - "[[HTTP Host header attacks]]"
-  - "[[Information disclosure]]"
-  - "[[Enumeración y Explotación de SQUID Proxies]]"
-fuente: "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Testing_for_DNS_Zone_Transfers"
 ---
 
 # Ataques de Transferencia de Zona DNS (AXFR)

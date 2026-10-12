@@ -1,19 +1,10 @@
 ---
-aliases: ["Bash Strings y Arrays", "Manipulación de Cadenas Bash", "Arrays Avanzados Bash", "Parameter Expansion"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Fundamentos Básicos]]"
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Funciones y Scope]]"
-  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
-  - "[[Bash Scripting - Aritmética y Números Aleatorios]]"
-  - "[[Python - Fundamentos y Sintaxis]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html#Shell-Parameter-Expansion"
 ---
 
 # Bash Scripting - Manipulación de Cadenas y Arrays Avanzados

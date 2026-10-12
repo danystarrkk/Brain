@@ -1,20 +1,10 @@
 ---
-aliases: ["Gestión de Contenedores Docker", "docker run", "Ciclo de vida de contenedores"]
 tags:
-  - devops/docker
+  - desarrollo
+  - devops
+  - docker
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Docker - Fundamentos y Conceptos]]"
-  - "[[Docker - Dockerfile y Construcción de Imágenes]]"
-  - "[[Docker - Redes y Volúmenes]]"
-  - "[[Docker - Docker Compose]]"
-  - "[[Docker - Buenas Prácticas y Seguridad]]"
-  - "[[Docker - Comandos de Referencia Rápida]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-fuente: "https://docs.docker.com/engine/reference/run/"
 ---
 
 # Docker - Gestión de Contenedores

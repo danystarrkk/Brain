@@ -1,18 +1,10 @@
 ---
-aliases: ["rel=prefetch", "Prefetching"]
 tags:
-  - dev/frontend/html
+  - desarrollo
+  - frontend
+  - prefetch
 tipo: concepto
 estado: terminado
-creado: 2025-01-24
-actualizado: 2026-10-11
-relacionado:
-  - "[[Preload]]"
-  - "[[Lazy Loading]]"
-  - "[[Html]]"
-  - "[[Etiquetas Meta]]"
-  - "[[Formularios]]"
-fuente: "https://developer.mozilla.org/es/docs/Web/HTML/Attributes/rel/prefetch"
 ---
 
 # Prefetch

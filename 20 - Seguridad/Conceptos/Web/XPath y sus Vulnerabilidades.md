@@ -1,18 +1,10 @@
 ---
-aliases: ["XPath Vulnerabilities", "Inyección XPath", "XPath Injection"]
 tags:
-  - sec/web
-  - sec/web/xpath
+  - ciberseguridad
+  - web
+  - xpath
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[SQL Injection]]"
-  - "[[Inyecciones LDAP]]"
-  - "[[Local File Inclusion]]"
-  - "[[Gestión de Autenticación]]"
-fuente: "https://owasp.org/www-community/attacks/Xpath_Injection"
 ---
 
 # XPath y sus Vulnerabilidades

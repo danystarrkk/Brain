@@ -1,22 +1,10 @@
 ---
-aliases: ["Bash Fundamentos", "Bash Básicos", "Fundamentos de Bash"]
 tags:
-  - dev/backend/bash
+  - desarrollo
+  - backend
+  - bash-scripting
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Bash Scripting - Control de Flujo]]"
-  - "[[Bash Scripting - Funciones y Scope]]"
-  - "[[Bash Scripting - Argumentos y Opciones]]"
-  - "[[Bash Scripting - Entrada-Salida y Redirección]]"
-  - "[[Bash Scripting - Debugging, Buenas Prácticas y ShellCheck]]"
-  - "[[Bash Scripting - Patrones Comunes y Plantillas]]"
-  - "[[Comandos Básicos de Sistema y Red en Linux]]"
-  - "[[Estructura de Directorios de Linux]]"
-  - "[[Shellshock Vulnerabilidad en Bash]]"
-fuente: "https://www.gnu.org/software/bash/manual/bash.html"
 ---
 
 # Bash Scripting - Fundamentos Básicos

@@ -1,21 +1,10 @@
 ---
-aliases: ["Fundamentos Python", "Python Sintaxis", "Python Fundamentos"]
 tags:
-  - dev/backend/python
+  - desarrollo
+  - backend
+  - python
 tipo: concepto
 estado: terminado
-creado: 2024-01-15
-actualizado: 2026-10-11
-relacionado:
-  - "[[Python - Estructuras de Datos]]"
-  - "[[Python - Programación Orientada a Objetos]]"
-  - "[[Python - Manejo de Archivos y Serialización]]"
-  - "[[Python - Módulos, Paquetes y Distribución]]"
-  - "[[Python - Referencia Rápida (Cheatsheet)]]"
-  - "[[Python - Patrones, Buenas Prácticas y Tipado]]"
-  - "[[Python - Concurrencia Threading Multiprocessing Asyncio]]"
-  - "[[Node JS]]"
-fuente: "https://docs.python.org/es/3/reference/index.html"
 ---
 
 # Python - Fundamentos y Sintaxis

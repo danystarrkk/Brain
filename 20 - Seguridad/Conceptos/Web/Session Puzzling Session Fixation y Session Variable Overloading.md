@@ -1,22 +1,10 @@
 ---
-aliases:
-  - Session Puzzling
-  - Session Fixation
-  - Session Variable Overloading
 tags:
-  - sec/web
-  - sec/web/sesiones
+  - ciberseguridad
+  - web
+  - session-overloading
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Gestión de Autenticación]]"
-  - "[[JSON Web Tokens Explotación y Bypass]]"
-  - "[[Cross-Site Request Forgery (CSRF)]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[Cross-Site Scripting XSS]]"
-fuente: "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html"
 ---
 
 # Session Puzzling, Session Fixation y Session Variable Overloading

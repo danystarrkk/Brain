@@ -1,18 +1,10 @@
 ---
-aliases: ["Git Rebase", "Rebase Interactivo", "Rebasing"]
 tags:
-  - devops/git
+  - desarrollo
+  - devops
+  - rebase
 tipo: concepto
 estado: terminado
-creado: 2025-01-25
-actualizado: 2026-10-11
-relacionado:
-  - "[[Ramas]]"
-  - "[[Comandos Git]]"
-  - "[[Qué es Git]]"
-  - "[[Stash]]"
-  - "[[Configuración Inicial]]"
-fuente: "https://git-scm.com/book/en/v2/Git-Branching-Rebasing"
 ---
 
 # Rebase

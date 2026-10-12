@@ -1,19 +1,10 @@
 ---
-aliases: ["Ataque Prototype Pollution", "Prototype Pollution", "PP"]
 tags:
-  - sec/web
-  - sec/web/js
+  - ciberseguridad
+  - web
+  - prototype-pollution
 tipo: concepto
 estado: terminado
-creado: 2026-10-11
-actualizado: 2026-10-11
-relacionado:
-  - "[[Cross-Site Scripting XSS]]"
-  - "[[Ataque de Asignación Masiva]]"
-  - "[[OS Command Injection]]"
-  - "[[Server-Side Template Injection (SSTI)]]"
-  - "[[Abuso de APIs]]"
-fuente: "https://portswigger.net/web-security/prototype-pollution"
 ---
 
 # Ataque Prototype Pollution
