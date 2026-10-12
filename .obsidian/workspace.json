@@ -11,14 +11,10 @@
             "id": "9a894e4332ca6361",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Esteganografía/Estegoanálisis - Detección y ContraMedidas.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "Estegoanálisis - Detección y ContraMedidas"
+              "title": "Nueva pestaña"
             }
           }
         ]
@@ -177,7 +173,6 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "03 - Ciberseguridad y Pentesting/Esteganografía/Estegoanálisis - Detección y ContraMedidas.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
