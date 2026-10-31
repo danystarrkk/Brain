@@ -1,10 +1,13 @@
 [
-  "calendar",
   "file-explorer-note-count",
   "code-styler",
   "broken-links",
   "oz-clear-unused-images",
   "mousewheel-image-zoom",
   "obsidian-excalidraw-plugin",
-  "obsidian-languagetool-plugin"
+  "obsidian-languagetool-plugin",
+  "obsidian-style-settings",
+  "pomodoro-timer",
+  "obsidian-kanban",
+  "iconic"
 ]

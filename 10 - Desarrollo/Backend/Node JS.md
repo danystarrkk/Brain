@@ -280,7 +280,7 @@ process.on("uncaughtException", (err) => {
 
 ## `package.json`: campo por campo
 
-```jsonc
+```json
 {
   "name": "mi-app",              // minúsculas, sin espacios; el identificador del registro
   "version": "1.4.2",            // semver — ver siguiente sección
@@ -316,7 +316,7 @@ Ganchos de lifecycle: `pre<script>`/`post<script>` corren antes/después (`npm t
 
 ### Scripts npm: el "Makefile de JavaScript"
 
-```jsonc
+```json
 {
   "scripts": {
     "dev": "node --watch src/index.js",          // reinicia al guardar (nativo desde 18.11)

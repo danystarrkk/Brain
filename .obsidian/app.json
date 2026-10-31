@@ -1,11 +1,17 @@
 {
-  "readableLineLength": true,
+  "readableLineLength": false,
   "livePreview": true,
   "attachmentFolderPath": "99 - Plantillas y Recursos/Capturas",
   "alwaysUpdateLinks": true,
-  "defaultViewMode": "preview",
+  "defaultViewMode": "source",
   "showInlineTitle": false,
   "strictLineBreaks": true,
-  "vimMode": true,
-  "spellcheck": true
+  "vimMode": false,
+  "spellcheck": true,
+  "autoConvertHtml": false,
+  "promptDelete": false,
+  "spellcheckDictionary": [
+    "esteganografía",
+    "Fuzzing"
+  ]
 }
