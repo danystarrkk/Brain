@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "f7ec04eac62ad4d6",
+        "id": "a776e0c89dc1b2f6",
         "type": "tabs",
         "children": [
           {
-            "id": "90f72f7966ad40d5",
+            "id": "f83629baef5a12a5",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "20 - Seguridad/Writeups/HackmyVM/Influencer.md",
+                "file": "20 - Seguridad/Writeups/TryHackMe/Jackpot.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Influencer"
+              "title": "Jackpot"
             }
           }
         ]
@@ -33,7 +33,7 @@
       {
         "id": "7a87a7a6c218a19a",
         "type": "tabs",
-        "dimension": 75.13711151736746,
+        "dimension": 75.37174721189591,
         "children": [
           {
             "id": "bbf46881b2afb8d9",
@@ -80,12 +80,12 @@
         ]
       },
       {
-        "id": "b1cc85daa9924ffa",
+        "id": "ae66b0ce22c09461",
         "type": "tabs",
-        "dimension": 24.862888482632542,
+        "dimension": 24.62825278810409,
         "children": [
           {
-            "id": "f828b0efb811678a",
+            "id": "7fd13be6dd663686",
             "type": "leaf",
             "state": {
               "type": "timer-view",
@@ -98,7 +98,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 402.421875
+    "width": 296.5
   },
   "right": {
     "id": "434eb642b6660f8f",
@@ -177,7 +177,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "20 - Seguridad/Writeups/HackmyVM/Influencer.md",
+                "file": "20 - Seguridad/Writeups/TryHackMe/Jackpot.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -226,7 +226,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 430.671875
+    "width": 334.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -239,29 +239,32 @@
       "bases:Crear nueva base": false,
       "broken-links:View broken links": false,
       "oz-clear-unused-images:Clear Unused Images": false,
-      "obsidian-excalidraw-plugin:Nuevo Bosquejo": false,
-      "pomodoro-timer:Toggle timer panel": false,
+      "obsidian-excalidraw-plugin:New drawing": false,
       "obsidian-kanban:Create new board": false,
-      "iconic:Abrir libro de reglas": false
+      "iconic:Abrir libro de reglas": false,
+      "pomodoro-timer:Toggle timer panel": false
     }
   },
-  "active": "90f72f7966ad40d5",
+  "active": "a0862d76985e603c",
   "lastOpenFiles": [
+    "20 - Seguridad/Writeups/TryHackMe/Jackpot.md",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107220201.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107220020.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107215846.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107215634.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107215046.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107214927.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107213501.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107213034.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107211725.png",
+    "99 - Plantillas y Recursos/Capturas/Pasted image 20261107211027.png",
+    "20 - Seguridad/Writeups/TryHackMe",
+    "20 - Seguridad/Sin nombre",
+    "20 - Seguridad/Writeups/HackmyVM/Influencer.md",
     "20 - Seguridad/Writeups/HackmyVM/Espo.md",
     "30 - Sistemas/Redes/Configuración de Switches L2 y L3.md",
     "30 - Sistemas/Redes/Configuración de Routers.md",
     "20 - Seguridad/Herramientas/Droopscan.md",
-    "20 - Seguridad/Writeups/HackmyVM/Influencer.md",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261017140628.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140949.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140822.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140739.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140616.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140319.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140231.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016140215.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016135903.png",
-    "99 - Plantillas y Recursos/Capturas/Pasted image 20261016135819.png",
     "odd/tasks/vault-reestructuracion.md",
     "odd/tasks/notas-redes-routers-switches.md",
     "20 - Seguridad/Conceptos/Explotación/Python Ofensivo.md",
@@ -284,15 +287,11 @@
     "copia",
     "30 - Sistemas/Redes/Conceptos Fundamentales de Redes.md",
     "00 - Inbox/Tareas.md",
-    "10 - Desarrollo/Backend/Node JS.md",
-    "03 - Ciberseguridad y Pentesting/Esteganografía/Esteganografía - Conceptos, Herramientas y Práctica.md",
     "Sin nombre",
     "02 - Desarrollo Web y Programación/Python/XXxHQznH",
     "02 - Desarrollo Web y Programación/Python/XXoxBsza",
     "02 - Desarrollo Web y Programación/Python/XXxFHuRz",
     "02 - Desarrollo Web y Programación/Python/XXnQIHXA",
-    "02 - Desarrollo Web y Programación/Python/sed33njIZ",
-    "02 - Desarrollo Web y Programación/Python/XX2uLcA2",
-    "02 - Desarrollo Web y Programación/Bash Scripting/sedPwJL5d"
+    "02 - Desarrollo Web y Programación/Python/sed33njIZ"
   ]
 }
