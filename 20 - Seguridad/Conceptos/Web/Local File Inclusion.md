@@ -139,7 +139,7 @@ Esto lo que ocasiona es que los archivos que se busquen siempre tengan la extens
 
 En versiones anteriores de PHP, específicamente para versiones inferiores a la 5.3.4, es que nosotros al final de la cadena ingresar un `nullbyte (%00)`, el cual provoca que:
 
-![[Pasted image 20250825123154.png]]
+	![[Pasted image 20250825123154.png]]
 
 Como vemos, con el `nullbyte` nos permite pasar. El `nullbyte` en el PHP interactivo se lo pone como `\0`, pero es lo mismo.
 

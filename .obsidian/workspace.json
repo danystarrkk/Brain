@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "20 - Seguridad/Writeups/TryHackMe/Jackpot.md",
+                "file": "30 - Sistemas/Redes/Configuración de Routers.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Jackpot"
+              "title": "Configuración de Routers"
             }
           }
         ]
@@ -56,7 +56,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "python",
+                "query": "LFI",
                 "matchingCase": true,
                 "explainSearch": false,
                 "collapseAll": true,
@@ -177,7 +177,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "20 - Seguridad/Writeups/TryHackMe/Jackpot.md",
+                "file": "30 - Sistemas/Redes/Configuración de Routers.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -245,8 +245,9 @@
       "pomodoro-timer:Toggle timer panel": false
     }
   },
-  "active": "a0862d76985e603c",
+  "active": "f83629baef5a12a5",
   "lastOpenFiles": [
+    "20 - Seguridad/Conceptos/Web/Local File Inclusion.md",
     "20 - Seguridad/Writeups/TryHackMe/Jackpot.md",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20261107220201.png",
     "99 - Plantillas y Recursos/Capturas/Pasted image 20261107220020.png",
